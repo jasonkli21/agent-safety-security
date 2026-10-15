@@ -1,0 +1,156 @@
+{
+  "$defs": {
+    "JsonValue": {},
+    "PrincipalRef": {
+      "additionalProperties": false,
+      "properties": {
+        "principal_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Principal Id",
+          "type": "string"
+        },
+        "principal_type": {
+          "$ref": "#/$defs/PrincipalType"
+        }
+      },
+      "required": [
+        "principal_id",
+        "principal_type"
+      ],
+      "title": "PrincipalRef",
+      "type": "object"
+    },
+    "PrincipalType": {
+      "enum": [
+        "USER",
+        "AGENT",
+        "SERVICE"
+      ],
+      "title": "PrincipalType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Use complete arguments, never a lossy/redacted PolicyRequest summary.",
+  "properties": {
+    "agent_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "arguments": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Arguments",
+      "type": "object"
+    },
+    "capability": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "title": "Capability",
+      "type": "string"
+    },
+    "delegation_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Delegation Id"
+    },
+    "effective_policy_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Effective Policy Hash",
+      "type": "string"
+    },
+    "environment": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Environment",
+      "type": "string"
+    },
+    "principal": {
+      "$ref": "#/$defs/PrincipalRef"
+    },
+    "resource": {
+      "anyOf": [
+        {
+          "maxLength": 8192,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Resource"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "task_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Task Id"
+    },
+    "tool_description_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Tool Description Hash",
+      "type": "string"
+    },
+    "tool_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Tool Id",
+      "type": "string"
+    },
+    "tool_schema_hash": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Tool Schema Hash",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "principal",
+    "agent_id",
+    "environment",
+    "capability",
+    "tool_id",
+    "arguments",
+    "tool_schema_hash",
+    "tool_description_hash",
+    "effective_policy_hash"
+  ],
+  "title": "NormalizedAction",
+  "type": "object"
+}

@@ -1,0 +1,721 @@
+{
+  "$defs": {
+    "AgentIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "environment": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Environment",
+          "type": "string"
+        },
+        "framework": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Framework"
+        },
+        "model_name": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Name"
+        },
+        "model_provider": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Provider"
+        },
+        "name": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "owner": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PrincipalRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "trust_level": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrustClass"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "agent_id",
+        "name",
+        "environment"
+      ],
+      "title": "AgentIdentity",
+      "type": "object"
+    },
+    "ApprovalSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "default_timeout_seconds": {
+          "default": 120,
+          "exclusiveMinimum": 0,
+          "title": "Default Timeout Seconds",
+          "type": "integer"
+        }
+      },
+      "title": "ApprovalSettings",
+      "type": "object"
+    },
+    "Budgets": {
+      "additionalProperties": false,
+      "properties": {
+        "max_cost_usd": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Cost Usd"
+        },
+        "max_delegated_agents": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Delegated Agents"
+        },
+        "max_destructive_calls": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Destructive Calls"
+        },
+        "max_external_writes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max External Writes"
+        },
+        "max_model_calls": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Model Calls"
+        },
+        "max_runtime_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Runtime Seconds"
+        },
+        "max_tool_calls": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Tool Calls"
+        }
+      },
+      "title": "Budgets",
+      "type": "object"
+    },
+    "ContractMetadata": {
+      "additionalProperties": false,
+      "properties": {
+        "contract_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Contract Id",
+          "type": "string"
+        },
+        "contract_version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Contract Version"
+        },
+        "description": {
+          "anyOf": [
+            {
+              "maxLength": 8192,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Description"
+        },
+        "name": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "contract_id",
+        "name"
+      ],
+      "title": "ContractMetadata",
+      "type": "object"
+    },
+    "DataLabel": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "SENSITIVE",
+        "SECRET",
+        "PII",
+        "CREDENTIAL",
+        "UNTRUSTED_CONTENT",
+        "USER_PROVIDED",
+        "TOOL_OUTPUT"
+      ],
+      "title": "DataLabel",
+      "type": "string"
+    },
+    "DataPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DataRule"
+          },
+          "title": "Rules",
+          "type": "array"
+        }
+      },
+      "title": "DataPolicy",
+      "type": "object"
+    },
+    "DataRule": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_capabilities": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 3,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+            "type": "string"
+          },
+          "title": "Allowed Capabilities",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "allowed_destinations": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Allowed Destinations",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "denied_capabilities": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 3,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+            "type": "string"
+          },
+          "title": "Denied Capabilities",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "denied_destinations": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Denied Destinations",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "label": {
+          "$ref": "#/$defs/DataLabel"
+        },
+        "rule_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Rule Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_id",
+        "label"
+      ],
+      "title": "DataRule",
+      "type": "object"
+    },
+    "Environment": {
+      "additionalProperties": false,
+      "properties": {
+        "mode": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Mode",
+          "type": "string"
+        }
+      },
+      "required": [
+        "mode"
+      ],
+      "title": "Environment",
+      "type": "object"
+    },
+    "IdentityBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "acts_on_behalf_of": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PrincipalRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "principal": {
+          "$ref": "#/$defs/PrincipalRef"
+        }
+      },
+      "required": [
+        "principal"
+      ],
+      "title": "IdentityBinding",
+      "type": "object"
+    },
+    "Invariant": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SecurityCategory"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "description": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "description"
+      ],
+      "title": "Invariant",
+      "type": "object"
+    },
+    "PrincipalRef": {
+      "additionalProperties": false,
+      "properties": {
+        "principal_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Principal Id",
+          "type": "string"
+        },
+        "principal_type": {
+          "$ref": "#/$defs/PrincipalType"
+        }
+      },
+      "required": [
+        "principal_id",
+        "principal_type"
+      ],
+      "title": "PrincipalRef",
+      "type": "object"
+    },
+    "PrincipalType": {
+      "enum": [
+        "USER",
+        "AGENT",
+        "SERVICE"
+      ],
+      "title": "PrincipalType",
+      "type": "string"
+    },
+    "RuleDecision": {
+      "enum": [
+        "ALLOW",
+        "DENY",
+        "REQUIRE_APPROVAL"
+      ],
+      "title": "RuleDecision",
+      "type": "string"
+    },
+    "SecurityCategory": {
+      "enum": [
+        "PROMPT_INJECTION",
+        "GOAL_HIJACKING",
+        "UNAUTHORIZED_TOOL_USE",
+        "EXCESSIVE_AGENCY",
+        "ARGUMENT_VIOLATION",
+        "APPROVAL_BYPASS",
+        "SECRET_EXFILTRATION",
+        "PII_EXPOSURE",
+        "MEMORY_POISONING",
+        "TOOL_POISONING",
+        "SUPPLY_CHAIN_CHANGE",
+        "RESOURCE_EXHAUSTION",
+        "DELEGATION_ESCALATION",
+        "POLICY_BYPASS",
+        "TRACE_INTEGRITY_FAILURE"
+      ],
+      "title": "SecurityCategory",
+      "type": "string"
+    },
+    "TaskScope": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "requested_capabilities": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 3,
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requested Capabilities"
+        },
+        "resource_scopes": {
+          "anyOf": [
+            {
+              "patternProperties": {
+                "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$": {
+                  "items": {
+                    "maxLength": 8192,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "uniqueItems": true
+                }
+              },
+              "propertyNames": {
+                "maxLength": 128,
+                "minLength": 3
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource Scopes"
+        },
+        "task_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "description"
+      ],
+      "title": "TaskScope",
+      "type": "object"
+    },
+    "ToolPolicy": {
+      "additionalProperties": false,
+      "properties": {
+        "rules": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ToolRule"
+          },
+          "title": "Rules",
+          "type": "array"
+        }
+      },
+      "title": "ToolPolicy",
+      "type": "object"
+    },
+    "ToolRule": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+          "title": "Capability",
+          "type": "string"
+        },
+        "decision": {
+          "$ref": "#/$defs/RuleDecision"
+        },
+        "resource": {
+          "anyOf": [
+            {
+              "maxLength": 8192,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource"
+        },
+        "rule_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Rule Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_id",
+        "capability",
+        "decision"
+      ],
+      "title": "ToolRule",
+      "type": "object"
+    },
+    "TrustClass": {
+      "enum": [
+        "TRUSTED_CONFIG",
+        "USER_INPUT",
+        "UNTRUSTED_EXTERNAL",
+        "TOOL_OUTPUT",
+        "MODEL_OUTPUT",
+        "GENERATED_POLICY_SUGGESTION"
+      ],
+      "title": "TrustClass",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "$ref": "#/$defs/AgentIdentity"
+    },
+    "approvals": {
+      "$ref": "#/$defs/ApprovalSettings",
+      "default": {
+        "default_timeout_seconds": 120
+      }
+    },
+    "budgets": {
+      "$ref": "#/$defs/Budgets",
+      "default": {
+        "max_cost_usd": null,
+        "max_delegated_agents": null,
+        "max_destructive_calls": null,
+        "max_external_writes": null,
+        "max_model_calls": null,
+        "max_runtime_seconds": null,
+        "max_tool_calls": null
+      }
+    },
+    "data": {
+      "$ref": "#/$defs/DataPolicy",
+      "default": {
+        "rules": []
+      }
+    },
+    "environment": {
+      "$ref": "#/$defs/Environment"
+    },
+    "identity": {
+      "$ref": "#/$defs/IdentityBinding"
+    },
+    "invariants": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Invariant"
+      },
+      "title": "Invariants",
+      "type": "array"
+    },
+    "metadata": {
+      "$ref": "#/$defs/ContractMetadata"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "task_scope": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TaskScope"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "tools": {
+      "$ref": "#/$defs/ToolPolicy",
+      "default": {
+        "rules": []
+      }
+    }
+  },
+  "required": [
+    "schema_version",
+    "metadata",
+    "agent",
+    "identity",
+    "environment"
+  ],
+  "title": "AgentSecurityContract",
+  "type": "object"
+}

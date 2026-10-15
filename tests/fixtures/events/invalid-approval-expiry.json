@@ -1,0 +1,24 @@
+{
+  "schema_version": "0.1",
+  "event_id": "event-3",
+  "event_type": "APPROVAL_REQUESTED",
+  "occurred_at": "2026-10-15T12:00:03Z",
+  "run_id": "run-approval",
+  "trace_id": "trace-approval",
+  "sequence": 3,
+  "payload": {
+    "kind": "APPROVAL_REQUESTED",
+    "approval": {
+      "schema_version": "0.1",
+      "approval_id": "approval-send",
+      "policy_request_id": "request-send",
+      "action_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "summary": "Synthetic email action",
+      "reason_codes": [
+        "APPROVAL_REQUIRED"
+      ],
+      "created_at": "2026-10-15T12:00:01Z",
+      "expires_at": "2026-10-15T12:00:01Z"
+    }
+  }
+}

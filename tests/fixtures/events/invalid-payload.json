@@ -1,0 +1,14 @@
+{
+  "schema_version": "0.1",
+  "event_id": "event-0",
+  "event_type": "TOOL_RETURNED",
+  "occurred_at": "2026-10-15T12:00:00Z",
+  "run_id": "run-approval",
+  "trace_id": "trace-approval",
+  "sequence": 0,
+  "payload": {
+    "kind": "RUN_STARTED",
+    "contract_id": "support",
+    "effective_policy_hash": "sha256:b1977dd29dd1e3f3f029cbe24969b87d2cf226d193f4ecde6631af79f068e3b4"
+  }
+}

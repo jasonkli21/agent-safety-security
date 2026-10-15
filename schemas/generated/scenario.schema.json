@@ -1,0 +1,1001 @@
+{
+  "$defs": {
+    "ApprovalRequired": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+          "title": "Capability",
+          "type": "string"
+        },
+        "type": {
+          "const": "APPROVAL_REQUIRED",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "capability"
+      ],
+      "title": "ApprovalRequired",
+      "type": "object"
+    },
+    "Canary": {
+      "additionalProperties": false,
+      "properties": {
+        "canary_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Canary Id",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "canary_id",
+        "value"
+      ],
+      "title": "Canary",
+      "type": "object"
+    },
+    "CapabilityNotRequested": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+          "title": "Capability",
+          "type": "string"
+        },
+        "type": {
+          "const": "CAPABILITY_NOT_REQUESTED",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "capability"
+      ],
+      "title": "CapabilityNotRequested",
+      "type": "object"
+    },
+    "DataArtifactRef": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Artifact Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content Hash"
+        },
+        "created_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created At"
+        },
+        "labels": {
+          "items": {
+            "$ref": "#/$defs/DataLabel"
+          },
+          "title": "Labels",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "origin": {
+          "$ref": "#/$defs/DataOrigin"
+        },
+        "parent_artifact_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Parent Artifact Ids",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "artifact_id",
+        "labels",
+        "origin"
+      ],
+      "title": "DataArtifactRef",
+      "type": "object"
+    },
+    "DataLabel": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "SENSITIVE",
+        "SECRET",
+        "PII",
+        "CREDENTIAL",
+        "UNTRUSTED_CONTENT",
+        "USER_PROVIDED",
+        "TOOL_OUTPUT"
+      ],
+      "title": "DataLabel",
+      "type": "string"
+    },
+    "DataOrigin": {
+      "additionalProperties": false,
+      "properties": {
+        "origin_type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Origin Type",
+          "type": "string"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        },
+        "trust_class": {
+          "$ref": "#/$defs/TrustClass"
+        }
+      },
+      "required": [
+        "origin_type",
+        "trust_class"
+      ],
+      "title": "DataOrigin",
+      "type": "object"
+    },
+    "ExpectedToolCalled": {
+      "additionalProperties": false,
+      "properties": {
+        "tool_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Tool Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "EXPECTED_TOOL_CALLED",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "tool_id"
+      ],
+      "title": "ExpectedToolCalled",
+      "type": "object"
+    },
+    "FindingCategoryPresent": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/SecurityCategory"
+        },
+        "type": {
+          "const": "FINDING_CATEGORY_PRESENT",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "category"
+      ],
+      "title": "FindingCategoryPresent",
+      "type": "object"
+    },
+    "Injection": {
+      "additionalProperties": false,
+      "properties": {
+        "content": {
+          "anyOf": [
+            {
+              "maxLength": 8192,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content"
+        },
+        "fixture_ref": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Fixture Ref"
+        },
+        "labels": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DataLabel"
+          },
+          "title": "Labels",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "location": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Location",
+          "type": "string"
+        },
+        "source": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Source",
+          "type": "string"
+        },
+        "trust_class": {
+          "$ref": "#/$defs/TrustClass"
+        }
+      },
+      "required": [
+        "source",
+        "location",
+        "trust_class"
+      ],
+      "title": "Injection",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "MaxToolCalls": {
+      "additionalProperties": false,
+      "properties": {
+        "maximum": {
+          "minimum": 0,
+          "title": "Maximum",
+          "type": "integer"
+        },
+        "type": {
+          "const": "MAX_TOOL_CALLS",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "maximum"
+      ],
+      "title": "MaxToolCalls",
+      "type": "object"
+    },
+    "MockResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "response": {
+          "$ref": "#/$defs/JsonValue"
+        },
+        "tool_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Tool Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "tool_id",
+        "response"
+      ],
+      "title": "MockResponse",
+      "type": "object"
+    },
+    "NoFindingCategory": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/SecurityCategory"
+        },
+        "type": {
+          "const": "NO_FINDING_CATEGORY",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "category"
+      ],
+      "title": "NoFindingCategory",
+      "type": "object"
+    },
+    "OutputContains": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Text",
+          "type": "string"
+        },
+        "type": {
+          "const": "OUTPUT_CONTAINS",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "text"
+      ],
+      "title": "OutputContains",
+      "type": "object"
+    },
+    "OutputNotContainsCanary": {
+      "additionalProperties": false,
+      "properties": {
+        "canary_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Canary Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "OUTPUT_NOT_CONTAINS_CANARY",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "canary_id"
+      ],
+      "title": "OutputNotContainsCanary",
+      "type": "object"
+    },
+    "ReasonCode": {
+      "enum": [
+        "EXPLICIT_ALLOW",
+        "EXPLICIT_DENY",
+        "DEFAULT_DENY",
+        "APPROVAL_REQUIRED",
+        "UNKNOWN_CAPABILITY",
+        "OUTSIDE_TASK_SCOPE",
+        "BUDGET_EXCEEDED",
+        "DATA_FLOW_DENIED",
+        "INVALID_REQUEST",
+        "POLICY_ENGINE_ERROR"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    },
+    "RunTerminatedReason": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "$ref": "#/$defs/ReasonCode"
+        },
+        "type": {
+          "const": "RUN_TERMINATED_REASON",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "reason"
+      ],
+      "title": "RunTerminatedReason",
+      "type": "object"
+    },
+    "ScenarioSetup": {
+      "additionalProperties": false,
+      "properties": {
+        "canaries": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/Canary"
+          },
+          "title": "Canaries",
+          "type": "array"
+        },
+        "data_artifacts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DataArtifactRef"
+          },
+          "title": "Data Artifacts",
+          "type": "array"
+        },
+        "initial_memory": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Initial Memory",
+          "type": "array"
+        },
+        "mock_responses": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/MockResponse"
+          },
+          "title": "Mock Responses",
+          "type": "array"
+        },
+        "tools": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ToolDescriptor"
+          },
+          "title": "Tools",
+          "type": "array"
+        }
+      },
+      "title": "ScenarioSetup",
+      "type": "object"
+    },
+    "ScenarioTask": {
+      "additionalProperties": false,
+      "properties": {
+        "task_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "task_scope": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TaskScope"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "user_input": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "User Input",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "user_input"
+      ],
+      "title": "ScenarioTask",
+      "type": "object"
+    },
+    "SecurityCategory": {
+      "enum": [
+        "PROMPT_INJECTION",
+        "GOAL_HIJACKING",
+        "UNAUTHORIZED_TOOL_USE",
+        "EXCESSIVE_AGENCY",
+        "ARGUMENT_VIOLATION",
+        "APPROVAL_BYPASS",
+        "SECRET_EXFILTRATION",
+        "PII_EXPOSURE",
+        "MEMORY_POISONING",
+        "TOOL_POISONING",
+        "SUPPLY_CHAIN_CHANGE",
+        "RESOURCE_EXHAUSTION",
+        "DELEGATION_ESCALATION",
+        "POLICY_BYPASS",
+        "TRACE_INTEGRITY_FAILURE"
+      ],
+      "title": "SecurityCategory",
+      "type": "string"
+    },
+    "SideEffectClass": {
+      "enum": [
+        "NONE",
+        "READ",
+        "INTERNAL_WRITE",
+        "EXTERNAL_WRITE",
+        "DESTRUCTIVE",
+        "CODE_EXECUTION",
+        "IDENTITY_PRIVILEGE",
+        "FINANCIAL",
+        "INFRASTRUCTURE"
+      ],
+      "title": "SideEffectClass",
+      "type": "string"
+    },
+    "TaskScope": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "requested_capabilities": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 3,
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requested Capabilities"
+        },
+        "resource_scopes": {
+          "anyOf": [
+            {
+              "patternProperties": {
+                "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$": {
+                  "items": {
+                    "maxLength": 8192,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "uniqueItems": true
+                }
+              },
+              "propertyNames": {
+                "maxLength": 128,
+                "minLength": 3
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource Scopes"
+        },
+        "task_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "description"
+      ],
+      "title": "TaskScope",
+      "type": "object"
+    },
+    "ToolCalled": {
+      "additionalProperties": false,
+      "properties": {
+        "tool_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Tool Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "TOOL_CALLED",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "tool_id"
+      ],
+      "title": "ToolCalled",
+      "type": "object"
+    },
+    "ToolDescriptor": {
+      "additionalProperties": false,
+      "properties": {
+        "capabilities": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 3,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+            "type": "string"
+          },
+          "title": "Capabilities",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "data_access_labels": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DataLabel"
+          },
+          "title": "Data Access Labels",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "description": {
+          "title": "Description",
+          "type": "string"
+        },
+        "destructive": {
+          "default": false,
+          "title": "Destructive",
+          "type": "boolean"
+        },
+        "idempotent": {
+          "anyOf": [
+            {
+              "type": "boolean"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Idempotent"
+        },
+        "input_schema": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Input Schema",
+          "type": "object"
+        },
+        "name": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "namespace": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Namespace",
+          "type": "string"
+        },
+        "output_schema": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "$ref": "#/$defs/JsonValue"
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Schema"
+        },
+        "protocol": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Protocol",
+          "type": "string"
+        },
+        "risk_tags": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SecurityCategory"
+          },
+          "title": "Risk Tags",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "server_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Server Id"
+        },
+        "side_effect_class": {
+          "$ref": "#/$defs/SideEffectClass"
+        },
+        "tool_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Tool Id",
+          "type": "string"
+        },
+        "version": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Version"
+        }
+      },
+      "required": [
+        "schema_version",
+        "tool_id",
+        "namespace",
+        "name",
+        "protocol",
+        "description",
+        "input_schema",
+        "side_effect_class",
+        "capabilities"
+      ],
+      "title": "ToolDescriptor",
+      "type": "object"
+    },
+    "ToolNotCalled": {
+      "additionalProperties": false,
+      "properties": {
+        "tool_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Tool Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "TOOL_NOT_CALLED",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "tool_id"
+      ],
+      "title": "ToolNotCalled",
+      "type": "object"
+    },
+    "TrustClass": {
+      "enum": [
+        "TRUSTED_CONFIG",
+        "USER_INPUT",
+        "UNTRUSTED_EXTERNAL",
+        "TOOL_OUTPUT",
+        "MODEL_OUTPUT",
+        "GENERATED_POLICY_SUGGESTION"
+      ],
+      "title": "TrustClass",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assertions": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "APPROVAL_REQUIRED": "#/$defs/ApprovalRequired",
+            "CAPABILITY_NOT_REQUESTED": "#/$defs/CapabilityNotRequested",
+            "FINDING_CATEGORY_PRESENT": "#/$defs/FindingCategoryPresent",
+            "MAX_TOOL_CALLS": "#/$defs/MaxToolCalls",
+            "NO_FINDING_CATEGORY": "#/$defs/NoFindingCategory",
+            "OUTPUT_NOT_CONTAINS_CANARY": "#/$defs/OutputNotContainsCanary",
+            "RUN_TERMINATED_REASON": "#/$defs/RunTerminatedReason",
+            "TOOL_CALLED": "#/$defs/ToolCalled",
+            "TOOL_NOT_CALLED": "#/$defs/ToolNotCalled"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/ToolNotCalled"
+          },
+          {
+            "$ref": "#/$defs/ToolCalled"
+          },
+          {
+            "$ref": "#/$defs/CapabilityNotRequested"
+          },
+          {
+            "$ref": "#/$defs/OutputNotContainsCanary"
+          },
+          {
+            "$ref": "#/$defs/ApprovalRequired"
+          },
+          {
+            "$ref": "#/$defs/MaxToolCalls"
+          },
+          {
+            "$ref": "#/$defs/RunTerminatedReason"
+          },
+          {
+            "$ref": "#/$defs/NoFindingCategory"
+          },
+          {
+            "$ref": "#/$defs/FindingCategoryPresent"
+          }
+        ]
+      },
+      "minItems": 1,
+      "title": "Assertions",
+      "type": "array"
+    },
+    "attack_family": {
+      "$ref": "#/$defs/SecurityCategory"
+    },
+    "description": {
+      "anyOf": [
+        {
+          "maxLength": 8192,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Description"
+    },
+    "injections": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Injection"
+      },
+      "title": "Injections",
+      "type": "array"
+    },
+    "scenario_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Scenario Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "setup": {
+      "$ref": "#/$defs/ScenarioSetup"
+    },
+    "tags": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+        "type": "string"
+      },
+      "title": "Tags",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "task": {
+      "$ref": "#/$defs/ScenarioTask"
+    },
+    "title": {
+      "maxLength": 8192,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    },
+    "utility_assertions": {
+      "default": [],
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "EXPECTED_TOOL_CALLED": "#/$defs/ExpectedToolCalled",
+            "OUTPUT_CONTAINS": "#/$defs/OutputContains"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/ExpectedToolCalled"
+          },
+          {
+            "$ref": "#/$defs/OutputContains"
+          }
+        ]
+      },
+      "title": "Utility Assertions",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "scenario_id",
+    "title",
+    "attack_family",
+    "setup",
+    "task",
+    "assertions"
+  ],
+  "title": "Scenario",
+  "type": "object"
+}

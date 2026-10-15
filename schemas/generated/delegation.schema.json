@@ -1,0 +1,184 @@
+{
+  "$defs": {
+    "PrincipalRef": {
+      "additionalProperties": false,
+      "properties": {
+        "principal_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Principal Id",
+          "type": "string"
+        },
+        "principal_type": {
+          "$ref": "#/$defs/PrincipalType"
+        }
+      },
+      "required": [
+        "principal_id",
+        "principal_type"
+      ],
+      "title": "PrincipalRef",
+      "type": "object"
+    },
+    "PrincipalType": {
+      "enum": [
+        "USER",
+        "AGENT",
+        "SERVICE"
+      ],
+      "title": "PrincipalType",
+      "type": "string"
+    },
+    "TaskScope": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "requested_capabilities": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 3,
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requested Capabilities"
+        },
+        "resource_scopes": {
+          "anyOf": [
+            {
+              "patternProperties": {
+                "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$": {
+                  "items": {
+                    "maxLength": 8192,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "uniqueItems": true
+                }
+              },
+              "propertyNames": {
+                "maxLength": 128,
+                "minLength": 3
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource Scopes"
+        },
+        "task_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "description"
+      ],
+      "title": "TaskScope",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "capability_scope": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 3,
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+        "type": "string"
+      },
+      "title": "Capability Scope",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "delegate": {
+      "$ref": "#/$defs/PrincipalRef"
+    },
+    "delegation_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Delegation Id",
+      "type": "string"
+    },
+    "delegator": {
+      "$ref": "#/$defs/PrincipalRef"
+    },
+    "expires_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expires At"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "title": "Issued At",
+      "type": "string"
+    },
+    "parent_delegation_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Parent Delegation Id"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "task_scope": {
+      "$ref": "#/$defs/TaskScope"
+    }
+  },
+  "required": [
+    "schema_version",
+    "delegation_id",
+    "delegator",
+    "delegate",
+    "task_scope",
+    "capability_scope",
+    "issued_at"
+  ],
+  "title": "Delegation",
+  "type": "object"
+}

@@ -1,0 +1,91 @@
+{
+  "$defs": {
+    "ReasonCode": {
+      "enum": [
+        "EXPLICIT_ALLOW",
+        "EXPLICIT_DENY",
+        "DEFAULT_DENY",
+        "APPROVAL_REQUIRED",
+        "UNKNOWN_CAPABILITY",
+        "OUTSIDE_TASK_SCOPE",
+        "BUDGET_EXCEEDED",
+        "DATA_FLOW_DENIED",
+        "INVALID_REQUEST",
+        "POLICY_ENGINE_ERROR"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Action Digest",
+      "type": "string"
+    },
+    "approval_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Approval Id",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "expires_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expires At"
+    },
+    "policy_request_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Policy Request Id",
+      "type": "string"
+    },
+    "reason_codes": {
+      "items": {
+        "$ref": "#/$defs/ReasonCode"
+      },
+      "title": "Reason Codes",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "summary": {
+      "maxLength": 8192,
+      "minLength": 1,
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "approval_id",
+    "policy_request_id",
+    "action_digest",
+    "summary",
+    "reason_codes",
+    "created_at"
+  ],
+  "title": "ApprovalRequest",
+  "type": "object"
+}

@@ -1,0 +1,98 @@
+[
+  {
+    "path": ".editorconfig",
+    "bytes": 221
+  },
+  {
+    "path": ".github/workflows/ci.yml",
+    "bytes": 438
+  },
+  {
+    "path": ".gitignore",
+    "bytes": 269
+  },
+  {
+    "path": ".python-version",
+    "bytes": 5
+  },
+  {
+    "path": "AGENTS.md",
+    "bytes": 4577
+  },
+  {
+    "path": "CONTRIBUTING.md",
+    "bytes": 908
+  },
+  {
+    "path": "LICENSE",
+    "bytes": 11358
+  },
+  {
+    "path": "PHASE-0-SOL-MEDIUM-PROMPT.md",
+    "bytes": 9367
+  },
+  {
+    "path": "README.md",
+    "bytes": 3267
+  },
+  {
+    "path": "SECURITY.md",
+    "bytes": 745
+  },
+  {
+    "path": "docs/README.md",
+    "bytes": 691
+  },
+  {
+    "path": "docs/architecture.md",
+    "bytes": 38837
+  },
+  {
+    "path": "docs/decisions/README.md",
+    "bytes": 314
+  },
+  {
+    "path": "docs/plans/phase-0-implementation-plan.md",
+    "bytes": 46141
+  },
+  {
+    "path": "docs/prd.md",
+    "bytes": 40752
+  },
+  {
+    "path": "docs/prompts/phase-0-sol-medium-implementation-prompt.md",
+    "bytes": 9367
+  },
+  {
+    "path": "docs/reports/README.md",
+    "bytes": 279
+  },
+  {
+    "path": "examples/.gitkeep",
+    "bytes": 0
+  },
+  {
+    "path": "pyproject.toml",
+    "bytes": 936
+  },
+  {
+    "path": "schemas/generated/.gitkeep",
+    "bytes": 0
+  },
+  {
+    "path": "src/agentsec/__init__.py",
+    "bytes": 64
+  },
+  {
+    "path": "src/agentsec/cli/__init__.py",
+    "bytes": 69
+  },
+  {
+    "path": "src/agentsec/cli/main.py",
+    "bytes": 503
+  },
+  {
+    "path": "tests/test_scaffold.py",
+    "bytes": 90
+  }
+]

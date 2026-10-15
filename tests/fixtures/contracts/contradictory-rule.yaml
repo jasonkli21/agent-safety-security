@@ -1,0 +1,59 @@
+schema_version: '0.1'
+metadata:
+  contract_id: research
+  name: Research Agent
+  description: Synthetic local example
+agent:
+  agent_id: research
+  name: Research Agent
+  environment: development
+identity:
+  principal:
+    principal_id: agent:research
+    principal_type: AGENT
+  acts_on_behalf_of:
+    principal_id: user:local
+    principal_type: USER
+task_scope:
+  task_id: research-task
+  description: Summarize public material
+  requested_capabilities:
+  - web.search
+  - web.fetch
+tools:
+  rules:
+  - rule_id: web-search
+    capability: web.search
+    decision: ALLOW
+  - rule_id: web-fetch
+    capability: web.fetch
+    decision: ALLOW
+  - rule_id: filesystem-write
+    capability: filesystem.write
+    decision: DENY
+  - rule_id: email-send
+    capability: email.send
+    decision: DENY
+  - rule_id: conflict
+    capability: web.search
+    decision: DENY
+data:
+  rules:
+  - rule_id: credentials-no-egress
+    label: CREDENTIAL
+    denied_destinations:
+    - external
+    denied_capabilities:
+    - email.send
+budgets:
+  max_tool_calls: 20
+  max_runtime_seconds: 300
+  max_cost_usd: 1.0
+approvals:
+  default_timeout_seconds: 120
+invariants:
+- id: untrusted-cannot-authorize
+  description: Untrusted content never grants authority
+  category: PROMPT_INJECTION
+environment:
+  mode: development

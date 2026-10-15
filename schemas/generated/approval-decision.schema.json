@@ -1,0 +1,89 @@
+{
+  "$defs": {
+    "ApprovalOutcome": {
+      "enum": [
+        "APPROVE",
+        "DENY"
+      ],
+      "title": "ApprovalOutcome",
+      "type": "string"
+    },
+    "ApprovalScope": {
+      "enum": [
+        "ONE_SHOT"
+      ],
+      "title": "ApprovalScope",
+      "type": "string"
+    },
+    "PrincipalRef": {
+      "additionalProperties": false,
+      "properties": {
+        "principal_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Principal Id",
+          "type": "string"
+        },
+        "principal_type": {
+          "$ref": "#/$defs/PrincipalType"
+        }
+      },
+      "required": [
+        "principal_id",
+        "principal_type"
+      ],
+      "title": "PrincipalRef",
+      "type": "object"
+    },
+    "PrincipalType": {
+      "enum": [
+        "USER",
+        "AGENT",
+        "SERVICE"
+      ],
+      "title": "PrincipalType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "approval_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Approval Id",
+      "type": "string"
+    },
+    "approver": {
+      "$ref": "#/$defs/PrincipalRef"
+    },
+    "decided_at": {
+      "format": "date-time",
+      "title": "Decided At",
+      "type": "string"
+    },
+    "outcome": {
+      "$ref": "#/$defs/ApprovalOutcome"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "scope": {
+      "$ref": "#/$defs/ApprovalScope",
+      "default": "ONE_SHOT"
+    }
+  },
+  "required": [
+    "schema_version",
+    "approval_id",
+    "approver",
+    "outcome",
+    "decided_at"
+  ],
+  "title": "ApprovalDecision",
+  "type": "object"
+}

@@ -1,0 +1,486 @@
+{
+  "$defs": {
+    "AgentIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "environment": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Environment",
+          "type": "string"
+        },
+        "framework": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Framework"
+        },
+        "model_name": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Name"
+        },
+        "model_provider": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Model Provider"
+        },
+        "name": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+        },
+        "owner": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PrincipalRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "trust_level": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrustClass"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "agent_id",
+        "name",
+        "environment"
+      ],
+      "title": "AgentIdentity",
+      "type": "object"
+    },
+    "DataArtifactRef": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Artifact Id",
+          "type": "string"
+        },
+        "content_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content Hash"
+        },
+        "created_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Created At"
+        },
+        "labels": {
+          "items": {
+            "$ref": "#/$defs/DataLabel"
+          },
+          "title": "Labels",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "origin": {
+          "$ref": "#/$defs/DataOrigin"
+        },
+        "parent_artifact_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Parent Artifact Ids",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "artifact_id",
+        "labels",
+        "origin"
+      ],
+      "title": "DataArtifactRef",
+      "type": "object"
+    },
+    "DataLabel": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "SENSITIVE",
+        "SECRET",
+        "PII",
+        "CREDENTIAL",
+        "UNTRUSTED_CONTENT",
+        "USER_PROVIDED",
+        "TOOL_OUTPUT"
+      ],
+      "title": "DataLabel",
+      "type": "string"
+    },
+    "DataOrigin": {
+      "additionalProperties": false,
+      "properties": {
+        "origin_type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Origin Type",
+          "type": "string"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        },
+        "trust_class": {
+          "$ref": "#/$defs/TrustClass"
+        }
+      },
+      "required": [
+        "origin_type",
+        "trust_class"
+      ],
+      "title": "DataOrigin",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "PrincipalRef": {
+      "additionalProperties": false,
+      "properties": {
+        "principal_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Principal Id",
+          "type": "string"
+        },
+        "principal_type": {
+          "$ref": "#/$defs/PrincipalType"
+        }
+      },
+      "required": [
+        "principal_id",
+        "principal_type"
+      ],
+      "title": "PrincipalRef",
+      "type": "object"
+    },
+    "PrincipalType": {
+      "enum": [
+        "USER",
+        "AGENT",
+        "SERVICE"
+      ],
+      "title": "PrincipalType",
+      "type": "string"
+    },
+    "TaskScope": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "requested_capabilities": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 3,
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requested Capabilities"
+        },
+        "resource_scopes": {
+          "anyOf": [
+            {
+              "patternProperties": {
+                "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$": {
+                  "items": {
+                    "maxLength": 8192,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "uniqueItems": true
+                }
+              },
+              "propertyNames": {
+                "maxLength": 128,
+                "minLength": 3
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource Scopes"
+        },
+        "task_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "description"
+      ],
+      "title": "TaskScope",
+      "type": "object"
+    },
+    "TrustClass": {
+      "enum": [
+        "TRUSTED_CONFIG",
+        "USER_INPUT",
+        "UNTRUSTED_EXTERNAL",
+        "TOOL_OUTPUT",
+        "MODEL_OUTPUT",
+        "GENERATED_POLICY_SUGGESTION"
+      ],
+      "title": "TrustClass",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agent": {
+      "$ref": "#/$defs/AgentIdentity"
+    },
+    "arguments_summary": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Arguments Summary"
+    },
+    "capability": {
+      "maxLength": 128,
+      "minLength": 3,
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "title": "Capability",
+      "type": "string"
+    },
+    "data_artifact_refs": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DataArtifactRef"
+      },
+      "title": "Data Artifact Refs",
+      "type": "array"
+    },
+    "delegation_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Delegation Id"
+    },
+    "environment": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Environment",
+      "type": "string"
+    },
+    "principal": {
+      "$ref": "#/$defs/PrincipalRef"
+    },
+    "request_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Request Id",
+      "type": "string"
+    },
+    "requested_at": {
+      "format": "date-time",
+      "title": "Requested At",
+      "type": "string"
+    },
+    "resource": {
+      "anyOf": [
+        {
+          "maxLength": 8192,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Resource"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "task_scope": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/TaskScope"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "tool_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tool Id"
+    },
+    "trajectory_ref": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Trajectory Ref"
+    }
+  },
+  "required": [
+    "schema_version",
+    "request_id",
+    "principal",
+    "agent",
+    "capability",
+    "environment",
+    "requested_at"
+  ],
+  "title": "PolicyRequest",
+  "type": "object"
+}

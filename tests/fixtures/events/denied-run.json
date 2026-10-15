@@ -1,0 +1,88 @@
+[
+  {
+    "schema_version": "0.1",
+    "event_id": "denied-0",
+    "event_type": "RUN_STARTED",
+    "occurred_at": "2026-10-15T12:00:00Z",
+    "run_id": "run-denied",
+    "trace_id": "trace-denied",
+    "sequence": 0,
+    "payload": {
+      "kind": "RUN_STARTED",
+      "contract_id": "support",
+      "effective_policy_hash": "sha256:b1977dd29dd1e3f3f029cbe24969b87d2cf226d193f4ecde6631af79f068e3b4"
+    }
+  },
+  {
+    "schema_version": "0.1",
+    "event_id": "denied-1",
+    "event_type": "TOOL_REQUESTED",
+    "occurred_at": "2026-10-15T12:00:01Z",
+    "run_id": "run-denied",
+    "trace_id": "trace-denied",
+    "sequence": 1,
+    "payload": {
+      "kind": "TOOL_REQUESTED",
+      "request": {
+        "schema_version": "0.1",
+        "request_id": "request-send",
+        "principal": {
+          "principal_id": "agent:local",
+          "principal_type": "AGENT"
+        },
+        "agent": {
+          "agent_id": "local",
+          "name": "Local Agent",
+          "environment": "development"
+        },
+        "capability": "email.send",
+        "tool_id": "email-send",
+        "environment": "development",
+        "requested_at": "2026-10-15T12:00:00Z",
+        "arguments_summary": {
+          "redacted": true
+        }
+      },
+      "action_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  {
+    "schema_version": "0.1",
+    "event_id": "denied-2",
+    "event_type": "POLICY_EVALUATED",
+    "occurred_at": "2026-10-15T12:00:02Z",
+    "run_id": "run-denied",
+    "trace_id": "trace-denied",
+    "sequence": 2,
+    "payload": {
+      "kind": "POLICY_EVALUATED",
+      "decision": {
+        "schema_version": "0.1",
+        "decision_id": "decision-send",
+        "request_id": "request-send",
+        "outcome": "DENY",
+        "matched_rule_ids": [
+          "email-send"
+        ],
+        "reason_codes": [
+          "EXPLICIT_DENY"
+        ],
+        "contract_id": "support",
+        "effective_policy_hash": "sha256:b1977dd29dd1e3f3f029cbe24969b87d2cf226d193f4ecde6631af79f068e3b4",
+        "decided_at": "2026-10-15T12:00:01Z"
+      }
+    }
+  },
+  {
+    "schema_version": "0.1",
+    "event_id": "denied-3",
+    "event_type": "RUN_FINISHED",
+    "occurred_at": "2026-10-15T12:00:08Z",
+    "run_id": "run-denied",
+    "trace_id": "trace-denied",
+    "sequence": 3,
+    "payload": {
+      "kind": "RUN_FINISHED"
+    }
+  }
+]

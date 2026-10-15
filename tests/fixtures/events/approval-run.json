@@ -1,0 +1,189 @@
+[
+  {
+    "schema_version": "0.1",
+    "event_id": "event-0",
+    "event_type": "RUN_STARTED",
+    "occurred_at": "2026-10-15T12:00:00Z",
+    "run_id": "run-approval",
+    "trace_id": "trace-approval",
+    "sequence": 0,
+    "payload": {
+      "kind": "RUN_STARTED",
+      "contract_id": "support",
+      "effective_policy_hash": "sha256:b1977dd29dd1e3f3f029cbe24969b87d2cf226d193f4ecde6631af79f068e3b4"
+    }
+  },
+  {
+    "schema_version": "0.1",
+    "event_id": "event-1",
+    "event_type": "TOOL_REQUESTED",
+    "occurred_at": "2026-10-15T12:00:01Z",
+    "run_id": "run-approval",
+    "trace_id": "trace-approval",
+    "sequence": 1,
+    "payload": {
+      "kind": "TOOL_REQUESTED",
+      "request": {
+        "schema_version": "0.1",
+        "request_id": "request-send",
+        "principal": {
+          "principal_id": "agent:local",
+          "principal_type": "AGENT"
+        },
+        "agent": {
+          "agent_id": "local",
+          "name": "Local Agent",
+          "environment": "development"
+        },
+        "capability": "email.send",
+        "tool_id": "email-send",
+        "environment": "development",
+        "requested_at": "2026-10-15T12:00:00Z",
+        "arguments_summary": {
+          "redacted": true
+        }
+      },
+      "action_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  {
+    "schema_version": "0.1",
+    "event_id": "event-2",
+    "event_type": "POLICY_EVALUATED",
+    "occurred_at": "2026-10-15T12:00:02Z",
+    "run_id": "run-approval",
+    "trace_id": "trace-approval",
+    "sequence": 2,
+    "payload": {
+      "kind": "POLICY_EVALUATED",
+      "decision": {
+        "schema_version": "0.1",
+        "decision_id": "decision-send",
+        "request_id": "request-send",
+        "outcome": "REQUIRE_APPROVAL",
+        "matched_rule_ids": [
+          "email-send"
+        ],
+        "reason_codes": [
+          "APPROVAL_REQUIRED"
+        ],
+        "contract_id": "support",
+        "effective_policy_hash": "sha256:b1977dd29dd1e3f3f029cbe24969b87d2cf226d193f4ecde6631af79f068e3b4",
+        "decided_at": "2026-10-15T12:00:01Z"
+      }
+    }
+  },
+  {
+    "schema_version": "0.1",
+    "event_id": "event-3",
+    "event_type": "APPROVAL_REQUESTED",
+    "occurred_at": "2026-10-15T12:00:03Z",
+    "run_id": "run-approval",
+    "trace_id": "trace-approval",
+    "sequence": 3,
+    "payload": {
+      "kind": "APPROVAL_REQUESTED",
+      "approval": {
+        "schema_version": "0.1",
+        "approval_id": "approval-send",
+        "policy_request_id": "request-send",
+        "action_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "summary": "Synthetic email action",
+        "reason_codes": [
+          "APPROVAL_REQUIRED"
+        ],
+        "created_at": "2026-10-15T12:00:01Z",
+        "expires_at": "2026-10-15T12:02:01Z"
+      }
+    }
+  },
+  {
+    "schema_version": "0.1",
+    "event_id": "event-4",
+    "event_type": "APPROVAL_DECIDED",
+    "occurred_at": "2026-10-15T12:00:04Z",
+    "run_id": "run-approval",
+    "trace_id": "trace-approval",
+    "sequence": 4,
+    "payload": {
+      "kind": "APPROVAL_DECIDED",
+      "decision": {
+        "schema_version": "0.1",
+        "approval_id": "approval-send",
+        "approver": {
+          "principal_id": "user:local",
+          "principal_type": "USER"
+        },
+        "outcome": "APPROVE",
+        "scope": "ONE_SHOT",
+        "decided_at": "2026-10-15T12:00:02Z"
+      }
+    }
+  },
+  {
+    "schema_version": "0.1",
+    "event_id": "event-5",
+    "event_type": "TOOL_DISPATCHED",
+    "occurred_at": "2026-10-15T12:00:05Z",
+    "run_id": "run-approval",
+    "trace_id": "trace-approval",
+    "sequence": 5,
+    "payload": {
+      "kind": "TOOL_DISPATCHED",
+      "request_id": "request-send",
+      "tool_id": "email-send",
+      "action_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "decision_id": "decision-send",
+      "approval_id": "approval-send"
+    }
+  },
+  {
+    "schema_version": "0.1",
+    "event_id": "event-6",
+    "event_type": "TOOL_RETURNED",
+    "occurred_at": "2026-10-15T12:00:06Z",
+    "run_id": "run-approval",
+    "trace_id": "trace-approval",
+    "sequence": 6,
+    "payload": {
+      "kind": "TOOL_RETURNED",
+      "request_id": "request-send",
+      "tool_id": "email-send",
+      "success": true,
+      "response_hash": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    }
+  },
+  {
+    "schema_version": "0.1",
+    "event_id": "event-7",
+    "event_type": "EFFECT_VERIFIED",
+    "occurred_at": "2026-10-15T12:00:07Z",
+    "run_id": "run-approval",
+    "trace_id": "trace-approval",
+    "sequence": 7,
+    "payload": {
+      "kind": "EFFECT_VERIFIED",
+      "request_id": "request-send",
+      "verifier": {
+        "principal_id": "service:verifier",
+        "principal_type": "SERVICE"
+      },
+      "verified": true,
+      "evidence_artifact_refs": [
+        "delivery-observation"
+      ]
+    }
+  },
+  {
+    "schema_version": "0.1",
+    "event_id": "event-8",
+    "event_type": "RUN_FINISHED",
+    "occurred_at": "2026-10-15T12:00:08Z",
+    "run_id": "run-approval",
+    "trace_id": "trace-approval",
+    "sequence": 8,
+    "payload": {
+      "kind": "RUN_FINISHED"
+    }
+  }
+]

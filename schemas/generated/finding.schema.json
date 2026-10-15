@@ -1,0 +1,177 @@
+{
+  "$defs": {
+    "SecurityCategory": {
+      "enum": [
+        "PROMPT_INJECTION",
+        "GOAL_HIJACKING",
+        "UNAUTHORIZED_TOOL_USE",
+        "EXCESSIVE_AGENCY",
+        "ARGUMENT_VIOLATION",
+        "APPROVAL_BYPASS",
+        "SECRET_EXFILTRATION",
+        "PII_EXPOSURE",
+        "MEMORY_POISONING",
+        "TOOL_POISONING",
+        "SUPPLY_CHAIN_CHANGE",
+        "RESOURCE_EXHAUSTION",
+        "DELEGATION_ESCALATION",
+        "POLICY_BYPASS",
+        "TRACE_INTEGRITY_FAILURE"
+      ],
+      "title": "SecurityCategory",
+      "type": "string"
+    },
+    "Severity": {
+      "description": "Ordered numeric wire values; never a probabilistic score.",
+      "enum": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "title": "Severity",
+      "type": "integer"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_refs": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+        "type": "string"
+      },
+      "title": "Artifact Refs",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "category": {
+      "$ref": "#/$defs/SecurityCategory"
+    },
+    "description": {
+      "maxLength": 8192,
+      "minLength": 1,
+      "title": "Description",
+      "type": "string"
+    },
+    "event_refs": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+        "type": "string"
+      },
+      "title": "Event Refs",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "expected": {
+      "anyOf": [
+        {
+          "maxLength": 8192,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expected"
+    },
+    "finding_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Finding Id",
+      "type": "string"
+    },
+    "observed": {
+      "anyOf": [
+        {
+          "maxLength": 8192,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Observed"
+    },
+    "remediation_hint": {
+      "anyOf": [
+        {
+          "maxLength": 8192,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Remediation Hint"
+    },
+    "run_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Run Id"
+    },
+    "scenario_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Scenario Id"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "severity": {
+      "$ref": "#/$defs/Severity"
+    },
+    "title": {
+      "maxLength": 8192,
+      "minLength": 1,
+      "title": "Title",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "finding_id",
+    "category",
+    "severity",
+    "title",
+    "description"
+  ],
+  "title": "Finding",
+  "type": "object"
+}

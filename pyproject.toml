@@ -1,0 +1,59 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-safety-security"
+version = "0.1.0"
+description = "Local-first security lifecycle for tool-using AI agents."
+readme = "README.md"
+requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+authors = []
+dependencies = [
+  "pydantic>=2,<3",
+  "PyYAML>=6,<7",
+  "jsonschema>=4.18,<5",
+  "typer>=0.12,<1",
+]
+
+[project.optional-dependencies]
+dev = [
+  "build",
+  "hypothesis",
+  "mypy",
+  "pytest",
+  "pytest-cov",
+  "ruff",
+  "types-PyYAML",
+  "types-jsonschema",
+]
+
+[project.scripts]
+agentsec = "agentsec.cli.main:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+agentsec = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "RUF"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+packages = ["agentsec"]
+warn_unused_configs = true

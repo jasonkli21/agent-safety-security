@@ -1,0 +1,140 @@
+{
+  "$defs": {
+    "DataLabel": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "SENSITIVE",
+        "SECRET",
+        "PII",
+        "CREDENTIAL",
+        "UNTRUSTED_CONTENT",
+        "USER_PROVIDED",
+        "TOOL_OUTPUT"
+      ],
+      "title": "DataLabel",
+      "type": "string"
+    },
+    "DataOrigin": {
+      "additionalProperties": false,
+      "properties": {
+        "origin_type": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Origin Type",
+          "type": "string"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        },
+        "trust_class": {
+          "$ref": "#/$defs/TrustClass"
+        }
+      },
+      "required": [
+        "origin_type",
+        "trust_class"
+      ],
+      "title": "DataOrigin",
+      "type": "object"
+    },
+    "TrustClass": {
+      "enum": [
+        "TRUSTED_CONFIG",
+        "USER_INPUT",
+        "UNTRUSTED_EXTERNAL",
+        "TOOL_OUTPUT",
+        "MODEL_OUTPUT",
+        "GENERATED_POLICY_SUGGESTION"
+      ],
+      "title": "TrustClass",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "artifact_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Artifact Id",
+      "type": "string"
+    },
+    "content_hash": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Content Hash"
+    },
+    "created_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Created At"
+    },
+    "labels": {
+      "items": {
+        "$ref": "#/$defs/DataLabel"
+      },
+      "title": "Labels",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "origin": {
+      "$ref": "#/$defs/DataOrigin"
+    },
+    "parent_artifact_ids": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+        "type": "string"
+      },
+      "title": "Parent Artifact Ids",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "artifact_id",
+    "labels",
+    "origin"
+  ],
+  "title": "DataArtifactRef",
+  "type": "object"
+}

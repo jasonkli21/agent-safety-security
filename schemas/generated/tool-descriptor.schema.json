@@ -1,0 +1,210 @@
+{
+  "$defs": {
+    "DataLabel": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "SENSITIVE",
+        "SECRET",
+        "PII",
+        "CREDENTIAL",
+        "UNTRUSTED_CONTENT",
+        "USER_PROVIDED",
+        "TOOL_OUTPUT"
+      ],
+      "title": "DataLabel",
+      "type": "string"
+    },
+    "JsonValue": {},
+    "SecurityCategory": {
+      "enum": [
+        "PROMPT_INJECTION",
+        "GOAL_HIJACKING",
+        "UNAUTHORIZED_TOOL_USE",
+        "EXCESSIVE_AGENCY",
+        "ARGUMENT_VIOLATION",
+        "APPROVAL_BYPASS",
+        "SECRET_EXFILTRATION",
+        "PII_EXPOSURE",
+        "MEMORY_POISONING",
+        "TOOL_POISONING",
+        "SUPPLY_CHAIN_CHANGE",
+        "RESOURCE_EXHAUSTION",
+        "DELEGATION_ESCALATION",
+        "POLICY_BYPASS",
+        "TRACE_INTEGRITY_FAILURE"
+      ],
+      "title": "SecurityCategory",
+      "type": "string"
+    },
+    "SideEffectClass": {
+      "enum": [
+        "NONE",
+        "READ",
+        "INTERNAL_WRITE",
+        "EXTERNAL_WRITE",
+        "DESTRUCTIVE",
+        "CODE_EXECUTION",
+        "IDENTITY_PRIVILEGE",
+        "FINANCIAL",
+        "INFRASTRUCTURE"
+      ],
+      "title": "SideEffectClass",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "capabilities": {
+      "items": {
+        "maxLength": 128,
+        "minLength": 3,
+        "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+        "type": "string"
+      },
+      "title": "Capabilities",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "data_access_labels": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DataLabel"
+      },
+      "title": "Data Access Labels",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "description": {
+      "title": "Description",
+      "type": "string"
+    },
+    "destructive": {
+      "default": false,
+      "title": "Destructive",
+      "type": "boolean"
+    },
+    "idempotent": {
+      "anyOf": [
+        {
+          "type": "boolean"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Idempotent"
+    },
+    "input_schema": {
+      "additionalProperties": {
+        "$ref": "#/$defs/JsonValue"
+      },
+      "title": "Input Schema",
+      "type": "object"
+    },
+    "name": {
+      "maxLength": 8192,
+      "minLength": 1,
+      "title": "Name",
+      "type": "string"
+    },
+    "namespace": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Namespace",
+      "type": "string"
+    },
+    "output_schema": {
+      "anyOf": [
+        {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "type": "object"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Output Schema"
+    },
+    "protocol": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Protocol",
+      "type": "string"
+    },
+    "risk_tags": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/SecurityCategory"
+      },
+      "title": "Risk Tags",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "server_id": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Server Id"
+    },
+    "side_effect_class": {
+      "$ref": "#/$defs/SideEffectClass"
+    },
+    "tool_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Tool Id",
+      "type": "string"
+    },
+    "version": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Version"
+    }
+  },
+  "required": [
+    "schema_version",
+    "tool_id",
+    "namespace",
+    "name",
+    "protocol",
+    "description",
+    "input_schema",
+    "side_effect_class",
+    "capabilities"
+  ],
+  "title": "ToolDescriptor",
+  "type": "object"
+}
