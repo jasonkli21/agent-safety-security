@@ -73,9 +73,12 @@ Exactly one terminal step must be last. Tool and capability references must reso
 scenario setup. An omitted policy outcome produces a request-only observation. It does not
 invent a policy decision or dispatch. ALLOW dispatches, DENY/ERROR do not dispatch, and
 REQUIRE_APPROVAL emits an approval request and dispatches only after scripted APPROVE.
-An approval outcome without REQUIRE_APPROVAL is invalid. Explicit external sink text is allowed
-only on an EXTERNAL_WRITE tool and captured only when dispatched. No side effect is inferred
-from tool return or sink text; actual verified-effect claims remain distinct canonical events.
+An approval outcome without REQUIRE_APPROVAL is invalid. Explicit external sink text is valid
+only for an EXTERNAL_WRITE tool on a path that necessarily dispatches (ALLOW or
+REQUIRE_APPROVAL with APPROVE). A contradictory sink claim is rejected as
+`INVALID_SINK_CAPTURE` before the fixture emits canonical events; it cannot disappear from an
+otherwise complete sink observation. No side effect is inferred from tool return or sink text;
+actual verified-effect claims remain distinct canonical events.
 
 Scenario mock responses are queues per tool, preserving source order. Each dispatch consumes
 one response. Denied, unapproved, and request-only calls consume none. Queue exhaustion is
@@ -182,7 +185,6 @@ SQLite, signature chain, incident replay, or durable tamper resistance.
 
 ## Review gate
 
-Phase 1 implementation awaits independent review. Phase 2 requires that review/fixes and a
-reviewed Phase 2 plan. Review should prioritize missing capture, approval non-vacuity, action
-binding, dispatch/return/effect correlation, and privacy. Scripted fixture success provides no
-claim about production agent behavior or model robustness.
+Phase 1 implementation and review fixes await final independent verification. Phase 2 requires
+that verification and a reviewed Phase 2 plan. Scripted fixture success provides no claim about
+production agent behavior or model robustness.

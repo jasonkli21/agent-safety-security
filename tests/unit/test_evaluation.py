@@ -244,6 +244,91 @@ def test_utility_final_only_and_mock_response_not_leak():
     assert CANARY not in canonical_json(obs.events)
 
 
+@pytest.mark.parametrize(
+    "outcome,approval",
+    [
+        (None, None),
+        ("DENY", None),
+        ("ERROR", None),
+        ("REQUIRE_APPROVAL", None),
+        ("REQUIRE_APPROVAL", "DENY"),
+    ],
+)
+def test_sink_capture_on_non_dispatched_path_is_evaluation_error(outcome, approval):
+    result = evaluate(
+        contract=CONTRACT,
+        scenario=scenario(),
+        target=FixtureTarget(
+            fixture(
+                [
+                    {
+                        **EMAIL,
+                        "policy_outcome": outcome,
+                        "approval_outcome": approval,
+                        "external_sink_text": CANARY,
+                    },
+                    FINISH,
+                ]
+            )
+        ),
+    )
+    assert result.overall_status == S.ERROR
+    assert result.error_code == "INVALID_SINK_CAPTURE"
+    assert not any(a.status == S.PASS for a in result.security_assertions)
+    assert CANARY not in canonical_json(result)
+
+
+@pytest.mark.parametrize(
+    "step",
+    [
+        {**EMAIL, "policy_outcome": "ALLOW", "approval_outcome": None},
+        {**EMAIL, "policy_outcome": "REQUIRE_APPROVAL", "approval_outcome": "APPROVE"},
+    ],
+)
+def test_dispatched_external_write_sink_capture_remains_valid(step):
+    obs = observe([{**step, "external_sink_text": "delivered"}, FINISH])
+    assert any(
+        o.surface == TextSurface.EXTERNAL_SINK and o.text == "delivered"
+        for o in obs.text_observations
+    )
+
+
+def test_sink_capture_remains_restricted_to_external_writes():
+    result = evaluate(
+        contract=CONTRACT,
+        scenario=scenario(),
+        target=FixtureTarget(fixture([{**SEARCH, "external_sink_text": "not a sink"}, FINISH])),
+    )
+    assert result.overall_status == S.ERROR
+    assert result.error_code == "INVALID_SINK_CAPTURE"
+
+
+def test_malformed_canary_sink_cannot_false_pass_absence_assertion():
+    result = evaluate(
+        contract=CONTRACT,
+        scenario=scenario(),
+        target=FixtureTarget(
+            fixture(
+                [
+                    {
+                        **EMAIL,
+                        "policy_outcome": "DENY",
+                        "approval_outcome": None,
+                        "external_sink_text": CANARY,
+                    },
+                    FINISH,
+                ]
+            )
+        ),
+    )
+    canary_assertions = [
+        a for a in result.security_assertions if a.assertion_type == "OUTPUT_NOT_CONTAINS_CANARY"
+    ]
+    assert result.overall_status == S.ERROR
+    assert result.error_code == "INVALID_SINK_CAPTURE"
+    assert all(a.status != S.PASS for a in canary_assertions)
+
+
 def corrupt(obs, kind):
     events = list(obs.events)
 
@@ -583,6 +668,77 @@ def test_cli_examples_and_usage():
     assert runner.invoke(app, ["eval", "run"]).exit_code == 2
     assert runner.invoke(app, ["eval", "run", "--format", "bad"]).exit_code == 2
     assert runner.invoke(app, ["eval", "examples", "--root", "missing"]).exit_code == 4
+    assert runner.invoke(app, ["eval", "examples", "--unknown-option"]).exit_code == 2
+
+
+@pytest.mark.parametrize(
+    "fixture_status,expected_code,expected_gate",
+    [
+        (S.ERROR, 4, "ERROR"),
+        (S.INCONCLUSIVE, 3, "INCONCLUSIVE"),
+        (S.FAIL, 1, "FAIL"),
+    ],
+)
+def test_cli_examples_preserves_single_case_gate_status(
+    monkeypatch, fixture_status, expected_code, expected_gate
+):
+    import agentsec.cli.evaluation as cli_evaluation
+
+    original_evaluate = cli_evaluation.evaluate
+
+    def evaluate_with_one_status(**kwargs):
+        result = original_evaluate(**kwargs)
+        if kwargs["target"].fixture.fixture_id != "indirect-injection-safe":
+            return result
+        return result.model_copy(
+            update={
+                "overall_status": fixture_status,
+                "security_status": fixture_status,
+                "error_code": "FIXTURE_TEST_ERROR" if fixture_status == S.ERROR else None,
+            }
+        )
+
+    monkeypatch.setattr(cli_evaluation, "evaluate", evaluate_with_one_status)
+    result = CliRunner().invoke(app, ["eval", "examples", "--root", str(ROOT / "examples")])
+    assert result.exit_code == expected_code, result.output
+    assert f"gate {expected_gate}" in result.output
+
+
+@pytest.mark.parametrize(
+    "overrides,expected_code",
+    [
+        ({"indirect-injection-safe": S.FAIL, "indirect-injection-vulnerable": S.INCONCLUSIVE}, 1),
+        (
+            {
+                "indirect-injection-safe": S.FAIL,
+                "indirect-injection-vulnerable": S.INCONCLUSIVE,
+                "canary-exfiltration-protected": S.ERROR,
+            },
+            4,
+        ),
+    ],
+)
+def test_cli_examples_uses_status_precedence(monkeypatch, overrides, expected_code):
+    import agentsec.cli.evaluation as cli_evaluation
+
+    original_evaluate = cli_evaluation.evaluate
+
+    def evaluate_with_statuses(**kwargs):
+        result = original_evaluate(**kwargs)
+        status = overrides.get(kwargs["target"].fixture.fixture_id)
+        if status is None:
+            return result
+        return result.model_copy(
+            update={
+                "overall_status": status,
+                "security_status": status,
+                "error_code": "FIXTURE_TEST_ERROR" if status == S.ERROR else None,
+            }
+        )
+
+    monkeypatch.setattr(cli_evaluation, "evaluate", evaluate_with_statuses)
+    result = CliRunner().invoke(app, ["eval", "examples", "--root", str(ROOT / "examples")])
+    assert result.exit_code == expected_code, result.output
 
 
 def test_effect_correlation_and_interleaved_attempts():

@@ -10,3 +10,4 @@ changes, verification, deviations, remaining limitations, and next-phase readine
 - `phase-0-review-fixes-report.md` — post-review corrective changes to Phase 0.
 
 - `phase-1-implementation-report.md` — local evaluation implementation, validation, and review gate.
+- `phase-1-review-fixes-report.md` — independent Phase 1 review corrections and verification.

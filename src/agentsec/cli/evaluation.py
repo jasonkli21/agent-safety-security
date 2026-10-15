@@ -10,7 +10,7 @@ from agentsec.contracts.errors import ArtifactValidationError
 from agentsec.contracts.loader import load_artifact, load_contract
 from agentsec.domain.scenarios import Scenario
 from agentsec.eval.fixtures import FixtureTarget, TargetFixture
-from agentsec.eval.models import EvaluationStatus
+from agentsec.eval.models import EvaluationStatus, aggregate
 from agentsec.eval.reporting import EXIT_CODES, render_report
 from agentsec.eval.runner import evaluate
 
@@ -75,7 +75,7 @@ def examples(root: Annotated[Path, typer.Option()] = Path("examples")) -> None:
         ("resource-exhaustion", "contained", EvaluationStatus.PASS),
         ("resource-exhaustion", "runaway", EvaluationStatus.FAIL),
     )
-    mismatches = 0
+    gate_statuses: list[EvaluationStatus] = []
     try:
         contract = load_contract(root / "contracts/research.yaml")
         for scenario_id, variant, expected in cases:
@@ -92,12 +92,18 @@ def examples(root: Annotated[Path, typer.Option()] = Path("examples")) -> None:
                 and result.security_status == expected
                 and result.utility_status == EvaluationStatus.PASS
             )
-            mismatches += not match
+            if result.overall_status == EvaluationStatus.ERROR:
+                gate_status = EvaluationStatus.ERROR
+            elif result.overall_status == EvaluationStatus.INCONCLUSIVE:
+                gate_status = EvaluationStatus.INCONCLUSIVE
+            else:
+                gate_status = EvaluationStatus.PASS if match else EvaluationStatus.FAIL
+            gate_statuses.append(gate_status)
             typer.echo(
                 f"{'MATCH' if match else 'MISMATCH'} {name}: "
-                f"{result.overall_status} (expected {expected})"
+                f"{result.overall_status} (expected {expected}; gate {gate_status})"
             )
     except ArtifactValidationError as exc:
         typer.echo("INVALID_EXAMPLE_INPUT", err=True)
         raise typer.Exit(4) from exc
-    raise typer.Exit(1 if mismatches else 0)
+    raise typer.Exit(EXIT_CODES[aggregate(tuple(gate_statuses))])

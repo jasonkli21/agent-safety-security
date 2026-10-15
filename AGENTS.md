@@ -27,8 +27,9 @@ If they appear to conflict, do not silently pick whichever is convenient. Prefer
 
 ## 3. Current phase boundary
 
-**Phase 1 implementation is complete and awaiting independent review.** Do not implement
-Phase 2 until Phase 1 review/fixes are complete and a reviewed Phase 2 plan exists.
+**Phase 1 implementation and review fixes are complete and awaiting final independent
+verification.** Do not implement Phase 2 until final Phase 1 verification is complete and a
+reviewed Phase 2 plan exists.
 The implementation follows `docs/plans/phase-1-implementation-plan.md`; its verification and
 limitations are recorded in `docs/reports/phase-1-implementation-report.md`.
 Phase 0 canonical types and semantics remain shared and protected.

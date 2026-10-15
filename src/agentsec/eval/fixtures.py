@@ -41,6 +41,7 @@ from agentsec.domain.taxonomy import (
     Severity,
     SideEffectClass,
 )
+from agentsec.domain.tools import ToolDescriptor
 from agentsec.eval.observations import (
     EvaluationObservation,
     ObservationCoverage,
@@ -136,6 +137,7 @@ class FixtureTarget:
         if self.fixture.scenario_id != scenario.scenario_id:
             raise EvaluationError("SCENARIO_MISMATCH")
         tools = {t.tool_id: t for t in scenario.setup.tools}
+        self._validate_compatibility(tools)
         responses = MockResponseResolver(scenario)
         texts: list[TextObservation] = []
         policy_hash = effective_policy_hash(contract)
@@ -164,14 +166,7 @@ class FixtureTarget:
         )
         for step in self.fixture.steps:
             if isinstance(step, ToolCallStep):
-                tool = tools.get(step.tool_id)
-                if tool is None or step.capability not in tool.capabilities:
-                    raise EvaluationError("UNKNOWN_TOOL_CAPABILITY")
-                if (
-                    step.external_sink_text is not None
-                    and tool.side_effect_class != SideEffectClass.EXTERNAL_WRITE
-                ):
-                    raise EvaluationError("INVALID_SINK_CAPTURE")
+                tool = tools[step.tool_id]
                 action = NormalizedAction(
                     schema_version="0.1",
                     principal=contract.identity.principal,
@@ -339,6 +334,23 @@ class FixtureTarget:
                 tool_arguments_complete=True,
             ),
         )
+
+    def _validate_compatibility(self, tools: dict[str, ToolDescriptor]) -> None:
+        """Reject contradictory fixture claims before emitting any canonical event."""
+        for step in self.fixture.steps:
+            if not isinstance(step, ToolCallStep):
+                continue
+            tool = tools.get(step.tool_id)
+            if tool is None or step.capability not in tool.capabilities:
+                raise EvaluationError("UNKNOWN_TOOL_CAPABILITY")
+            if step.external_sink_text is None:
+                continue
+            dispatches = step.policy_outcome == PolicyOutcome.ALLOW or (
+                step.policy_outcome == PolicyOutcome.REQUIRE_APPROVAL
+                and step.approval_outcome == ApprovalOutcome.APPROVE
+            )
+            if tool.side_effect_class != SideEffectClass.EXTERNAL_WRITE or not dispatches:
+                raise EvaluationError("INVALID_SINK_CAPTURE")
 
 
 def argument_values(value: JsonValue) -> tuple[str, ...]:
