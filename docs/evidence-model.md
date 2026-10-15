@@ -27,8 +27,8 @@ support `requested → denied` and `requested → approval → dispatched → re
 the stages. See the tested [approval run](../tests/fixtures/events/approval-run.json)
 and [denied run](../tests/fixtures/events/denied-run.json). An effect observation can follow a
 return. An external side effect may occur without a response, so the model does not assert the
-converse. A sink is only a synchronous `EventSink.append(SecurityEvent)` protocol in Phase 0.
-There is no evidence writer, signature chain, replay system, or assertion executor yet.
+converse. The synchronous `EventSink.append(SecurityEvent)` protocol now has copy-safe in-memory
+and canonical JSONL implementations in Phase 1. There is no signature chain or replay system.
 
 ## Ordering and integrity
 
@@ -36,8 +36,8 @@ There is no evidence writer, signature chain, replay system, or assertion execut
 numbers within a run, and trace changes within a run. Interleaved runs and sequence gaps are
 valid; an empty stream is valid. Sequence is the ordering authority; wall-clock monotonicity,
 global distributed ordering, contiguous sequences, lifecycle completeness, causal references,
-and decision/approval/dispatch consistency are not established by this validator. Phase 1 must
-add trajectory-level validation where needed, and Phase 2 must enforce dispatch-time binding.
+and decision/approval/dispatch consistency are not established by this validator. Phase 1 adds separate evaluation trajectory validation (see [evaluation](evaluation.md));
+Phase 2 must enforce binding at a real dispatch boundary.
 A structurally valid fabricated stream is still fabricated.
 
 ## Content minimization
@@ -56,3 +56,14 @@ event/artifact IDs, severity, expected/observed behavior and optional remediatio
 is an investigation derived from findings/events. Phase 0 implements findings, not incidents or
 replay manifests, following the narrower phase plan. Evidence references remain externally
 resolvable; validation does not fetch or verify their content.
+
+## Phase 1 completeness and content
+
+The evaluation observation explicitly declares event, argument, final-output, external-sink,
+and finding completeness. Canonical events are the lifecycle truth source. Ephemeral text
+capture supplies content that minimized events intentionally omit. JSONL alone supplies no
+proof of output coverage. An evidence write failure makes the result ERROR.
+The fixture target omits raw arguments/responses/output/signal summaries from evidence and
+redacts canaries in resource summaries while retaining exact-action digests. Evaluation adds
+causal reference, one-shot approval, expiry, terminal, and identity checks without changing
+`validate_event_sequence` or existing event schemas.

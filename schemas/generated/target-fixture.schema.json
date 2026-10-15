@@ -1,0 +1,348 @@
+{
+  "$defs": {
+    "ApprovalOutcome": {
+      "enum": [
+        "APPROVE",
+        "DENY"
+      ],
+      "title": "ApprovalOutcome",
+      "type": "string"
+    },
+    "FinishStep": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "const": "FINISH",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ],
+      "title": "FinishStep",
+      "type": "object"
+    },
+    "JsonValue": {},
+    "OutputStep": {
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "title": "Text",
+          "type": "string"
+        },
+        "type": {
+          "const": "OUTPUT",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "text"
+      ],
+      "title": "OutputStep",
+      "type": "object"
+    },
+    "PolicyOutcome": {
+      "enum": [
+        "ALLOW",
+        "DENY",
+        "REQUIRE_APPROVAL",
+        "ERROR"
+      ],
+      "title": "PolicyOutcome",
+      "type": "string"
+    },
+    "ReasonCode": {
+      "enum": [
+        "EXPLICIT_ALLOW",
+        "EXPLICIT_DENY",
+        "DEFAULT_DENY",
+        "APPROVAL_REQUIRED",
+        "UNKNOWN_CAPABILITY",
+        "OUTSIDE_TASK_SCOPE",
+        "BUDGET_EXCEEDED",
+        "DATA_FLOW_DENIED",
+        "INVALID_REQUEST",
+        "POLICY_ENGINE_ERROR"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    },
+    "SecurityCategory": {
+      "enum": [
+        "PROMPT_INJECTION",
+        "GOAL_HIJACKING",
+        "UNAUTHORIZED_TOOL_USE",
+        "EXCESSIVE_AGENCY",
+        "ARGUMENT_VIOLATION",
+        "APPROVAL_BYPASS",
+        "SECRET_EXFILTRATION",
+        "PII_EXPOSURE",
+        "MEMORY_POISONING",
+        "TOOL_POISONING",
+        "SUPPLY_CHAIN_CHANGE",
+        "RESOURCE_EXHAUSTION",
+        "DELEGATION_ESCALATION",
+        "POLICY_BYPASS",
+        "TRACE_INTEGRITY_FAILURE"
+      ],
+      "title": "SecurityCategory",
+      "type": "string"
+    },
+    "Severity": {
+      "description": "Ordered numeric wire values; never a probabilistic score.",
+      "enum": [
+        0,
+        1,
+        2,
+        3,
+        4
+      ],
+      "title": "Severity",
+      "type": "integer"
+    },
+    "SignalStep": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_refs": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Artifact Refs",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "category": {
+          "$ref": "#/$defs/SecurityCategory"
+        },
+        "redacted_summary": {
+          "anyOf": [
+            {
+              "maxLength": 8192,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Redacted Summary"
+        },
+        "severity": {
+          "$ref": "#/$defs/Severity"
+        },
+        "type": {
+          "const": "SECURITY_SIGNAL",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "category",
+        "severity"
+      ],
+      "title": "SignalStep",
+      "type": "object"
+    },
+    "TerminateStep": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "$ref": "#/$defs/ReasonCode"
+        },
+        "type": {
+          "const": "TERMINATE",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "reason"
+      ],
+      "title": "TerminateStep",
+      "type": "object"
+    },
+    "ToolCallStep": {
+      "additionalProperties": false,
+      "properties": {
+        "approval_outcome": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/ApprovalOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "arguments": {
+          "additionalProperties": {
+            "$ref": "#/$defs/JsonValue"
+          },
+          "title": "Arguments",
+          "type": "object"
+        },
+        "capability": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+          "title": "Capability",
+          "type": "string"
+        },
+        "external_sink_text": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "External Sink Text"
+        },
+        "matched_rule_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Matched Rule Ids",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "policy_outcome": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reason_codes": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ReasonCode"
+          },
+          "title": "Reason Codes",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "resource": {
+          "anyOf": [
+            {
+              "maxLength": 8192,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource"
+        },
+        "tool_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Tool Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "TOOL_CALL",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "tool_id",
+        "capability",
+        "arguments"
+      ],
+      "title": "ToolCallStep",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "fixture_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Fixture Id",
+      "type": "string"
+    },
+    "scenario_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Scenario Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "steps": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "FINISH": "#/$defs/FinishStep",
+            "OUTPUT": "#/$defs/OutputStep",
+            "SECURITY_SIGNAL": "#/$defs/SignalStep",
+            "TERMINATE": "#/$defs/TerminateStep",
+            "TOOL_CALL": "#/$defs/ToolCallStep"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/ToolCallStep"
+          },
+          {
+            "$ref": "#/$defs/SignalStep"
+          },
+          {
+            "$ref": "#/$defs/OutputStep"
+          },
+          {
+            "$ref": "#/$defs/TerminateStep"
+          },
+          {
+            "$ref": "#/$defs/FinishStep"
+          }
+        ]
+      },
+      "minItems": 1,
+      "title": "Steps",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "fixture_id",
+    "scenario_id",
+    "steps"
+  ],
+  "title": "TargetFixture",
+  "type": "object"
+}

@@ -27,24 +27,14 @@ If they appear to conflict, do not silently pick whichever is convenient. Prefer
 
 ## 3. Current phase boundary
 
-**Phase 0 is complete.** The repository currently has no active Phase 1 plan. Do not implement
-Phase 1 until a reviewed Phase 1 plan exists under `docs/plans/`. Until then, keep changes within
-explicitly scoped Phase 0 maintenance and review fixes; do not add future-phase behavior.
+**Phase 1 implementation is complete and awaiting independent review.** Do not implement
+Phase 2 until Phase 1 review/fixes are complete and a reviewed Phase 2 plan exists.
+The implementation follows `docs/plans/phase-1-implementation-plan.md`; its verification and
+limitations are recorded in `docs/reports/phase-1-implementation-report.md`.
+Phase 0 canonical types and semantics remain shared and protected.
 
-Phase 0 established canonical models, schemas, validation, canonicalization/hashing, a local validation CLI, examples, and documentation.
-
-Phase 0 must **not** grow into:
-
-- a real MCP proxy;
-- a production policy engine;
-- a full eval runner;
-- model-provider integration;
-- provenance propagation;
-- hosted services;
-- a web UI;
-- OAuth/OIDC;
-- Cedar/OPA integration;
-- a sandbox implementation.
+Do not implement production policy, MCP gateways, model providers, provenance propagation,
+hosted services, UI, OAuth/OIDC, Cedar/OPA, or sandbox infrastructure in Phase 1.
 
 ## 4. Architectural invariants
 

@@ -1,4 +1,4 @@
-"""Minimal synchronous evidence boundary; persistence belongs to later phases."""
+"""Synchronous canonical evidence boundary shared by memory and JSONL sinks."""
 
 from typing import Protocol
 

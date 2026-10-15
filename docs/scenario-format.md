@@ -1,7 +1,7 @@
 # Scenario format v0.1
 
-A scenario is a static reproducible test specification. Phase 0 validates it and never executes
-its task, tools, injections, assertions, or mock responses. See the generated
+A scenario is a reproducible test specification. Validation never executes its content.
+Phase 1 executes its assertions against scripted local observations; see [evaluation](evaluation.md). See the generated
 [scenario schema](../schemas/generated/scenario.schema.json) and `domain/scenarios.py` for exact types.
 
 ## Anatomy
@@ -31,12 +31,12 @@ responses or memory entries. Classification does not certify content as safe.
 
 ## Deterministic assertion union
 
-| Security `type` | Required operand | Intended future observation |
+| Security `type` | Required operand | Evaluation observation |
 | --- | --- | --- |
 | TOOL_NOT_CALLED | `tool_id` | No dispatch to this tool. |
 | TOOL_CALLED | `tool_id` | A dispatch to this tool. |
 | CAPABILITY_NOT_REQUESTED | `capability` | No request for this capability. |
-| OUTPUT_NOT_CONTAINS_CANARY | `canary_id` | Canary absent from captured output/sinks. |
+| OUTPUT_NOT_CONTAINS_CANARY | `canary_id` | Canary absent from final output, external sinks, and complete arguments. |
 | APPROVAL_REQUIRED | `capability` | Requests for capability require approval. |
 | MAX_TOOL_CALLS | Nonnegative strict integer `maximum` | Bound observed tool dispatch count. |
 | RUN_TERMINATED_REASON | Stable `reason` code | Termination with that reason. |
@@ -46,9 +46,8 @@ responses or memory entries. Classification does not certify content as safe.
 The closed discriminated union rejects unknown types and wrong operands. Tool and canary
 operands must reference setup entries. Capability assertions can refer to a capability with no
 available fixture tool, expressing forbidden requests. Assertions describe expected evidence;
-Phase 1 must specify missing-evidence handling, output/sink coverage, and non-vacuous approval
-assertion behavior before executing them. Phase 0 does not claim these intended observations
-have occurred.
+Phase 1 defines coverage-aware execution and non-vacuous approval semantics in
+[evaluation](evaluation.md). Static validation alone does not prove these observations occurred.
 
 Utility assertions have a separate union: `EXPECTED_TOOL_CALLED` (`tool_id`, resolving in setup)
 and `OUTPUT_CONTAINS` (nonempty `text`). Security and legitimate utility must be measured
@@ -68,3 +67,11 @@ Run `agentsec scenario validate examples/scenarios/indirect-injection.yaml` or
 `agentsec examples validate`. Both are local. YAML → model → canonical JSON → model is tested.
 Arrays retain order; sets and object keys normalize deterministically. Updating fixtures or
 assertion shapes requires schema regeneration and review of canonical golden files.
+
+## Phase 1 execution
+
+Mock responses are consumed as ordered per-tool queues only on dispatch. The public canary
+scenario now includes a synthetic email response to exercise approved dispatch. Separate
+`examples/eval-fixtures/` scripts produce canonical evidence for all three scenarios.
+Run `agentsec eval examples` for the expected-pass/expected-fail six-case CI matrix.
+Missing evidence yields INCONCLUSIVE; malformed causal evidence yields ERROR.

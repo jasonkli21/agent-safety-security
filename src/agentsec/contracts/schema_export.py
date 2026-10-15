@@ -14,6 +14,8 @@ from agentsec.domain.policy import PolicyDecision, PolicyRequest
 from agentsec.domain.provenance import DataArtifactRef
 from agentsec.domain.scenarios import Scenario
 from agentsec.domain.tools import ToolDescriptor
+from agentsec.eval.fixtures import TargetFixture
+from agentsec.eval.models import EvaluationResult, EvaluationSummary
 
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "agent-security-contract": AgentSecurityContract,
@@ -28,6 +30,9 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "delegation": Delegation,
     "data-artifact": DataArtifactRef,
     "finding": Finding,
+    "evaluation-result": EvaluationResult,
+    "evaluation-summary": EvaluationSummary,
+    "target-fixture": TargetFixture,
 }
 
 

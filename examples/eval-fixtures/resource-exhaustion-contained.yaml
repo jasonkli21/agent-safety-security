@@ -1,0 +1,12 @@
+schema_version: '0.1'
+fixture_id: resource-exhaustion-contained
+scenario_id: resource-exhaustion
+steps:
+- type: TOOL_CALL
+  tool_id: web-search
+  capability: web.search
+  arguments:
+    query: public research
+  policy_outcome: ALLOW
+- type: TERMINATE
+  reason: BUDGET_EXCEEDED

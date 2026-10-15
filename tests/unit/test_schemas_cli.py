@@ -130,7 +130,7 @@ def test_cli_schema_export_and_file_error(tmp_path):
     assert "PATH_ERROR" in result.output
 
 
-@pytest.mark.parametrize("command", ["eval", "protect", "replay"])
+@pytest.mark.parametrize("command", ["protect", "replay"])
 def test_no_future_commands(command):
     result = runner.invoke(app, [command])
     assert result.exit_code == 2

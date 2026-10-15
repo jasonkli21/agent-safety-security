@@ -8,3 +8,5 @@ changes, verification, deviations, remaining limitations, and next-phase readine
 
 - `phase-0-implementation-report.md` — original Phase 0 implementation record.
 - `phase-0-review-fixes-report.md` — post-review corrective changes to Phase 0.
+
+- `phase-1-implementation-report.md` — local evaluation implementation, validation, and review gate.

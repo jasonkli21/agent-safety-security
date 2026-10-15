@@ -2,7 +2,7 @@
 
 A local-first security lifecycle for tool-using AI agents: define explicit authority, test it adversarially, enforce it at runtime, and turn observed failures into regressions.
 
-> **Current status:** Phase 0 foundation and review corrections are implemented. The project defines a canonical security domain, schemas, validation, evidence model, and CLI foundations. It does **not** yet protect a production agent.
+> **Current status:** Phase 1 local deterministic evaluation is implemented and awaiting independent review. The project provides canonical security types, scripted targets, assertions, JSONL evidence, reports, and CI gates. It does **not** yet protect a production agent.
 
 ## Product thesis
 
@@ -49,7 +49,7 @@ Phase 0 established one shared language for:
 - evaluation scenarios;
 - strict validation, canonicalization, and schema export.
 
-The Phase 0 foundation is implemented and documented in the [implementation report](docs/reports/phase-0-implementation-report.md). Phase 1 has not started. Do not implement Phase 1 until a reviewed, active Phase 1 plan exists under `docs/plans/`.
+The Phase 0 foundation is implemented and documented in the [implementation report](docs/reports/phase-0-implementation-report.md). Phase 1 is implemented under the [reviewed plan](docs/plans/phase-1-implementation-plan.md); see the [evaluation guide](docs/evaluation.md) and [implementation report](docs/reports/phase-1-implementation-report.md). Phase 2 requires independent Phase 1 review/fixes and a reviewed Phase 2 plan.
 
 ## Repository layout
 
@@ -85,6 +85,8 @@ agentsec version
 agentsec contract validate examples/contracts/research.yaml
 agentsec scenario validate examples/scenarios/indirect-injection.yaml
 agentsec examples validate
+agentsec eval examples
+agentsec eval run --contract examples/contracts/research.yaml --scenario examples/scenarios/indirect-injection.yaml --fixture examples/eval-fixtures/indirect-injection-safe.yaml
 agentsec schema export --out schemas/generated
 ruff check .
 ruff format --check .
@@ -94,8 +96,8 @@ python -m build
 ```
 
 Validation is local and requires no API keys. `examples validate` reads `./examples` by default;
-use `--root /path/to/examples` outside this checkout. No `eval`, `protect`, or `replay` command
-exists yet. See the [contract reference](docs/security-contract.md),
+use `--root /path/to/examples` outside this checkout. `eval run` supports text/JSON reports and optional JSONL evidence; see the
+[evaluation guide](docs/evaluation.md). `protect` and `replay` are future phases. See the [contract reference](docs/security-contract.md),
 [scenario format](docs/scenario-format.md), [evidence model](docs/evidence-model.md),
 [threat model](docs/threat-model.md), and
 [implementation report](docs/reports/phase-0-implementation-report.md).

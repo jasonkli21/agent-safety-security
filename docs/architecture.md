@@ -1005,7 +1005,8 @@ Neither hash should contain unstable generated fields such as load timestamps. C
 
 ## 12. Evaluation Architecture
 
-Phase 1 will implement the first actual evaluation engine, but Phase 0 must prepare for it.
+Phase 1 implements a local synchronous evaluation engine over the Phase 0 domain.
+See [evaluation](evaluation.md) for the concrete target, coverage, causality and assertion semantics.
 
 ### 12.1 Evaluation run
 
@@ -1056,10 +1057,16 @@ The eval engine should target an interface, not one framework.
 
 ```python
 class AgentTarget(Protocol):
-    async def run(self, task: AgentTask, environment: TestEnvironment) -> AgentRunResult: ...
+    def run(
+        self, *, contract: AgentSecurityContract, scenario: Scenario, context: EvaluationContext
+    ) -> EvaluationObservation: ...
 ```
 
-Phase 1 may begin with deterministic/fake targets.
+Phase 1 uses a deterministic scripted fixture target and no production PolicyEngine.
+The context injects clocks/IDs and an in-memory event recorder. Reports combine separate
+security and utility statuses using ERROR > FAIL > INCONCLUSIVE > PASS. Missing capture is
+explicit; evaluation-specific causality validation does not expand the Phase 0 sequence validator.
+Complete tool arguments and text surfaces remain ephemeral; JSONL stores canonical events.
 
 ---
 
