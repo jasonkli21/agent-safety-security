@@ -13,7 +13,7 @@ from agentsec.domain.base import (
     Timestamp,
     VersionedModel,
 )
-from agentsec.domain.taxonomy import PrincipalType, TrustClass
+from agentsec.domain.taxonomy import PrincipalType
 
 
 class PrincipalRef(SecurityModel):
@@ -26,7 +26,7 @@ class AgentIdentity(SecurityModel):
     name: NonEmpty
     environment: Identifier
     owner: PrincipalRef | None = None
-    trust_level: TrustClass | None = None
+    trust_level: Identifier | None = None
     framework: Identifier | None = None
     model_provider: Identifier | None = None
     model_name: Identifier | None = None

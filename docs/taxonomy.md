@@ -51,6 +51,9 @@ SideEffectClass identifies the kind of action:
 | FINANCIAL | Transfer financial value or make financial commitments. |
 | INFRASTRUCTURE | Change deployed infrastructure. |
 
+`DESTRUCTIVE` metadata requires `ToolDescriptor.destructive: true`. `CODE_EXECUTION` and
+`INFRASTRUCTURE` may use either value; the boolean remains a separate authored risk signal.
+
 TrustClass indicates source context, not a proof of trust:
 
 | Value | Meaning |
@@ -61,6 +64,9 @@ TrustClass indicates source context, not a proof of trust:
 | TOOL_OUTPUT | Data returned by a tool, potentially adversarial. |
 | MODEL_OUTPUT | Probabilistic generated content. |
 | GENERATED_POLICY_SUGGESTION | Advisory policy text that has not acquired authority. |
+
+`AgentIdentity.trust_level` is an opaque optional identifier for a future trust context. It is not
+a `TrustClass`, does not define a trust lattice, and carries no authority by itself.
 
 DataLabel is a simple nonexclusive set; no ordering/lattice or automatic propagation exists:
 `PUBLIC` (public content), `INTERNAL` (internal content), `SENSITIVE` (restricted content),

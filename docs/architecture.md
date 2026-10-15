@@ -1,7 +1,7 @@
 # Agent Safety & Security Platform — Architecture
 
 **Document:** `docs/architecture.md`  
-**Status:** Architecture baseline refined for Phase 0 bootstrap  
+**Status:** Phased architecture baseline
 **Scope:** Long-term architecture with implementation guidance through Phases 0–3; last reviewed 2026-10-15  
 **Primary implementation language:** Python 3.12+ initially  
 **Primary deployment model:** Local-first / self-hosted; optional managed control plane later  
@@ -586,13 +586,15 @@ Finding
 
 A security investigation object derived from events/findings.
 
-Phase 0 defines the type only.
+No Incident type is defined in Phase 0. Define it in a later phase when incident-response
+workflows and their required evidence relationships are designed.
 
 ### 6.17 ReplayBundle
 
 Long-term portable bundle containing enough information to reproduce a trace.
 
-Phase 0 defines a forward-compatible manifest shape but does not implement replay.
+No ReplayBundle type is defined in Phase 0. Design the bundle alongside a later replay
+implementation, after its evidence and reproducibility requirements are established.
 
 ---
 
@@ -709,7 +711,7 @@ Long-term responsibilities:
 - derive test obligations;
 - create normalized effective policy.
 
-Phase 0: define interface only.
+Phase 0: no separate compiler interface; loading and normalization use the contract validator.
 
 Phase 3: substantial implementation.
 
@@ -1728,17 +1730,3 @@ Phases 1–3 prove the central thesis:
 > **The same explicit security contract can define expected behavior, generate tests, and constrain real agent actions.**
 
 That thesis should remain the architectural anchor as the project expands.
-
-
-## Phase 0 implementation reconciliation
-
-The implemented Phase 0 surface is documented in
-[the implementation report](reports/phase-0-implementation-report.md). Where this long-term
-architecture mentions Phase 0 Incident, ReplayBundle, or ContractCompiler types, the narrower
-phase plan takes precedence: they are deferred until their semantics are needed. Only
-PolicyEngine and EventSink ports are provided. No runtime or eval execution is implemented.
-
-Version `0.1` artifacts use strict Pydantic models, bounded JSON/YAML loaders, and project-defined
-canonical JSON. See [security-contract.md](security-contract.md) for the exact document/policy
-hash projections and [evidence-model.md](evidence-model.md) for typed payloads and the limits of
-sequence validation. These implementation choices preserve the invariants above.

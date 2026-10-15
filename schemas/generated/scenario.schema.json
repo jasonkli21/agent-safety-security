@@ -661,6 +661,30 @@
     },
     "ToolDescriptor": {
       "additionalProperties": false,
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "side_effect_class": {
+                "const": "DESTRUCTIVE"
+              }
+            },
+            "required": [
+              "side_effect_class"
+            ]
+          },
+          "then": {
+            "properties": {
+              "destructive": {
+                "const": true
+              }
+            },
+            "required": [
+              "destructive"
+            ]
+          }
+        }
+      ],
       "properties": {
         "capabilities": {
           "items": {

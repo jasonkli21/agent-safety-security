@@ -130,6 +130,7 @@
     "sequence": 5,
     "payload": {
       "kind": "TOOL_DISPATCHED",
+      "dispatch_id": "dispatch-email-1",
       "request_id": "request-send",
       "tool_id": "email-send",
       "action_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
@@ -147,6 +148,7 @@
     "sequence": 6,
     "payload": {
       "kind": "TOOL_RETURNED",
+      "dispatch_id": "dispatch-email-1",
       "request_id": "request-send",
       "tool_id": "email-send",
       "success": true,
@@ -163,6 +165,7 @@
     "sequence": 7,
     "payload": {
       "kind": "EFFECT_VERIFIED",
+      "dispatch_id": "dispatch-email-1",
       "request_id": "request-send",
       "verifier": {
         "principal_id": "service:verifier",

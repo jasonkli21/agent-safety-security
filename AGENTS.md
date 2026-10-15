@@ -8,7 +8,7 @@ For the current phase, read:
 
 1. `docs/prd.md`
 2. `docs/architecture.md`
-3. the active plan under `docs/plans/`
+3. the active plan under `docs/plans/`, if one exists
 4. relevant focused docs under `docs/`
 5. existing implementation reports under `docs/reports/`
 
@@ -27,9 +27,11 @@ If they appear to conflict, do not silently pick whichever is convenient. Prefer
 
 ## 3. Current phase boundary
 
-The scaffold is prepared for **Phase 0**.
+**Phase 0 is complete.** The repository currently has no active Phase 1 plan. Do not implement
+Phase 1 until a reviewed Phase 1 plan exists under `docs/plans/`. Until then, keep changes within
+explicitly scoped Phase 0 maintenance and review fixes; do not add future-phase behavior.
 
-Phase 0 builds canonical models, schemas, validation, canonicalization/hashing, local validation CLI, examples, and documentation.
+Phase 0 established canonical models, schemas, validation, canonicalization/hashing, a local validation CLI, examples, and documentation.
 
 Phase 0 must **not** grow into:
 
@@ -100,12 +102,9 @@ When implementation changes a material semantic decision:
 
 Generated schemas should never be manually edited.
 
-## 9. End-of-phase requirement
+## 9. End-of-phase reporting
 
-At Phase 0 completion, create:
-
-`docs/reports/phase-0-implementation-report.md`
-
-using the template and required sections from the Phase 0 plan.
-
-The implementation report must include exact test/lint/type-check commands and results, deviations from plan, open questions, and Phase 1 readiness assessment.
+At completion of each active phase, create the implementation report required by that phase's
+plan under `docs/reports/`. Use the plan's required sections and include exact test, lint, and
+type-check commands and results; deviations and rationale; open questions and known limitations;
+and readiness assessment for the next phase.

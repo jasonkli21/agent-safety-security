@@ -22,7 +22,7 @@ from agentsec.domain.policy import PolicyDecision, PolicyRequest
 from agentsec.domain.provenance import DataArtifactRef
 from agentsec.domain.scenarios import Scenario
 from agentsec.domain.serialization import canonical_json
-from agentsec.domain.taxonomy import PrincipalType, Severity
+from agentsec.domain.taxonomy import PrincipalType, Severity, TrustClass
 from agentsec.domain.tools import ToolDescriptor, description_digest, schema_digest
 from agentsec.policy.ports import PolicyEngine
 
@@ -132,6 +132,19 @@ def test_principal_enum_and_scope_semantics():
     assert get_type_hints(PolicyEngine.decide)["request"] is PolicyRequest
 
 
+def test_policy_request_environment_matches_agent_and_roundtrips():
+    matching = deepcopy(REQUEST)
+    matching["agent"]["environment"] = matching["environment"] = "development"
+    request = validate_data(PolicyRequest, matching)
+    assert request == validate_data(PolicyRequest, json.loads(canonical_json(request)))
+
+    mismatched = {**matching, "environment": "production"}
+    with pytest.raises(ArtifactValidationError) as caught:
+        validate_data(PolicyRequest, mismatched)
+    assert caught.value.issues[0].code == ErrorCode.INVALID_SCHEMA
+    assert caught.value.issues[0].path == "environment"
+
+
 @pytest.mark.parametrize("value", ["agent", False, 1])
 def test_enum_not_coerced(value):
     with pytest.raises(ArtifactValidationError):
@@ -206,6 +219,24 @@ def test_tool_destructive_and_hash_semantics():
     assert validate_data(
         ToolDescriptor, {**TOOL, "side_effect_class": "DESTRUCTIVE", "destructive": True}
     ).destructive
+    for side_effect_class in ("CODE_EXECUTION", "INFRASTRUCTURE"):
+        assert not validate_data(
+            ToolDescriptor,
+            {**TOOL, "side_effect_class": side_effect_class, "destructive": False},
+        ).destructive
+        assert validate_data(
+            ToolDescriptor,
+            {**TOOL, "side_effect_class": side_effect_class, "destructive": True},
+        ).destructive
+    with pytest.raises(ArtifactValidationError) as caught:
+        validate_data(
+            ToolDescriptor,
+            {**TOOL, "side_effect_class": "DESTRUCTIVE", "destructive": False},
+        )
+    assert caught.value.issues[0].code == ErrorCode.INVALID_TOOL_SCHEMA
+    assert caught.value.issues[0].path == "destructive"
+    with pytest.raises(ArtifactValidationError):
+        validate_data(ToolDescriptor, {**TOOL, "side_effect_class": "DESTRUCTIVE"})
     with pytest.raises(ArtifactValidationError):
         validate_data(ToolDescriptor, {**TOOL, "description_hash": HASH})
 
@@ -277,6 +308,17 @@ def test_severity_ordering_and_content_free_evidence():
 
 def test_agent_context_not_credentials():
     assert "api_key" not in AgentIdentity.model_fields
+    assert get_type_hints(AgentIdentity)["trust_level"] == str | None
+    assert get_type_hints(AgentIdentity)["trust_level"] != TrustClass | None
+    assert (
+        AgentIdentity(
+            agent_id="agent-1",
+            name="Agent",
+            environment="development",
+            trust_level="tier:reviewed",
+        ).trust_level
+        == "tier:reviewed"
+    )
 
 
 def test_evidence_port_uses_canonical_event():

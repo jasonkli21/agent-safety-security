@@ -17,7 +17,7 @@ special meaning and are rejected in capability IDs.
 | Section | Fields and meaning |
 | --- | --- |
 | `metadata` | Required `contract_id`, `name`; optional `description`, `contract_version`. Version is authored revision metadata, separate from schema version. |
-| `agent` | Required `agent_id`, `name`, `environment`; optional `owner` principal, `trust_level` (TrustClass), `framework`, `model_provider`, `model_name`. These context strings carry no credentials or implicit authority. |
+| `agent` | Required `agent_id`, `name`, `environment`; optional `owner` principal, opaque `trust_level` identifier, `framework`, `model_provider`, `model_name`. The trust-level identifier is future-facing context with no authority by itself; it is distinct from provenance `TrustClass`. These context strings carry no credentials or implicit authority. |
 | `identity` | Required `principal`; optional `acts_on_behalf_of`. Each is a `principal_id` plus `principal_type` (`USER`, `AGENT`, `SERVICE`). References are external; there is no contained principal registry or authentication check. |
 | `task_scope` | Optional `task_id`, `description`, `requested_capabilities`, `resource_scopes` model. Within a supplied scope the first two are required. Resources map capability IDs to sets of opaque resource strings. Scope expresses requested work and never grants permission. |
 | `tools.rules` | Unordered rules with required `rule_id`, `capability`, `decision`; optional opaque exact `resource` selector. Decisions are `ALLOW`, `DENY`, `REQUIRE_APPROVAL`. Omitted `tools` or rules means no explicit grants. No argument constraint language exists yet. |
@@ -46,8 +46,9 @@ an authored rule. There is only a `PolicyEngine` protocol accepting `PolicyReque
 contract; Phase 0 does not implement this precedence as an engine.
 
 A `PolicyRequest` identifies principal, agent, capability, optional tool/resource/task/delegation,
-structured argument summary, artifact/trajectory references, environment, and timestamp.
-It is not a prompt. `PolicyDecision` carries request/contract references, effective policy hash,
+structured argument summary, artifact/trajectory references, environment, and timestamp. Its
+environment must equal `agent.environment`; a mismatch is rejected as `INVALID_SCHEMA` at path
+`environment`. It is not a prompt. `PolicyDecision` carries request/contract references, effective policy hash,
 matched rule IDs, nonempty stable reason codes, outcome, timestamp, and optional explanation.
 
 Approval models have their own [schemas](../schemas/generated/approval-request.schema.json).
@@ -70,8 +71,9 @@ and expect enum/set/datetime instances. String booleans and numbers, numeric boo
 enums, naive timestamps, non-finite numbers, and unexpected fields are rejected.
 
 The loader reads at most 1 MiB and allows nesting depth at most 64. It rejects YAML anchors,
-aliases, merge keys, explicit tags, duplicate mapping keys, multiple documents, non-string map
-keys, and non-UTF-8 input. Only lowercase `true`/`false` and JSON number spellings receive
+aliases, explicit tags, duplicate mapping keys, multiple documents, non-string map keys, and
+non-UTF-8 input. The literal string key `<<` is accepted as ordinary data; merge-key resolution
+is disabled, so it never merges mappings. Only lowercase `true`/`false` and JSON number spellings receive
 boolean/number interpretation; YAML `yes`, `off`, leading-zero numbers, and dates remain strings.
 Use quoted schema versions. File suffix must be `.yaml`, `.yml`, or `.json`.
 

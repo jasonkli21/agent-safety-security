@@ -57,6 +57,7 @@ class ApprovalDecidedPayload(SecurityModel):
 
 class ToolDispatchedPayload(SecurityModel):
     kind: Literal[EventType.TOOL_DISPATCHED]
+    dispatch_id: Identifier
     request_id: Identifier
     tool_id: Identifier
     action_digest: Digest
@@ -66,6 +67,7 @@ class ToolDispatchedPayload(SecurityModel):
 
 class ToolReturnedPayload(SecurityModel):
     kind: Literal[EventType.TOOL_RETURNED]
+    dispatch_id: Identifier
     request_id: Identifier
     tool_id: Identifier
     success: bool
@@ -88,6 +90,7 @@ class RunTerminatedPayload(SecurityModel):
 
 class EffectVerifiedPayload(SecurityModel):
     kind: Literal[EventType.EFFECT_VERIFIED]
+    dispatch_id: Identifier
     request_id: Identifier
     verifier: PrincipalRef
     verified: bool

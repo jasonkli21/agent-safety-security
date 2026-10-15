@@ -82,13 +82,17 @@
         "trust_level": {
           "anyOf": [
             {
-              "$ref": "#/$defs/TrustClass"
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
             },
             {
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "title": "Trust Level"
         }
       },
       "required": [
@@ -625,18 +629,6 @@
       ],
       "title": "ToolRule",
       "type": "object"
-    },
-    "TrustClass": {
-      "enum": [
-        "TRUSTED_CONFIG",
-        "USER_INPUT",
-        "UNTRUSTED_EXTERNAL",
-        "TOOL_OUTPUT",
-        "MODEL_OUTPUT",
-        "GENERATED_POLICY_SUGGESTION"
-      ],
-      "title": "TrustClass",
-      "type": "string"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",

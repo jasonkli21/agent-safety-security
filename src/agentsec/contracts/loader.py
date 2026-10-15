@@ -56,8 +56,6 @@ def construct_mapping(loader: StrictLoader, node: yaml.MappingNode) -> dict[str,
         key = loader.construct_object(key_node, deep=True)
         if not isinstance(key, str):
             fail(ErrorCode.INVALID_SCHEMA, "Object keys must be strings")
-        if key == "<<":
-            fail(ErrorCode.UNSAFE_YAML, "YAML merge keys are forbidden")
         pairs.append((key, loader.construct_object(value_node, deep=True)))
     return unique_pairs(pairs)
 

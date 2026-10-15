@@ -2,7 +2,7 @@
 
 A local-first security lifecycle for tool-using AI agents: define explicit authority, test it adversarially, enforce it at runtime, and turn observed failures into regressions.
 
-> **Current status:** Phase 0 foundation implemented. Phase 0 defines the canonical security domain, schemas, validation, evidence model, and CLI foundations. It does **not** yet protect a production agent.
+> **Current status:** Phase 0 foundation and review corrections are implemented. The project defines a canonical security domain, schemas, validation, evidence model, and CLI foundations. It does **not** yet protect a production agent.
 
 ## Product thesis
 
@@ -24,17 +24,20 @@ The long-term differentiator is not “another MCP firewall.” Existing project
 
 ## Start here
 
-Read the repository in this order:
+For current state and implementation work, read:
 
-1. [`docs/prd.md`](docs/prd.md) — product vision, competitive positioning, and phased roadmap.
-2. [`docs/architecture.md`](docs/architecture.md) — enduring system boundaries and architectural invariants.
-3. [`docs/plans/phase-0-implementation-plan.md`](docs/plans/phase-0-implementation-plan.md) — current implementation scope and acceptance criteria.
-4. [`AGENTS.md`](AGENTS.md) — rules for AI-assisted development in this repository.
-5. [`docs/prompts/phase-0-sol-medium-implementation-prompt.md`](docs/prompts/phase-0-sol-medium-implementation-prompt.md) — handoff prompt for the initial implementation session.
+1. [`AGENTS.md`](AGENTS.md) — current repository operating contract and phase boundary.
+2. [`docs/prd.md`](docs/prd.md) — product vision, competitive positioning, and phased roadmap.
+3. [`docs/architecture.md`](docs/architecture.md) — enduring system boundaries and architectural invariants.
+4. [`docs/reports/phase-0-implementation-report.md`](docs/reports/phase-0-implementation-report.md) — original Phase 0 implementation and verification record.
+5. The active plan under `docs/plans/`, when one exists. The [Phase 0 plan](docs/plans/phase-0-implementation-plan.md) is completed historical scope, not an active implementation request.
+6. Relevant focused docs under `docs/` and the latest review-fixes report.
 
-## Phase 0 scope
+The [Phase 0 implementation prompt](docs/prompts/phase-0-sol-medium-implementation-prompt.md) is historical provenance for the completed bootstrap, not active instructions.
 
-Phase 0 should establish one shared language for:
+## Phase 0 foundation (complete)
+
+Phase 0 established one shared language for:
 
 - principals, agents, tasks, and delegation;
 - tools and capabilities;
@@ -46,7 +49,7 @@ Phase 0 should establish one shared language for:
 - evaluation scenarios;
 - strict validation, canonicalization, and schema export.
 
-It should **not** implement the real evaluation engine, MCP gateway, production policy engine, provenance propagation, hosted service, or model-provider integrations.
+The Phase 0 foundation is implemented and documented in the [implementation report](docs/reports/phase-0-implementation-report.md). Phase 1 has not started. Do not implement Phase 1 until a reviewed, active Phase 1 plan exists under `docs/plans/`.
 
 ## Repository layout
 

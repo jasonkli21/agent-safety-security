@@ -7,7 +7,7 @@ import pytest
 from agentsec.contracts.errors import ArtifactValidationError, ErrorCode
 from agentsec.contracts.loader import load_artifact, validate_data
 from agentsec.domain.events import SecurityEvent, validate_event_sequence
-from agentsec.domain.scenarios import Scenario
+from agentsec.domain.scenarios import Scenario, ScenarioTask
 from agentsec.domain.serialization import canonical_json
 from agentsec.domain.taxonomy import EventType
 
@@ -103,6 +103,48 @@ def test_interleaved_runs_and_sequence_gaps():
     validate_event_sequence([validate_data(SecurityEvent, d) for d in data])
 
 
+def test_dispatch_attempts_have_distinct_ids_for_one_request():
+    dispatched = deepcopy(
+        next(event for event in EVENTS if event["event_type"] == "TOOL_DISPATCHED")
+    )
+    first = {**dispatched, "event_id": "event-dispatch-1", "sequence": 10}
+    first["payload"] = {**dispatched["payload"], "dispatch_id": "dispatch-1"}
+    second = {**dispatched, "event_id": "event-dispatch-2", "sequence": 11}
+    second["payload"] = {**dispatched["payload"], "dispatch_id": "dispatch-2"}
+
+    attempts = [validate_data(SecurityEvent, event) for event in (first, second)]
+    validate_event_sequence(attempts)
+    assert attempts[0].payload.request_id == attempts[1].payload.request_id
+    assert attempts[0].payload.dispatch_id != attempts[1].payload.dispatch_id
+
+
+@pytest.mark.parametrize("event_type", ["TOOL_DISPATCHED", "TOOL_RETURNED", "EFFECT_VERIFIED"])
+def test_dispatch_lifecycle_payloads_require_dispatch_id(event_type):
+    event = deepcopy(next(event for event in EVENTS if event["event_type"] == event_type))
+    del event["payload"]["dispatch_id"]
+    with pytest.raises(ArtifactValidationError) as caught:
+        validate_data(SecurityEvent, event)
+    assert caught.value.issues[0].path.endswith(".dispatch_id")
+
+
+def test_scenario_task_scope_id_matches_task_id_and_roundtrips():
+    task = {
+        "task_id": "task-1",
+        "user_input": "Summarize the public report",
+        "task_scope": {"task_id": "task-1", "description": "Read public material"},
+    }
+    value = validate_data(ScenarioTask, task)
+    assert value == validate_data(ScenarioTask, json.loads(canonical_json(value)))
+
+    with pytest.raises(ArtifactValidationError) as caught:
+        validate_data(
+            ScenarioTask,
+            {**task, "task_scope": {**task["task_scope"], "task_id": "different-task"}},
+        )
+    assert caught.value.issues[0].code == ErrorCode.INVALID_SCHEMA
+    assert caught.value.issues[0].path == "task_scope"
+
+
 @pytest.mark.parametrize("path", sorted((ROOT / "examples/scenarios").glob("*.yaml")))
 def test_scenario_roundtrip(path):
     scenario = load_artifact(path, Scenario)
@@ -116,6 +158,9 @@ def test_invalid_scenarios(path):
         load_artifact(path, Scenario)
     if path.stem == "unknown-assertion":
         assert caught.value.issues[0].code == ErrorCode.UNKNOWN_ASSERTION_TYPE
+    if path.stem == "task-scope-task-id-mismatch":
+        assert caught.value.issues[0].code == ErrorCode.INVALID_SCHEMA
+        assert caught.value.issues[0].path == "task.task_scope"
 
 
 @pytest.mark.parametrize(

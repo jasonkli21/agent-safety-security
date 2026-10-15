@@ -145,6 +145,16 @@ def test_security_changes_affect_both_hashes(change):
     assert effective_policy_hash(before) != effective_policy_hash(after)
 
 
+def test_agent_trust_context_is_opaque_and_security_relevant():
+    data = authored()
+    data["agent"]["trust_level"] = None
+    without_tier = validate_data(AgentSecurityContract, data)
+    data["agent"]["trust_level"] = "tier:reviewed"
+    with_tier = validate_data(AgentSecurityContract, data)
+    assert document_hash(without_tier) != document_hash(with_tier)
+    assert effective_policy_hash(without_tier) != effective_policy_hash(with_tier)
+
+
 def test_unspecified_and_empty_task_scope_are_distinct():
     data = authored()
     data["task_scope"]["requested_capabilities"] = None

@@ -14,15 +14,17 @@ envelope type. Both Python validation and exported JSON Schema reject mismatches
 | POLICY_EVALUATED | PolicyDecision including outcome, reason codes and policy identity; not dispatch. |
 | APPROVAL_REQUESTED | ApprovalRequest with request ID, action digest and expiry; no approval granted. |
 | APPROVAL_DECIDED | ApprovalDecision with approver, outcome and one-shot scope; does not prove authentication or execution. |
-| TOOL_DISPATCHED | Request/tool/action digest, decision ID and optional approval ID; records dispatch, not successful return. |
-| TOOL_RETURNED | Request/tool IDs, success boolean, optional response hash and artifact references; a success response alone does not prove an external effect. |
-| EFFECT_VERIFIED | Request, verifier principal, verified boolean and nonempty observation artifact IDs; records a verifier's claim, not independent proof of its honesty. |
+| TOOL_DISPATCHED | Unique dispatch attempt ID, request/tool/action digest, decision ID and optional approval ID; records dispatch, not successful return. |
+| TOOL_RETURNED | Dispatch attempt ID, request/tool IDs, success boolean, optional response hash and artifact references; a success response alone does not prove an external effect. |
+| EFFECT_VERIFIED | Dispatch attempt ID, request, verifier principal, verified boolean and nonempty observation artifact IDs; records a verifier's claim, not independent proof of its honesty. |
 | SECURITY_SIGNAL | Category, ordered severity, artifact references, optional redacted summary; indicator needing interpretation. |
 | RUN_TERMINATED | Stable reason code; termination can be abnormal or budget-related. |
 | RUN_FINISHED | Output artifact IDs; completion alone says nothing about security or utility. |
 
-These events support `requested → denied` and `requested → approval → dispatched → returned`
-without confusing the stages. See the tested [approval run](../tests/fixtures/events/approval-run.json)
+Each dispatch, return, and verified effect carries a `dispatch_id` that identifies one concrete
+execution attempt. Retries may share a `request_id` while using distinct dispatch IDs. These events
+support `requested → denied` and `requested → approval → dispatched → returned` without confusing
+the stages. See the tested [approval run](../tests/fixtures/events/approval-run.json)
 and [denied run](../tests/fixtures/events/denied-run.json). An effect observation can follow a
 return. An external side effect may occur without a response, so the model does not assert the
 converse. A sink is only a synchronous `EventSink.append(SecurityEvent)` protocol in Phase 0.

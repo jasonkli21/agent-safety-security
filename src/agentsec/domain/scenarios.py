@@ -2,7 +2,7 @@
 
 from typing import Annotated, Literal, Self
 
-from pydantic import Field, JsonValue, model_validator
+from pydantic import Field, JsonValue, ValidationInfo, field_validator, model_validator
 from pydantic_core import PydanticCustomError
 
 from agentsec.domain.base import (
@@ -113,6 +113,14 @@ class ScenarioTask(SecurityModel):
     task_id: Identifier
     user_input: NonEmpty
     task_scope: TaskScope | None = None
+
+    @field_validator("task_scope")
+    @classmethod
+    def scope_matches_task(cls, value: TaskScope | None, info: ValidationInfo) -> TaskScope | None:
+        task_id = info.data.get("task_id")
+        if value is not None and value.task_id != task_id:
+            raise PydanticCustomError("INVALID_SCHEMA", "Task scope task ID differs")
+        return value
 
 
 class Injection(SecurityModel):

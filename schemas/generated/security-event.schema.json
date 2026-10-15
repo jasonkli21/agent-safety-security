@@ -82,13 +82,17 @@
         "trust_level": {
           "anyOf": [
             {
-              "$ref": "#/$defs/TrustClass"
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
             },
             {
               "type": "null"
             }
           ],
-          "default": null
+          "default": null,
+          "title": "Trust Level"
         }
       },
       "required": [
@@ -393,6 +397,13 @@
     "EffectVerifiedPayload": {
       "additionalProperties": false,
       "properties": {
+        "dispatch_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Dispatch Id",
+          "type": "string"
+        },
         "evidence_artifact_refs": {
           "items": {
             "maxLength": 128,
@@ -427,6 +438,7 @@
       },
       "required": [
         "kind",
+        "dispatch_id",
         "request_id",
         "verifier",
         "verified",
@@ -1037,6 +1049,13 @@
           "title": "Decision Id",
           "type": "string"
         },
+        "dispatch_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Dispatch Id",
+          "type": "string"
+        },
         "kind": {
           "const": "TOOL_DISPATCHED",
           "title": "Kind",
@@ -1059,6 +1078,7 @@
       },
       "required": [
         "kind",
+        "dispatch_id",
         "request_id",
         "tool_id",
         "action_digest",
@@ -1103,6 +1123,13 @@
           "title": "Artifacts",
           "type": "array"
         },
+        "dispatch_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Dispatch Id",
+          "type": "string"
+        },
         "kind": {
           "const": "TOOL_RETURNED",
           "title": "Kind",
@@ -1142,6 +1169,7 @@
       },
       "required": [
         "kind",
+        "dispatch_id",
         "request_id",
         "tool_id",
         "success"

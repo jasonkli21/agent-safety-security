@@ -12,6 +12,7 @@ from agentsec.contracts.schema_export import SCHEMA_MODELS, export_schemas, sche
 from agentsec.domain.events import SecurityEvent
 from agentsec.domain.scenarios import Scenario
 from agentsec.domain.serialization import canonical_json
+from agentsec.domain.tools import ToolDescriptor
 from agentsec.version import __version__
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -45,6 +46,18 @@ def test_events_against_json_schema_and_mismatch():
     for data in events:
         validator.validate(data)
     assert not validator.is_valid({**events[0], "event_type": "TOOL_RETURNED"})
+
+
+def test_destructive_metadata_relation_is_in_exported_schema():
+    validator = Draft202012Validator(json.loads(schema_text(ToolDescriptor)))
+    tool = load_artifact(ROOT / "examples/scenarios/indirect-injection.yaml", Scenario).setup.tools[
+        0
+    ]
+    data = tool.model_dump(mode="json", round_trip=True)
+    data.update(side_effect_class="DESTRUCTIVE", destructive=False)
+    assert not validator.is_valid(data)
+    data["destructive"] = True
+    validator.validate(data)
 
 
 def test_golden_forms():

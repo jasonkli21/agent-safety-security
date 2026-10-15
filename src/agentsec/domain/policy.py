@@ -2,7 +2,8 @@
 
 from typing import Annotated
 
-from pydantic import Field, JsonValue
+from pydantic import Field, JsonValue, ValidationInfo, field_validator
+from pydantic_core import PydanticCustomError
 
 from agentsec.domain.base import (
     CapabilityId,
@@ -31,6 +32,14 @@ class PolicyRequest(VersionedModel):
     trajectory_ref: Identifier | None = None
     environment: Identifier
     requested_at: Timestamp
+
+    @field_validator("environment")
+    @classmethod
+    def environment_matches_agent(cls, value: str, info: ValidationInfo) -> str:
+        agent = info.data.get("agent")
+        if isinstance(agent, AgentIdentity) and value != agent.environment:
+            raise PydanticCustomError("INVALID_SCHEMA", "Request and agent environments differ")
+        return value
 
 
 class PolicyDecision(VersionedModel):

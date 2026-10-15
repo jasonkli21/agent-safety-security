@@ -15,7 +15,6 @@ from agentsec.contracts.models import AgentSecurityContract
         ("x: {a: 1, a: 2}", "yaml", ErrorCode.DUPLICATE_KEY),
         ("x: &anchor value", "yaml", ErrorCode.UNSAFE_YAML),
         ("x: !!str 123", "yaml", ErrorCode.UNSAFE_YAML),
-        ("x: {<<: {a: 1}}", "yaml", ErrorCode.UNSAFE_YAML),
         ("{true: value}", "yaml", ErrorCode.INVALID_SCHEMA),
         ('{"x":NaN}', "json", ErrorCode.INVALID_SCHEMA),
         ('{"x":Infinity}', "json", ErrorCode.INVALID_SCHEMA),
@@ -91,3 +90,21 @@ def test_unsafe_yaml_never_executes():
 
 def test_merge_like_content_is_plain_text():
     assert parse_document('content: "<<"') == {"content": "<<"}
+
+
+def test_literal_merge_spelling_is_an_ordinary_key_and_matches_json():
+    yaml_value = parse_document('properties:\n  "<<":\n    type: string')
+    json_value = parse_document('{"properties":{"<<":{"type":"string"}}}', format="json")
+    assert yaml_value == json_value == {"properties": {"<<": {"type": "string"}}}
+
+
+def test_merge_spelling_does_not_merge_other_mappings():
+    value = parse_document("base: {a: 1}\nvalue: {<<: {b: 2}}")
+    assert value == {"base": {"a": 1}, "value": {"<<": {"b": 2}}}
+
+
+@pytest.mark.parametrize("text", ["value: &anchor data", "value: *anchor", "value: !!str data"])
+def test_yaml_anchors_aliases_and_explicit_tags_remain_rejected(text):
+    with pytest.raises(ArtifactValidationError) as caught:
+        parse_document(text)
+    assert caught.value.issues[0].code == ErrorCode.UNSAFE_YAML

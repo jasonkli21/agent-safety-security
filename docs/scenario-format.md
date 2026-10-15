@@ -20,8 +20,9 @@ references must resolve locally. Mock response order is meaningful for future re
 No fixture is dispatched or fetched during validation.
 
 `task` requires `task_id` and `user_input`; optional `task_scope` uses the same requested-scope
-model as policy/contracts. Unlike an authorization request, a scenario legitimately contains
-user text. Text remains test input and never authorizes anything.
+model as policy/contracts. When present, `task_scope.task_id` must equal `task.task_id`. Unlike an
+authorization request, a scenario legitimately contains user text. Text remains test input and
+never authorizes anything.
 
 An injection requires `source`, descriptive `location`, `trust_class`, optional set of `labels`,
 and exactly one of `content` or `fixture_ref`. Fixture references are opaque external fixture

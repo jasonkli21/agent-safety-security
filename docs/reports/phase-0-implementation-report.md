@@ -1,5 +1,10 @@
 # Phase 0 Implementation Report
 
+> This report records the original Phase 0 implementation. Post-review corrections and the
+> current repository/commit state are documented in the
+> [Phase 0 Review Fixes Report](phase-0-review-fixes-report.md), which supersedes findings about
+> agent trust typing and YAML `<<` key handling below.
+
 ## Summary
 
 Phase 0 is implemented as a local Python 3.12+ library and CLI, version 0.1.0, with artifact

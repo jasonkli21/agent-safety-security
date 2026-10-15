@@ -1,5 +1,9 @@
 # Sol Medium Codex Prompt — Bootstrap Repository and Implement Phase 0
 
+> Historical completed prompt: Phase 0 has been implemented. This file records the original
+> bootstrap request and is not active implementation guidance. See `AGENTS.md` and the current
+> phase plan for present scope.
+
 You are implementing **Phase 0 of the Agent Safety & Security Platform** in the repository provided with this prompt.
 
 Your job is to take the existing documentation-first scaffold and turn it into a clean, tested Phase 0 implementation. Work directly in the repository. Do not merely propose code or return an implementation plan.
