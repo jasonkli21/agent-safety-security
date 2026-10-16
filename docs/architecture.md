@@ -923,16 +923,13 @@ Define a port such as:
 
 ```python
 class PolicyEngine(Protocol):
-    def decide(self, request: PolicyRequest, contract: AgentSecurityContract) -> PolicyDecision: ...
+    def decide(self, request: PolicyRequest, contract: CompiledSecurityPlan) -> PolicyDecision: ...
 ```
 
 Initial implementation may be native Python predicates.
 
-Later implementations can target:
-
-- Cedar;
-- OPA/Rego;
-- compiled internal representation.
+The native engine consumes the immutable compiled representation in Phase 3. A raw-contract
+compatibility helper compiles before evaluation. Later backends may target Cedar or OPA/Rego.
 
 The domain model must not expose backend-specific ASTs.
 
@@ -1745,3 +1742,18 @@ Phases 1–3 prove the central thesis:
 > **The same explicit security contract can define expected behavior, generate tests, and constrain real agent actions.**
 
 That thesis should remain the architectural anchor as the project expands.
+
+## Phase 3 executable contract path
+
+`compiler.compile_contract` freezes the supported exact-match intent and records unsupported
+semantic atoms with source paths and digests. Native policy consumes this representation;
+MCP startup compiles once and reuses it for decisions and adapter coverage. A supplied startup
+plan must equal a fresh compilation of the protected contract, including identity and policy hash.
+The compiled scope uses tuples/frozen sets, never a mutable resource map. Runtime counters and
+approval redemption remain separate. No MCP types enter the compiler.
+
+Generated obligations use a small independent declarative precedence oracle, then execute the
+native evaluator. A conformance target reuses Phase 1 canonical evidence emission with decisions
+from that evaluator, and existing trajectory/assertion checks remain authoritative. Finite policy
+diff uses the shared evaluator over the union of exact capability/resource partitions. This is
+bounded comparison, not general formal equivalence. See [contract conformance](contract-conformance.md).

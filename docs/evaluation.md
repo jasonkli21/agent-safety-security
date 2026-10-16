@@ -2,9 +2,9 @@
 
 Phase 1 executes deterministic security scenarios against a local scripted fixture target.
 It evaluates evidence; it does not protect production agents, authorize real actions, compile
-contracts to policy, call providers, dispatch real tools, or execute injection text. No network,
+contracts to policy in its scripted fixture path, call providers, dispatch real tools, or execute injection text. No network,
 credentials, API keys, GPU, or model are needed. Contracts identify the agent, principal,
-environment, and effective policy identity; their rules are not executed by this lab.
+environment, and effective policy identity; their rules are not executed by the scripted fixture target.
 
 ## Run an evaluation
 
@@ -189,3 +189,18 @@ Phase 1 review fixes were preserved and verified again during Phase 2. Runtime M
 now exists separately; see [runtime MCP](runtime-mcp.md). The evaluator rejects non-enforcing
 dispatch trajectories and retains its original authorization-causality checks. Scripted fixture success provides no claim about
 production agent behavior or model robustness.
+
+## Phase 3 contract conformance
+
+`agentsec contract test CONTRACT` adds generated synthetic cases, distinct from the scripted
+attack fixtures. `ContractTarget` uses the compiled native policy evaluator to produce observed
+decisions. Shared emission then follows that actual decision through approval and synthetic
+dispatch/return. No expected outcome is inserted into the observed fixture steps. The existing
+Phase 1 trajectory validator and assertions evaluate the result; the case runner also checks
+that one exercised decision has the independently expected outcome/reason. DENY cannot pass
+merely through a missing request or an ERROR decision. Approval cases exercise a request,
+REQUIRE_APPROVAL decision, exact bound approval and decided APPROVE before synthetic dispatch.
+
+These tests prove contract conformance of the synthetic policy/evidence path. They do not run
+an agent/model, establish prompt-injection resistance, or enforce runtime budgets. Budget and
+timeout atoms therefore have no generated case coverage. See [the guide](contract-conformance.md).

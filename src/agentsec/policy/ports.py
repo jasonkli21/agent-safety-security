@@ -2,9 +2,9 @@
 
 from typing import Protocol
 
-from agentsec.contracts.models import AgentSecurityContract
+from agentsec.compiler.models import CompiledSecurityPlan
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
 
 
 class PolicyEngine(Protocol):
-    def decide(self, request: PolicyRequest, contract: AgentSecurityContract) -> PolicyDecision: ...
+    def decide(self, request: PolicyRequest, contract: CompiledSecurityPlan) -> PolicyDecision: ...

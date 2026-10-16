@@ -617,3 +617,118 @@ def test_normal_sdk_host_negotiation():
         assert len(attempts) == 1
 
     asyncio.run(with_gateway(operation, host_mode="auto"))
+
+
+@pytest.mark.parametrize(
+    "name,args,capability,resource,outcome",
+    [
+        ("search", {"query": "x"}, "web.search", None, PolicyOutcome.ALLOW),
+        (
+            "write_file",
+            {"path": "/tmp/private", "content": "x"},
+            "filesystem.write",
+            "/tmp/private",
+            PolicyOutcome.DENY,
+        ),
+        (
+            "send_email",
+            {"recipient": "demo@example.invalid", "body": "x"},
+            "email.send",
+            "demo@example.invalid",
+            PolicyOutcome.REQUIRE_APPROVAL,
+        ),
+        (
+            "send_email",
+            {"recipient": "outside", "body": "x"},
+            "email.send",
+            "outside",
+            PolicyOutcome.DENY,
+        ),
+    ],
+)
+def test_phase3_cross_path_parity(name, args, capability, resource, outcome):
+    from agentsec.compiler import compile_contract
+    from agentsec.compiler.probes import PolicyProbe, obligation
+    from agentsec.domain.events import PolicyEvaluatedPayload
+    from agentsec.eval.contract_cases import ContractTarget, case_scenario
+    from agentsec.eval.runner import evaluate
+    from agentsec.policy.native import NativePolicyEngine
+
+    loaded = contract()
+    plan = compile_contract(loaded)
+    expected, reason = obligation(plan, capability, resource)
+    assert expected == outcome
+    probe = PolicyProbe("parity", capability, resource, expected, reason, ())
+    assert NativePolicyEngine().decide(probe.request(plan), plan).outcome == outcome
+    result = evaluate(
+        contract=loaded, scenario=case_scenario(plan, probe), target=ContractTarget(plan, probe)
+    )
+    assert result.overall_status.value == "PASS"
+
+    async def operation(host, runtime, sink, attempts, gaps):
+        await host.call_tool(name, args)
+        decisions = [
+            e.payload.decision for e in sink.events if isinstance(e.payload, PolicyEvaluatedPayload)
+        ]
+        assert len(decisions) == 1 and decisions[0].outcome == outcome
+        assert len(attempts) == (outcome != PolicyOutcome.DENY)
+        if outcome == PolicyOutcome.REQUIRE_APPROVAL:
+            assert len(runtime.broker.requests) == 1
+
+    asyncio.run(with_gateway(operation, loaded_contract=loaded))
+
+
+def test_phase3_stale_plan_and_compile_once(monkeypatch):
+    import agentsec.runtime.gateway as gateway_module
+    from agentsec.compiler import compile_contract
+
+    loaded = contract()
+    stale = compile_contract(contract(budgets={"max_tool_calls": 0}))
+    with pytest.raises(RuntimeFailure, match="STALE_COMPILED_PLAN"):
+        RuntimeGateway(
+            loaded,
+            EnforcementMode.ENFORCE,
+            RuntimeEvents(InMemoryEventSink(), lambda: NOW),
+            Broker(),
+            plan=stale,
+        )
+    calls = []
+
+    def counting_compile(contract):
+        calls.append(contract)
+        return compile_contract(contract)
+
+    monkeypatch.setattr(gateway_module, "compile_contract", counting_compile)
+
+    async def operation(host, runtime, sink, attempts, gaps):
+        await host.call_tool("search", {"query": "x"})
+        await host.call_tool("search", {"query": "y"})
+        assert len(attempts) == 2
+
+    asyncio.run(with_gateway(operation))
+    assert len(calls) == 1
+
+
+def test_phase3_adapter_atom_proof():
+    from agentsec.adapters.mcp.coverage import semantic_adapter_proof
+    from agentsec.compiler import compile_contract
+
+    loaded = contract(
+        tools={
+            "rules": [
+                {"rule_id": "all", "capability": "web.search", "decision": "ALLOW"},
+                {
+                    "rule_id": "secret",
+                    "capability": "web.search",
+                    "resource": "x",
+                    "decision": "DENY",
+                },
+            ]
+        }
+    )
+    plan = compile_contract(loaded)
+    wires = [types.Tool(name="search", input_schema={"type": "object"})]
+    registry, _ = discover(wires, configuration("SHADOW"))
+    proof = semantic_adapter_proof(plan, registry)
+    assert proof["tools.rules/secret"] is False
+    assert semantic_adapter_proof(plan, {}) == {}

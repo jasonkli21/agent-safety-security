@@ -137,3 +137,16 @@ and a stricter resource exception below a broader ALLOW requires an explicit `op
 operator assertion. This does not add a generic resource canonicalizer. Phase 1's scripted
 evaluation remains independent; it does not implicitly execute contract rules. See
 [runtime coverage](runtime-mcp.md).
+
+## Phase 3 compilation and inspection
+
+The supported tool rules, protected identity, task ceiling, runtime budget configuration and
+approval timeout compile into an immutable `CompiledSecurityPlan`. Its explicit version,
+compiler version, contract ID, effective policy hash and source-linked semantic atoms make
+executable intent inspectable. Unsupported data rules, invariants, acts-on-behalf-of and unsupported
+budgets remain gaps; compilation does not enforce them. ENFORCE still refuses those gaps.
+
+`contract compile` intentionally exposes authored policy values, including exact resources.
+Conformance/coverage/diff reports minimize content using IDs/digests and outcomes. They do not
+persist runtime arguments/responses. Exported schemas cover all four new public artifacts.
+See [contract conformance](contract-conformance.md) for commands and precise coverage limits.

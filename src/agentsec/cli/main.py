@@ -6,6 +6,7 @@ from typing import Annotated
 
 import typer
 
+from agentsec.cli.contract import register_contract_commands
 from agentsec.cli.evaluation import app as eval_app
 from agentsec.cli.protect import app as protect_app
 from agentsec.contracts.canonical import document_hash, effective_policy_hash
@@ -111,6 +112,9 @@ def examples_validate(
         typer.echo(f"VALID: {len(contracts)} contracts, {len(scenarios)} scenarios")
 
     checked(operation)
+
+
+register_contract_commands(contract_app)
 
 
 if __name__ == "__main__":

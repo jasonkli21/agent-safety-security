@@ -6,6 +6,9 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from agentsec.adapters.mcp.config import McpGatewayConfig
+from agentsec.compiler.diff import SemanticDiff
+from agentsec.compiler.models import CompiledSecurityPlan
+from agentsec.compiler.reporting import ConformanceReport, CoverageReport
 from agentsec.contracts.models import AgentSecurityContract
 from agentsec.domain.approvals import ApprovalDecision, ApprovalRequest, NormalizedAction
 from agentsec.domain.events import SecurityEvent
@@ -19,6 +22,10 @@ from agentsec.eval.fixtures import TargetFixture
 from agentsec.eval.models import EvaluationResult, EvaluationSummary
 
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
+    "compiled-security-plan": CompiledSecurityPlan,
+    "contract-conformance-report": ConformanceReport,
+    "contract-coverage-report": CoverageReport,
+    "contract-semantic-diff": SemanticDiff,
     "mcp-gateway-config": McpGatewayConfig,
     "agent-security-contract": AgentSecurityContract,
     "scenario": Scenario,

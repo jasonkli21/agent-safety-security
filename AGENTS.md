@@ -27,16 +27,18 @@ If they appear to conflict, do not silently pick whichever is convenient. Prefer
 
 ## 3. Current phase boundary
 
-**Phase 2 MCP runtime implementation is complete and awaiting independent review.**
-The active scope is `docs/plans/phase-2-implementation-plan.md`; verification and limitations
-are recorded in `docs/reports/phase-2-implementation-report.md` and `docs/runtime-mcp.md`.
-Phase 0 canonical types and Phase 1 evaluation semantics remain shared and protected.
-Do not implement Phase 3 until Phase 2 review/fixes are complete and a reviewed Phase 3 plan exists.
+**Phase 3 unified contract implementation is complete and awaiting independent review.**
+The active scope is `docs/plans/phase-3-implementation-plan.md`; verification and limitations
+are recorded in `docs/reports/phase-3-implementation-report.md` and `docs/contract-conformance.md`.
+Phase 0 canonical types, Phase 1 evidence semantics and Phase 2 runtime hardening remain protected.
+Do not implement Phase 4 until Phase 3 review/fixes are complete and a reviewed Phase 4 plan exists.
 
-Phase 2 supports the conservative native policy subset, MCP stdio ingress, official-SDK stdio
-and Streamable HTTP upstreams, exact one-shot approvals, session budgets and canonical evidence.
+Native authorization, generated conformance, coverage and semantic diff consume an immutable
+compiled plan. Runtime compiles once at startup; mutable approval/budget state stays runtime-owned.
+MCP extraction/opaque-resource proof stays adapter-owned. Generated conformance proves synthetic
+policy/evidence behavior, not model robustness. Unsupported data/delegation intent remains explicit.
 Do not add provenance propagation, hosted services, UI, OAuth/OIDC, Cedar/OPA, general policy
-compilation, or sandbox infrastructure in Phase 2.
+languages, or sandbox infrastructure in Phase 3.
 
 ## 4. Architectural invariants
 

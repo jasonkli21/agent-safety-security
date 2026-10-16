@@ -220,32 +220,13 @@ class FixtureTarget:
                         argument_values=argument_values(step.arguments),
                     )
                 )
-                if step.policy_outcome is None:
-                    continue  # Request-only observation; no fabricated policy decision.
-                reasons = step.reason_codes or frozenset(
-                    {
-                        {
-                            PolicyOutcome.ALLOW: ReasonCode.EXPLICIT_ALLOW,
-                            PolicyOutcome.DENY: ReasonCode.EXPLICIT_DENY,
-                            PolicyOutcome.REQUIRE_APPROVAL: ReasonCode.APPROVAL_REQUIRED,
-                            PolicyOutcome.ERROR: ReasonCode.POLICY_ENGINE_ERROR,
-                        }[step.policy_outcome]
-                    }
-                )
-                decision = PolicyDecision(
-                    schema_version="0.1",
-                    decision_id=context.new_id("decision"),
-                    request_id=request.request_id,
-                    outcome=step.policy_outcome,
-                    matched_rule_ids=step.matched_rule_ids,
-                    reason_codes=reasons,
-                    contract_id=contract.metadata.contract_id,
-                    effective_policy_hash=policy_hash,
-                    decided_at=context.clock(),
-                )
+                decision = self.policy_decision(request, step, contract, context)
+                if decision is None:
+                    continue
+                reasons = decision.reason_codes
                 emit(PolicyEvaluatedPayload(kind=EventType.POLICY_EVALUATED, decision=decision))
                 approval_id = None
-                if step.policy_outcome == PolicyOutcome.REQUIRE_APPROVAL:
+                if decision.outcome == PolicyOutcome.REQUIRE_APPROVAL:
                     approval_id = context.new_id("approval")
                     approval = ApprovalRequest(
                         schema_version="0.1",
@@ -261,7 +242,8 @@ class FixtureTarget:
                             kind=EventType.APPROVAL_REQUESTED, approval=approval
                         )
                     )
-                    if step.approval_outcome is not None:
+                    approval_outcome = self.approval_outcome(step)
+                    if approval_outcome is not None:
                         emit(
                             ApprovalDecidedPayload(
                                 kind=EventType.APPROVAL_DECIDED,
@@ -269,14 +251,14 @@ class FixtureTarget:
                                     schema_version="0.1",
                                     approval_id=approval_id,
                                     approver=contract.identity.principal,
-                                    outcome=step.approval_outcome,
+                                    outcome=approval_outcome,
                                     decided_at=context.clock(),
                                 ),
                             )
                         )
-                dispatch = step.policy_outcome == PolicyOutcome.ALLOW or (
-                    step.policy_outcome == PolicyOutcome.REQUIRE_APPROVAL
-                    and step.approval_outcome == ApprovalOutcome.APPROVE
+                dispatch = decision.outcome == PolicyOutcome.ALLOW or (
+                    decision.outcome == PolicyOutcome.REQUIRE_APPROVAL
+                    and self.approval_outcome(step) == ApprovalOutcome.APPROVE
                 )
                 if dispatch:
                     dispatch_id = context.new_id("dispatch")
@@ -345,6 +327,40 @@ class FixtureTarget:
                 finding_set_complete=True,
                 tool_arguments_complete=True,
             ),
+        )
+
+    def approval_outcome(self, step: ToolCallStep) -> ApprovalOutcome | None:
+        return step.approval_outcome
+
+    def policy_decision(
+        self,
+        request: PolicyRequest,
+        step: ToolCallStep,
+        contract: AgentSecurityContract,
+        context: EvaluationContext,
+    ) -> PolicyDecision | None:
+        if step.policy_outcome is None:
+            return None
+        reasons = step.reason_codes or frozenset(
+            {
+                {
+                    PolicyOutcome.ALLOW: ReasonCode.EXPLICIT_ALLOW,
+                    PolicyOutcome.DENY: ReasonCode.EXPLICIT_DENY,
+                    PolicyOutcome.REQUIRE_APPROVAL: ReasonCode.APPROVAL_REQUIRED,
+                    PolicyOutcome.ERROR: ReasonCode.POLICY_ENGINE_ERROR,
+                }[step.policy_outcome]
+            }
+        )
+        return PolicyDecision(
+            schema_version="0.1",
+            decision_id=context.new_id("decision"),
+            request_id=request.request_id,
+            outcome=step.policy_outcome,
+            matched_rule_ids=step.matched_rule_ids,
+            reason_codes=reasons,
+            contract_id=contract.metadata.contract_id,
+            effective_policy_hash=effective_policy_hash(contract),
+            decided_at=context.clock(),
         )
 
     def _validate_compatibility(self, tools: dict[str, ToolDescriptor]) -> None:

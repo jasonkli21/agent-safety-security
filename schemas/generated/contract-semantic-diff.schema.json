@@ -1,0 +1,127 @@
+{
+  "$defs": {
+    "PolicyOutcome": {
+      "enum": [
+        "ALLOW",
+        "DENY",
+        "REQUIRE_APPROVAL",
+        "ERROR"
+      ],
+      "title": "PolicyOutcome",
+      "type": "string"
+    },
+    "SemanticChange": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capability"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "new_outcome": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "old_outcome": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "representative_digest": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Representative Digest"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_ref": {
+          "title": "Source Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "source_ref"
+      ],
+      "title": "SemanticChange",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "changes": {
+      "items": {
+        "$ref": "#/$defs/SemanticChange"
+      },
+      "title": "Changes",
+      "type": "array"
+    },
+    "comparison": {
+      "default": "finite exact-match policy partition; unsupported intent is not compared",
+      "title": "Comparison",
+      "type": "string"
+    },
+    "new_effective_policy_hash": {
+      "title": "New Effective Policy Hash",
+      "type": "string"
+    },
+    "old_effective_policy_hash": {
+      "title": "Old Effective Policy Hash",
+      "type": "string"
+    },
+    "representatives": {
+      "title": "Representatives",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "old_effective_policy_hash",
+    "new_effective_policy_hash",
+    "representatives",
+    "changes"
+  ],
+  "title": "SemanticDiff",
+  "type": "object"
+}

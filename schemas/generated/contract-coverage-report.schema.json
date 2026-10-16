@@ -1,0 +1,120 @@
+{
+  "$defs": {
+    "AtomCoverage": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter_required": {
+          "default": false,
+          "title": "Adapter Required",
+          "type": "boolean"
+        },
+        "adapter_status": {
+          "enum": [
+            "NOT_REQUIRED",
+            "UNPROVEN",
+            "COVERED",
+            "UNCOVERED"
+          ],
+          "title": "Adapter Status",
+          "type": "string"
+        },
+        "atom_id": {
+          "title": "Atom Id",
+          "type": "string"
+        },
+        "compiled": {
+          "title": "Compiled",
+          "type": "boolean"
+        },
+        "eval_case_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Eval Case Ids",
+          "type": "array"
+        },
+        "eval_status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "ERROR",
+            "NOT_RUN"
+          ],
+          "title": "Eval Status",
+          "type": "string"
+        },
+        "intent_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Intent Digest",
+          "type": "string"
+        },
+        "probe_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Probe Ids",
+          "type": "array"
+        },
+        "probe_status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "ERROR",
+            "NOT_RUN"
+          ],
+          "title": "Probe Status",
+          "type": "string"
+        },
+        "runtime_supported": {
+          "title": "Runtime Supported",
+          "type": "boolean"
+        },
+        "source_ref": {
+          "title": "Source Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "atom_id",
+        "source_ref",
+        "compiled",
+        "runtime_supported",
+        "intent_digest",
+        "adapter_status",
+        "probe_ids",
+        "eval_case_ids",
+        "probe_status",
+        "eval_status"
+      ],
+      "title": "AtomCoverage",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "atoms": {
+      "items": {
+        "$ref": "#/$defs/AtomCoverage"
+      },
+      "title": "Atoms",
+      "type": "array"
+    },
+    "effective_policy_hash": {
+      "title": "Effective Policy Hash",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "effective_policy_hash",
+    "atoms"
+  ],
+  "title": "CoverageReport",
+  "type": "object"
+}

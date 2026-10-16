@@ -11,8 +11,8 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError as SchemaValidationError
 from pydantic import JsonValue
 
-from agentsec.contracts.canonical import effective_policy_hash
-from agentsec.contracts.models import AgentSecurityContract
+from agentsec.compiler import CompiledSecurityPlan, compile_contract
+from agentsec.contracts.models import AgentSecurityContract, Budgets
 from agentsec.domain.approvals import ApprovalRequest, NormalizedAction, action_digest
 from agentsec.domain.events import (
     ApprovalDecidedPayload,
@@ -92,24 +92,33 @@ class RuntimeGateway:
         *,
         policy: PolicyEngine | None = None,
         budgets: BudgetLedger | None = None,
+        plan: CompiledSecurityPlan | None = None,
     ) -> None:
         self._contract = contract.model_copy(deep=True)
+        compiled = compile_contract(self._contract)
+        if plan is not None and plan != compiled:
+            raise RuntimeFailure("STALE_COMPILED_PLAN")
+        self._plan = compiled
         self.mode, self.events, self.broker = mode, events, broker
         self.policy = policy or NativePolicyEngine(events.clock)
-        self.budgets = budgets or BudgetLedger(contract.budgets)
+        self.budgets = budgets or BudgetLedger(Budgets(**self._plan.budgets.model_dump()))
         self.approvals = ApprovalLedger(events.clock)
         self._closed = False
-        if mode == EnforcementMode.ENFORCE and coverage_gaps(contract):
+        if mode == EnforcementMode.ENFORCE and coverage_gaps(self._plan):
             raise RuntimeFailure("UNSUPPORTED_POLICY_SEMANTICS")
         self.events.emit(
             RunStartedPayload(
                 kind=EventType.RUN_STARTED,
                 contract_id=contract.metadata.contract_id,
-                effective_policy_hash=effective_policy_hash(contract),
+                effective_policy_hash=self._plan.effective_policy_hash,
             )
         )
-        if coverage_gaps(contract):
+        if coverage_gaps(self._plan):
             self.signal(SecurityCategory.POLICY_BYPASS, "UNSUPPORTED_POLICY_SEMANTICS")
+
+    @property
+    def plan(self) -> CompiledSecurityPlan:
+        return self._plan
 
     @property
     def contract(self) -> AgentSecurityContract:
@@ -165,7 +174,7 @@ class RuntimeGateway:
             arguments=arguments,
             tool_schema_hash=tool.schema_hash,
             tool_description_hash=tool.description_hash,
-            effective_policy_hash=effective_policy_hash(contract),
+            effective_policy_hash=self._plan.effective_policy_hash,
         )
         digest = action_digest(action)
         # Resource values and argument keys can carry secrets: evidence gets only a digest.
@@ -213,17 +222,17 @@ class RuntimeGateway:
                         reason_codes=frozenset({ReasonCode.INVALID_REQUEST}),
                         human_reason="UNSUPPORTED_RESOURCE_COVERAGE",
                         contract_id=contract.metadata.contract_id,
-                        effective_policy_hash=effective_policy_hash(contract),
+                        effective_policy_hash=self._plan.effective_policy_hash,
                         decided_at=self.events.clock(),
                     )
                 else:
                     decision = PolicyDecision.model_validate_json(
-                        self.policy.decide(request, contract).model_dump_json()
+                        self.policy.decide(request, self._plan).model_dump_json()
                     )
                 if (
                     decision.request_id != request.request_id
                     or decision.contract_id != contract.metadata.contract_id
-                    or decision.effective_policy_hash != effective_policy_hash(contract)
+                    or decision.effective_policy_hash != self._plan.effective_policy_hash
                 ):
                     raise RuntimeFailure("INVALID_POLICY_DECISION")
                 if not bound:
@@ -242,7 +251,7 @@ class RuntimeGateway:
                     outcome=PolicyOutcome.ERROR,
                     reason_codes=frozenset({ReasonCode.POLICY_ENGINE_ERROR}),
                     contract_id=contract.metadata.contract_id,
-                    effective_policy_hash=effective_policy_hash(contract),
+                    effective_policy_hash=self._plan.effective_policy_hash,
                     decided_at=self.events.clock(),
                 )
             self.events.emit(
@@ -276,7 +285,8 @@ class RuntimeGateway:
                     ),
                     reason_codes=decision.reason_codes,
                     created_at=now,
-                    expires_at=now + timedelta(seconds=contract.approvals.default_timeout_seconds),
+                    expires_at=now
+                    + timedelta(seconds=self._plan.approvals.default_timeout_seconds),
                 )
                 self.approvals.create(approval)
                 self.events.emit(
@@ -295,7 +305,7 @@ class RuntimeGateway:
                                 digest,
                             ),
                         ),
-                        timeout=contract.approvals.default_timeout_seconds,
+                        timeout=self._plan.approvals.default_timeout_seconds,
                     )
                     self.approvals.record(result)
                 except RuntimeFailure:

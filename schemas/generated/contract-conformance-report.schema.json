@@ -1,0 +1,101 @@
+{
+  "$defs": {
+    "PolicyOutcome": {
+      "enum": [
+        "ALLOW",
+        "DENY",
+        "REQUIRE_APPROVAL",
+        "ERROR"
+      ],
+      "title": "PolicyOutcome",
+      "type": "string"
+    },
+    "ProbeResult": {
+      "additionalProperties": false,
+      "properties": {
+        "actual": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "expected": {
+          "$ref": "#/$defs/PolicyOutcome"
+        },
+        "probe_id": {
+          "title": "Probe Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "ERROR",
+            "NOT_RUN"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "probe_id",
+        "status",
+        "expected"
+      ],
+      "title": "ProbeResult",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "effective_policy_hash": {
+      "title": "Effective Policy Hash",
+      "type": "string"
+    },
+    "eval_cases": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ProbeResult"
+      },
+      "title": "Eval Cases",
+      "type": "array"
+    },
+    "label": {
+      "const": "contract conformance",
+      "default": "contract conformance",
+      "title": "Label",
+      "type": "string"
+    },
+    "probes": {
+      "items": {
+        "$ref": "#/$defs/ProbeResult"
+      },
+      "title": "Probes",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "effective_policy_hash",
+    "probes"
+  ],
+  "title": "ConformanceReport",
+  "type": "object"
+}

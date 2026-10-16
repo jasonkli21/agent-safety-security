@@ -2,7 +2,7 @@
 
 A local-first security lifecycle for tool-using AI agents: define explicit authority, test it adversarially, enforce it at runtime, and turn observed failures into regressions.
 
-> **Current status:** Phase 2 MCP runtime gateway is implemented and awaiting independent review. It enforces a conservative native contract subset, exact approvals and session budgets, with canonical evidence. Phase 0/1 validation and deterministic evaluation remain available. See the [runtime guide](docs/runtime-mcp.md) and [Phase 2 report](docs/reports/phase-2-implementation-report.md).
+> **Current status:** Phase 3 unified contract compilation is implemented and awaiting independent review. Native runtime authorization, generated conformance, semantic coverage and policy diff share compiled intent. Phase 2 review fixes remain protected. See the [conformance guide](docs/contract-conformance.md) and [Phase 3 report](docs/reports/phase-3-implementation-report.md).
 
 ## Product thesis
 
@@ -49,7 +49,7 @@ Phase 0 established one shared language for:
 - evaluation scenarios;
 - strict validation, canonicalization, and schema export.
 
-The Phase 0 foundation is implemented and documented in the [implementation report](docs/reports/phase-0-implementation-report.md). Phase 1 is implemented under the [reviewed plan](docs/plans/phase-1-implementation-plan.md); see the [evaluation guide](docs/evaluation.md) and [implementation report](docs/reports/phase-1-implementation-report.md). Phase 2 follows the [implementation plan](docs/plans/phase-2-implementation-plan.md); Phase 3 requires Phase 2 review/fixes and a reviewed plan.
+The Phase 0 foundation is implemented and documented in the [implementation report](docs/reports/phase-0-implementation-report.md). Phase 1 is implemented under the [reviewed plan](docs/plans/phase-1-implementation-plan.md); see the [evaluation guide](docs/evaluation.md) and [implementation report](docs/reports/phase-1-implementation-report.md). Phase 2 follows the [implementation plan](docs/plans/phase-2-implementation-plan.md); Phase 3 follows the [implementation plan](docs/plans/phase-3-implementation-plan.md).
 
 ## Repository layout
 
@@ -118,3 +118,16 @@ for runtime use; validation/evaluation work without it. Full development checks 
 ## License
 
 Apache-2.0. See [`LICENSE`](LICENSE).
+
+## Unified contract workflow
+
+```bash
+agentsec contract compile examples/mcp/contract.yaml
+agentsec contract test examples/mcp/contract.yaml
+agentsec contract coverage examples/mcp/contract.yaml --run
+agentsec contract diff examples/mcp/contract.yaml examples/mcp/contract.yaml --format json
+```
+
+These commands run locally without tool dispatch, models or credentials. Coverage keeps
+unsupported intent, adapter proof and generated/executed tests separate. Synthetic conformance
+is not a prompt-injection robustness claim. See [the guide](docs/contract-conformance.md).

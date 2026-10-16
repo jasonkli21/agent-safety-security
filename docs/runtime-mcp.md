@@ -140,3 +140,14 @@ capture. Dispatch evidence records an attempted invocation, not delivery, succes
 effect. Cancellation after entry records an unknown-effect signal and never retries. Process
 crashes may leave incomplete streams. There is no tamper resistance, sandbox, remote identity
 verification, taint analysis, hosted approval service or Phase 3 compiler.
+
+## Phase 3 compiled startup
+
+The gateway compiles its defensive contract snapshot once at startup. Native decisions, budget
+configuration, approval timeout and evidence policy identity use that frozen plan. The optional
+supplied plan must equal a fresh compilation or startup fails with `STALE_COMPILED_PLAN`.
+The raw-contract native API remains a compatibility helper that compiles first; MCP uses the plan.
+MCP discovery composes extraction/`opaque_exact` checks with compiled rules/scope. The adapter can
+project discovery proof to semantic atoms using `semantic_adapter_proof`; offline CLI coverage
+reports adapter requirements as UNPROVEN. Approval ledgers, budgets, cancellation, redaction,
+shadow truthfulness, response guards and request-ID hardening retain their Phase 2 behavior.

@@ -1,17 +1,18 @@
-"""Configured unsupported intent cannot claim enforcement."""
+"""Compatibility projection of the compiler's explicit unsupported inventory."""
 
+from agentsec.compiler import CompiledSecurityPlan, compile_contract
 from agentsec.contracts.models import AgentSecurityContract
 
 
-def coverage_gaps(contract: AgentSecurityContract) -> tuple[str, ...]:
-    gaps = []
-    if contract.data.rules:
-        gaps.append("data.rules")
-    if contract.invariants:
-        gaps.append("invariants")
-    if contract.identity.acts_on_behalf_of is not None:
-        gaps.append("identity.acts_on_behalf_of")
-    for name in ("max_model_calls", "max_cost_usd", "max_delegated_agents"):
-        if getattr(contract.budgets, name) is not None:
-            gaps.append(f"budgets.{name}")
-    return tuple(gaps)
+def coverage_gaps(contract: AgentSecurityContract | CompiledSecurityPlan) -> tuple[str, ...]:
+    plan = compile_contract(contract) if isinstance(contract, AgentSecurityContract) else contract
+    gaps = {g.split("/")[0] for g in plan.gaps}
+    order = (
+        "data.rules",
+        "invariants",
+        "identity.acts_on_behalf_of",
+        "budgets.max_model_calls",
+        "budgets.max_cost_usd",
+        "budgets.max_delegated_agents",
+    )
+    return tuple(g for g in order if g in gaps)

@@ -51,7 +51,7 @@ async def create_server(
     registry = MappingProxyType(discovered)
     request_ids = McpRequestIdentityGuard()
     enforce = config.mode == EnforcementMode.ENFORCE
-    resource_coverage = discovered_resource_coverage(runtime.contract, discovered)
+    resource_coverage = discovered_resource_coverage(runtime.plan, discovered)
     resource_gaps = resource_coverage.gaps
     if enforce and resource_gaps:
         raise RuntimeFailure("UNSUPPORTED_RESOURCE_COVERAGE")
