@@ -17,13 +17,14 @@ class PolicyProbe:
     expected: PolicyOutcome
     reason: ReasonCode
     atom_ids: tuple[str, ...]
+    matched_rule_ids: frozenset[str] = frozenset()
 
     def request(self, plan: CompiledSecurityPlan) -> PolicyRequest:
         return PolicyRequest(
             schema_version="0.1",
             request_id=self.probe_id,
             principal=plan.principal,
-            agent=plan.agent,
+            agent=plan.agent.request_agent(),
             environment=plan.environment,
             task_scope=plan.task_scope,
             tool_id="conformance-tool",
@@ -109,9 +110,9 @@ def generate_probes(plan: CompiledSecurityPlan) -> tuple[PolicyProbe, ...]:
     probes = []
     for capability, resource in partition(plan):
         outcome, reason = obligation(plan, capability, resource)
-        atoms = ["identity"]
-        if plan.scope:
-            atoms.append("task_scope")
+        # Grouped identity/scope consistency has no generated negative probes.
+        # Do not claim it is tested merely because valid fields occur in a request.
+        atoms: list[str] = []
         if reason == ReasonCode.DEFAULT_DENY:
             atoms.append("tools.default_deny")
         if reason != ReasonCode.OUTSIDE_TASK_SCOPE:
@@ -128,6 +129,13 @@ def generate_probes(plan: CompiledSecurityPlan) -> tuple[PolicyProbe, ...]:
                 expected=outcome,
                 reason=reason,
                 atom_ids=tuple(sorted(atoms)),
+                matched_rule_ids=frozenset(
+                    r.rule_id
+                    for r in plan.rules
+                    if reason != ReasonCode.OUTSIDE_TASK_SCOPE
+                    and r.capability == capability
+                    and (r.resource is None or r.resource == resource)
+                ),
             )
         )
     return tuple(probes)

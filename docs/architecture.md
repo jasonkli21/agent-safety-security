@@ -1757,3 +1757,11 @@ native evaluator. A conformance target reuses Phase 1 canonical evidence emissio
 from that evaluator, and existing trajectory/assertion checks remain authoritative. Finite policy
 diff uses the shared evaluator over the union of exact capability/resource partitions. This is
 bounded comparison, not general formal equivalence. See [contract conformance](contract-conformance.md).
+
+Compiled executable identity excludes agent display/model metadata and task prose, matching the
+effective-policy projection. Runtime protected requests/actions derive from that plan. Executed
+conformance/coverage and adapter proof bind to exact compiler/plan content identity, distinct from
+the authored effective policy hash; discovery proof also binds to its metadata/binding snapshot.
+Generated conformance checks exact reasons and matching-rule provenance. Grouped identity/scope
+atoms remain NOT_RUN without discriminating generated obligations; semantic diff includes
+explanation changes independently of authority rank.

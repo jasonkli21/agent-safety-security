@@ -2,9 +2,9 @@
 
 from typing import Literal
 
-from agentsec.compiler.models import CompiledSecurityPlan, SemanticAtom
+from agentsec.compiler.models import CompiledSecurityPlan, PlanIdentity, SemanticAtom
 from agentsec.compiler.probes import PolicyProbe, generate_probes
-from agentsec.domain.base import VersionedModel
+from agentsec.domain.base import Digest, SecurityModel, VersionedModel
 from agentsec.domain.taxonomy import PolicyOutcome
 from agentsec.policy.native import NativePolicyEngine
 from agentsec.policy.ports import PolicyEngine
@@ -22,6 +22,7 @@ class ProbeResult(VersionedModel):
 class ConformanceReport(VersionedModel):
     label: Literal["contract conformance"] = "contract conformance"
     effective_policy_hash: str
+    plan_identity: PlanIdentity
     probes: tuple[ProbeResult, ...]
     eval_cases: tuple[ProbeResult, ...] = ()
 
@@ -31,7 +32,8 @@ def run_probe(plan: CompiledSecurityPlan, probe: PolicyProbe, engine: PolicyEngi
         decision = engine.decide(probe.request(plan), plan)
         valid = (
             decision.outcome == probe.expected
-            and probe.reason in decision.reason_codes
+            and decision.reason_codes == frozenset({probe.reason})
+            and decision.matched_rule_ids == probe.matched_rule_ids
             and decision.request_id == probe.probe_id
             and decision.contract_id == plan.contract_id
             and decision.effective_policy_hash == plan.effective_policy_hash
@@ -55,6 +57,7 @@ def run_conformance(
     return ConformanceReport(
         schema_version="0.1",
         effective_policy_hash=plan.effective_policy_hash,
+        plan_identity=plan.identity,
         probes=tuple(
             run_probe(plan, p, engine or NativePolicyEngine()) for p in generate_probes(plan)
         ),
@@ -71,6 +74,7 @@ class AtomCoverage(SemanticAtom):
 
 class CoverageReport(VersionedModel):
     effective_policy_hash: str
+    plan_identity: PlanIdentity
     atoms: tuple[AtomCoverage, ...]
 
 
@@ -83,18 +87,40 @@ def _status(ids: tuple[str, ...], results: tuple[ProbeResult, ...]) -> Status:
     return "PASS" if relevant else "NOT_RUN"
 
 
+class AdapterAtomProof(SecurityModel):
+    atom_id: str
+    covered: bool
+
+
+class AdapterProof(VersionedModel):
+    plan_identity: PlanIdentity
+    discovery_snapshot_digest: Digest
+    atoms: tuple[AdapterAtomProof, ...]
+
+
 def coverage_report(
     plan: CompiledSecurityPlan,
     results: ConformanceReport | None = None,
-    adapter_proof: dict[str, bool] | None = None,
+    adapter_proof: AdapterProof | None = None,
+    *,
+    discovery_snapshot_digest: str | None = None,
 ) -> CoverageReport:
-    if results is not None and results.effective_policy_hash != plan.effective_policy_hash:
+    if results is not None and (
+        results.plan_identity != plan.identity
+        or results.effective_policy_hash != plan.effective_policy_hash
+    ):
         raise ValueError("STALE_CONFORMANCE_REPORT")
+    if adapter_proof is not None and (
+        adapter_proof.plan_identity != plan.identity
+        or adapter_proof.discovery_snapshot_digest != discovery_snapshot_digest
+    ):
+        raise ValueError("STALE_ADAPTER_PROOF")
+    proofs = {p.atom_id: p.covered for p in adapter_proof.atoms} if adapter_proof else {}
     probes = generate_probes(plan)
     rows = []
     for atom in plan.atoms:
         ids = tuple(p.probe_id for p in probes if atom.atom_id in p.atom_ids)
-        proof = (adapter_proof or {}).get(atom.atom_id)
+        proof = proofs.get(atom.atom_id)
         rows.append(
             AtomCoverage(
                 **atom.model_dump(),
@@ -114,5 +140,8 @@ def coverage_report(
             )
         )
     return CoverageReport(
-        schema_version="0.1", effective_policy_hash=plan.effective_policy_hash, atoms=tuple(rows)
+        schema_version="0.1",
+        effective_policy_hash=plan.effective_policy_hash,
+        plan_identity=plan.identity,
+        atoms=tuple(rows),
     )

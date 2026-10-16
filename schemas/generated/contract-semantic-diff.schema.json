@@ -10,6 +10,22 @@
       "title": "PolicyOutcome",
       "type": "string"
     },
+    "ReasonCode": {
+      "enum": [
+        "EXPLICIT_ALLOW",
+        "EXPLICIT_DENY",
+        "DEFAULT_DENY",
+        "APPROVAL_REQUIRED",
+        "UNKNOWN_CAPABILITY",
+        "OUTSIDE_TASK_SCOPE",
+        "BUDGET_EXCEEDED",
+        "DATA_FLOW_DENIED",
+        "INVALID_REQUEST",
+        "POLICY_ENGINE_ERROR"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    },
     "SemanticChange": {
       "additionalProperties": false,
       "properties": {
@@ -29,6 +45,22 @@
           "title": "Kind",
           "type": "string"
         },
+        "new_matched_rule_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "New Matched Rule Ids"
+        },
         "new_outcome": {
           "anyOf": [
             {
@@ -40,6 +72,38 @@
           ],
           "default": null
         },
+        "new_reason_codes": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ReasonCode"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "New Reason Codes"
+        },
+        "old_matched_rule_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Old Matched Rule Ids"
+        },
         "old_outcome": {
           "anyOf": [
             {
@@ -50,6 +114,22 @@
             }
           ],
           "default": null
+        },
+        "old_reason_codes": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ReasonCode"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Old Reason Codes"
         },
         "representative_digest": {
           "anyOf": [

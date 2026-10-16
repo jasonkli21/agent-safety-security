@@ -159,3 +159,85 @@ provenance/taint, model attacks/judges, delegated identity, other adapters, host
 hot policy deployment remain out of scope. The grouped atoms and finite native subset are
 intentional current boundaries; future data semantics must enter compiler/runtime/test coverage
 explicitly rather than inheriting a conformance claim from these synthetic cases.
+
+## Independent review corrections (2026-10-15)
+
+Fix baseline: `83cb9a08ae2a2c538a842237703b562fa6f251d2`. The supplied
+`phase-3-sol-high-review-luna-xhigh-handoff.md` identified five correctness findings.
+The following corrections supersede the initial representation/coverage choices above.
+All fixes are delivered together; no Phase 4 implementation or dependency was added.
+
+- **P3-R01:** Compiled `AgentBinding` includes agent ID, environment, owner and trust level;
+  task scope excludes description. Agent name/framework/provider/model and task prose remain
+  document context, outside native request validity, atom identity and semantic diff. Native
+  comparisons project canonical domain requests onto these security fields. Gateway protected
+  request/action inputs and contract identity now come from its startup plan. Regression tests
+  cover cosmetic equality, protected binding/scope changes and poisoning the retained authored
+  snapshot without changing the active plan.
+- **P3-R02:** `PlanIdentity` binds contract ID, compiler version, effective policy hash and
+  canonical complete compiled-content digest. The digest is computed from the plan without a
+  self-referential stored field; it also binds unsupported inventory. Conformance/coverage
+  require exact identity, and the eval target requires equality with a fresh compilation.
+  MCP returns typed versioned adapter proof with plan identity and a deterministic digest of
+  wire metadata, descriptors and bindings. Composition requires the current discovery snapshot
+  digest and rejects missing/mismatching snapshots. Tests cover another contract with the same
+  policy hash, changed compiler/content, stale eval plans and changed discovery bindings;
+  valid same-plan proof remains deterministic and supports COVERED/UNCOVERED/UNPROVEN.
+- **P3-R03:** Independent probes now derive the exact matching rule set as well as the expected
+  reason. Both direct and Phase 1 execution require exact reason-code and matched-rule equality.
+  Dropping shadowed provenance, substituting rule IDs or adding a reason fails both paths.
+  Scope/default-deny branches expect no matching rules. Generation still never invokes the
+  evaluator under test.
+- **P3-R04:** Adopted the review's conservative alternative. Grouped identity/task-scope atoms
+  have no generated IDs and remain NOT_RUN even after successful execution. Ordinary valid
+  inputs cannot establish negative consistency enforcement. Finite probes still test task
+  ceilings, but the grouped atom does not claim complete generated coverage. Existing manual
+  policy/runtime tests remain separate evidence; no new negative identity probe family is claimed.
+- **P3-R05:** Diff compares exact reasons and matched-rule IDs alongside outcomes. The new
+  `policy_explanation_change` includes both explanation sets, with representative resources
+  digested. Explicit-to-default deny, rule renames and changed shadowed matching sets are visible
+  without authority expansion/reduction. CLI regression verifies these changes cannot render
+  the empty-diff message.
+
+### Compatibility and deviations
+
+The compiler identifier advances from `phase3-v1` to `phase3-v2`; initial Phase 3 manifests and
+reports must be regenerated. The four Phase 3 schemas were regenerated from Python models;
+Phase 0–2 schemas/types and authored contract effective-policy projection are unchanged.
+`plan_identity.compiled_plan_digest` identifies a compiled artifact, not policy authenticity,
+a signature or a replacement for `effective_policy_hash`. Discovery proof is content-bound
+freshness evidence supplied by trusted adapter code, not a cryptographic attestation.
+
+Architecture and the focused conformance doc record these clarified boundaries. The PRD and
+phase scope are unchanged. Grouped identity/scope NOT_RUN coverage is a deliberate documented
+limitation rather than implementing the preferred finer-grained negative generator in this fix.
+
+### Fix verification
+
+All checks used the existing local `.venv`, without external services or credentials.
+The final commands/results are recorded below. Earlier development runs caught and corrected a
+runtime initialization reference and invalid new test fixtures; those intermediate failures are
+not counted as passing verification. No independent reviewer approval is asserted by these checks.
+
+| Exact command | Result |
+| --- | --- |
+| `.venv/bin/ruff check .` | PASS |
+| `.venv/bin/ruff format --check .` | PASS, 108 files formatted |
+| `.venv/bin/mypy src` | PASS, 66 source files |
+| `.venv/bin/pytest -q` | PASS, 502 tests |
+| `.venv/bin/pytest -q tests/unit/test_compiler.py tests/integration/test_mcp_gateway.py` | PASS, 82 tests |
+| `.venv/bin/pytest -q tests/unit/test_compiler.py tests/integration/test_mcp_gateway.py -k 'compiler or phase3 or stdio'` | PASS, 52 tests, 30 deselected; includes stdio smoke |
+| `.venv/bin/agentsec examples validate` | PASS, 3 contracts and 3 scenarios |
+| `.venv/bin/agentsec eval examples` | PASS, all 6 expected outcomes matched |
+| `.venv/bin/agentsec schema export --out schemas/generated` | PASS; full-suite schema freshness checks passed |
+| `.venv/bin/python -m build --no-isolation` | PASS, sdist and wheel; existing optional examples JSON glob warning |
+| `git diff --check` | PASS |
+
+### Remaining limitations and readiness
+
+All five supplied findings are addressed, with R04 using the explicit conservative alternative.
+No unresolved fix failure remains. Exact identity/digests provide freshness, not authenticity;
+callers supplying adapter proof must obtain the comparison snapshot digest from their current
+registry. Identity/scope negative generated coverage remains unimplemented and visibly NOT_RUN.
+The fixed Phase 3 is ready for independent follow-up review. Phase 4 remains gated on review/fix
+acceptance and a reviewed Phase 4 plan. The unrelated untracked prompt remains excluded.

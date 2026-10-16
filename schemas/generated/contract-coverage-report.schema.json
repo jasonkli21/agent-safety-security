@@ -88,6 +88,40 @@
       ],
       "title": "AtomCoverage",
       "type": "object"
+    },
+    "PlanIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "compiled_plan_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Compiled Plan Digest",
+          "type": "string"
+        },
+        "compiler_version": {
+          "title": "Compiler Version",
+          "type": "string"
+        },
+        "contract_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Contract Id",
+          "type": "string"
+        },
+        "effective_policy_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Effective Policy Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "contract_id",
+        "compiler_version",
+        "effective_policy_hash",
+        "compiled_plan_digest"
+      ],
+      "title": "PlanIdentity",
+      "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -104,6 +138,9 @@
       "title": "Effective Policy Hash",
       "type": "string"
     },
+    "plan_identity": {
+      "$ref": "#/$defs/PlanIdentity"
+    },
     "schema_version": {
       "const": "0.1",
       "title": "Schema Version",
@@ -113,6 +150,7 @@
   "required": [
     "schema_version",
     "effective_policy_hash",
+    "plan_identity",
     "atoms"
   ],
   "title": "CoverageReport",

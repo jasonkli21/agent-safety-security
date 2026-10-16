@@ -109,7 +109,7 @@ class RuntimeGateway:
         self.events.emit(
             RunStartedPayload(
                 kind=EventType.RUN_STARTED,
-                contract_id=contract.metadata.contract_id,
+                contract_id=self._plan.contract_id,
                 effective_policy_hash=self._plan.effective_policy_hash,
             )
         )
@@ -156,7 +156,7 @@ class RuntimeGateway:
         if not bound and enforce:
             self.signal(SecurityCategory.UNAUTHORIZED_TOOL_USE, "UNBOUND_TOOL")
             raise RuntimeFailure("UNBOUND_TOOL")
-        contract = self._contract
+        plan = self._plan
         arguments = deepcopy(arguments)
         tool = tool.model_copy(deep=True)
         capability = next(iter(tool.capabilities))
@@ -164,10 +164,10 @@ class RuntimeGateway:
             raise RuntimeFailure("AMBIGUOUS_CAPABILITY")
         action = NormalizedAction(
             schema_version="0.1",
-            principal=contract.identity.principal,
-            agent_id=contract.agent.agent_id,
-            environment=contract.environment.mode,
-            task_id=contract.task_scope.task_id if contract.task_scope else None,
+            principal=plan.principal,
+            agent_id=plan.agent.agent_id,
+            environment=plan.environment,
+            task_id=plan.scope.task_id if plan.scope else None,
             capability=capability,
             tool_id=tool.tool_id,
             resource=resource,
@@ -181,14 +181,14 @@ class RuntimeGateway:
         request = PolicyRequest(
             schema_version="0.1",
             request_id=str(uuid4()),
-            principal=contract.identity.principal,
-            agent=contract.agent,
-            task_scope=contract.task_scope,
+            principal=plan.principal,
+            agent=plan.agent.request_agent(),
+            task_scope=plan.task_scope,
             capability=capability,
             tool_id=tool.tool_id,
             resource=resource,
             arguments_summary=None,
-            environment=contract.environment.mode,
+            environment=plan.environment,
             requested_at=self.events.clock(),
         )
         redacted_fields: frozenset[Literal["resource", "task_scope"]] = frozenset()
@@ -221,7 +221,7 @@ class RuntimeGateway:
                         outcome=PolicyOutcome.ERROR,
                         reason_codes=frozenset({ReasonCode.INVALID_REQUEST}),
                         human_reason="UNSUPPORTED_RESOURCE_COVERAGE",
-                        contract_id=contract.metadata.contract_id,
+                        contract_id=plan.contract_id,
                         effective_policy_hash=self._plan.effective_policy_hash,
                         decided_at=self.events.clock(),
                     )
@@ -231,7 +231,7 @@ class RuntimeGateway:
                     )
                 if (
                     decision.request_id != request.request_id
-                    or decision.contract_id != contract.metadata.contract_id
+                    or decision.contract_id != plan.contract_id
                     or decision.effective_policy_hash != self._plan.effective_policy_hash
                 ):
                     raise RuntimeFailure("INVALID_POLICY_DECISION")
@@ -250,7 +250,7 @@ class RuntimeGateway:
                     request_id=request.request_id,
                     outcome=PolicyOutcome.ERROR,
                     reason_codes=frozenset({ReasonCode.POLICY_ENGINE_ERROR}),
-                    contract_id=contract.metadata.contract_id,
+                    contract_id=plan.contract_id,
                     effective_policy_hash=self._plan.effective_policy_hash,
                     decided_at=self.events.clock(),
                 )

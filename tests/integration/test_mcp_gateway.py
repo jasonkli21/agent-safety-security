@@ -730,5 +730,74 @@ def test_phase3_adapter_atom_proof():
     wires = [types.Tool(name="search", input_schema={"type": "object"})]
     registry, _ = discover(wires, configuration("SHADOW"))
     proof = semantic_adapter_proof(plan, registry)
-    assert proof["tools.rules/secret"] is False
-    assert semantic_adapter_proof(plan, {}) == {}
+    from agentsec.adapters.mcp.coverage import discovery_snapshot_digest
+    from agentsec.compiler.reporting import coverage_report
+
+    assert {p.atom_id: p.covered for p in proof.atoms}["tools.rules/secret"] is False
+    assert semantic_adapter_proof(plan, {}).atoms == ()
+    assert proof == semantic_adapter_proof(plan, registry)
+    from dataclasses import replace
+
+    binding = registry["search"].binding.model_copy(
+        update={"resource_argument_path": ("query",), "resource_semantics": "opaque_exact"}
+    )
+    refreshed = {"search": replace(registry["search"], binding=binding)}
+    current = semantic_adapter_proof(plan, refreshed)
+    covered = coverage_report(
+        plan, adapter_proof=current, discovery_snapshot_digest=discovery_snapshot_digest(refreshed)
+    )
+    assert (
+        next(a for a in covered.atoms if a.atom_id == "tools.rules/secret").adapter_status
+        == "COVERED"
+    )
+    with pytest.raises(ValueError, match="STALE_ADAPTER_PROOF"):
+        coverage_report(
+            plan,
+            adapter_proof=proof,
+            discovery_snapshot_digest=discovery_snapshot_digest(refreshed),
+        )
+    report = coverage_report(
+        plan, adapter_proof=proof, discovery_snapshot_digest=discovery_snapshot_digest(registry)
+    )
+    assert (
+        next(a for a in report.atoms if a.atom_id == "tools.rules/secret").adapter_status
+        == "UNCOVERED"
+    )
+    for other_plan, snapshot in (
+        (plan.model_copy(update={"contract_id": "other"}), discovery_snapshot_digest(registry)),
+        (plan, discovery_snapshot_digest({})),
+        (plan, None),
+    ):
+        with pytest.raises(ValueError, match="STALE_ADAPTER_PROOF"):
+            coverage_report(other_plan, adapter_proof=proof, discovery_snapshot_digest=snapshot)
+
+
+def test_phase3_runtime_protected_inputs_use_compiled_plan():
+    from agentsec.compiler.models import AgentBinding
+    from agentsec.policy.native import NativePolicyEngine
+
+    async def operation(host, runtime, sink, attempts, gaps):
+        seen = []
+
+        class Capture:
+            def decide(self, request, plan):
+                seen.append(request)
+                return NativePolicyEngine().decide(request, plan)
+
+        runtime.policy = Capture()
+        # Deliberately poison the retained authored snapshot after startup. It must
+        # not be a parallel source for request or approval action identity.
+        runtime._contract = runtime.contract.model_copy(
+            update={
+                "agent": runtime.contract.agent.model_copy(update={"agent_id": "other-agent"}),
+                "task_scope": None,
+            }
+        )
+        response = await host.call_tool("search", {"query": "x"})
+        assert not response.is_error and len(attempts) == 1
+        assert AgentBinding.from_identity(seen[0].agent) == runtime.plan.agent
+        assert runtime.plan.matches_scope(seen[0].task_scope)
+        assert seen[0].principal == runtime.plan.principal
+        assert seen[0].environment == runtime.plan.environment
+
+    asyncio.run(with_gateway(operation))

@@ -1,6 +1,6 @@
 {
   "$defs": {
-    "AgentIdentity": {
+    "AgentBinding": {
       "additionalProperties": false,
       "properties": {
         "agent_id": {
@@ -15,57 +15,6 @@
           "minLength": 1,
           "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
           "title": "Environment",
-          "type": "string"
-        },
-        "framework": {
-          "anyOf": [
-            {
-              "maxLength": 128,
-              "minLength": 1,
-              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Framework"
-        },
-        "model_name": {
-          "anyOf": [
-            {
-              "maxLength": 128,
-              "minLength": 1,
-              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Model Name"
-        },
-        "model_provider": {
-          "anyOf": [
-            {
-              "maxLength": 128,
-              "minLength": 1,
-              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
-              "type": "string"
-            },
-            {
-              "type": "null"
-            }
-          ],
-          "default": null,
-          "title": "Model Provider"
-        },
-        "name": {
-          "maxLength": 8192,
-          "minLength": 1,
-          "title": "Name",
           "type": "string"
         },
         "owner": {
@@ -97,10 +46,9 @@
       },
       "required": [
         "agent_id",
-        "name",
         "environment"
       ],
-      "title": "AgentIdentity",
+      "title": "AgentBinding",
       "type": "object"
     },
     "ApprovalSettings": {
@@ -119,12 +67,6 @@
     "CompiledScope": {
       "additionalProperties": false,
       "properties": {
-        "description": {
-          "maxLength": 8192,
-          "minLength": 1,
-          "title": "Description",
-          "type": "string"
-        },
         "requested_capabilities": {
           "anyOf": [
             {
@@ -167,7 +109,6 @@
       },
       "required": [
         "task_id",
-        "description",
         "requested_capabilities",
         "resources"
       ],
@@ -388,7 +329,7 @@
   "additionalProperties": false,
   "properties": {
     "agent": {
-      "$ref": "#/$defs/AgentIdentity"
+      "$ref": "#/$defs/AgentBinding"
     },
     "approvals": {
       "$ref": "#/$defs/ApprovalSettings"
@@ -404,8 +345,8 @@
       "$ref": "#/$defs/RuntimeBudgets"
     },
     "compiler_version": {
-      "const": "phase3-v1",
-      "default": "phase3-v1",
+      "const": "phase3-v2",
+      "default": "phase3-v2",
       "title": "Compiler Version",
       "type": "string"
     },

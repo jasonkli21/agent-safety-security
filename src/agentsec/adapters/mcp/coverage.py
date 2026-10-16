@@ -6,7 +6,9 @@ from dataclasses import dataclass
 from agentsec.adapters.mcp.config import ToolBinding
 from agentsec.adapters.mcp.discovery import DiscoveredTool
 from agentsec.compiler import CompiledSecurityPlan, compile_contract
+from agentsec.compiler.reporting import AdapterAtomProof, AdapterProof
 from agentsec.contracts.models import AgentSecurityContract
+from agentsec.domain.serialization import content_digest
 
 
 @dataclass(frozen=True)
@@ -107,9 +109,18 @@ def _canonical_resource_capabilities(
     return general_allow & stricter_resource_exceptions
 
 
+def discovery_snapshot_digest(registry: Mapping[str, DiscoveredTool]) -> str:
+    return content_digest(
+        {
+            name: (entry.wire_json, entry.descriptor_json, entry.binding)
+            for name, entry in sorted(registry.items())
+        }
+    )
+
+
 def semantic_adapter_proof(
     plan: CompiledSecurityPlan, registry: Mapping[str, DiscoveredTool]
-) -> dict[str, bool]:
+) -> AdapterProof:
     """Project discovery/binding proof to atoms; absent applicable tools remain unproven."""
     coverage = discovered_resource_coverage(plan, registry)
     proof: dict[str, bool] = {}
@@ -132,4 +143,9 @@ def semantic_adapter_proof(
                 registry[name].binding is not None and name not in coverage.uncovered_tool_names
                 for name in applicable
             )
-    return proof
+    return AdapterProof(
+        schema_version="0.1",
+        plan_identity=plan.identity,
+        discovery_snapshot_digest=discovery_snapshot_digest(registry),
+        atoms=tuple(AdapterAtomProof(atom_id=k, covered=v) for k, v in sorted(proof.items())),
+    )

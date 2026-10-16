@@ -25,6 +25,10 @@ pass its generated supported obligations: inspect coverage before interpreting a
 The versioned plan contains contract/schema/compiler identity, effective policy hash, protected
 principal/agent/environment, exact rules with original IDs, immutable task ceiling, supported
 budget configuration and approval timeout. Source paths identify rules as `tools.rules/RULE_ID`.
+Agent binding includes only ID, environment, owner and trust level. Agent name, framework,
+provider/model metadata and task description are document context; they cannot change native
+request validity or compiled meaning. Canonical request objects use fixed descriptive placeholders.
+Runtime request/action protection comes from the plan, including principal, agent and task identity.
 Configured unsupported semantics are individual atoms with intent digests; they are never
 reported as compiled/enforced. Mutable budget/approval state is absent from this artifact.
 
@@ -33,6 +37,14 @@ source contract. The other reports contain IDs, semantic digests, outcomes and s
 argument/response content. The JSON schemas are exported from the public Pydantic definitions.
 Compiled manifests are inspection artifacts, not a trusted activation format. Runtime checks any
 supplied plan against its own compilation, including contract ID and effective policy identity.
+Compiler `phase3-v2` supersedes the initial Phase 3 manifest representation; regenerate earlier
+Phase 3 artifacts. Phase 0–2 artifact schemas are unchanged. Conformance and coverage reports
+require `plan_identity`: contract ID, compiler version, effective policy hash and
+`compiled_plan_digest`. The latter hashes canonical complete compiled content (including compiler
+identity and unsupported inventory), without a self-referential digest field. It is freshness
+identity, not signing or authenticity, and does not replace `effective_policy_hash`.
+Coverage rejects results from another exact plan. The eval target requires the supplied plan to
+equal a fresh compilation before invoking the evaluator.
 
 ## Generated obligations and coverage
 
@@ -42,14 +54,25 @@ This compact partition exercises exact rules, overlaps, default deny and task ex
 A protected task ceiling may make a rule or default-deny branch unreachable; coverage then
 leaves that atom without generated tests. A shadowed rule may participate in an overlap probe;
 coverage means represented in a checked obligation, not independently influential on its outcome.
+Both direct and eval execution require the exact reason-code and matched-rule sets, including
+shadowed rules; extra reasons and missing provenance fail. Scope-excluded/default-denied requests
+have no matched rules.
 
 Each coverage row separates compiled intent, runtime support, adapter requirement/proof,
 generated probe IDs, generated evaluation IDs and execution status. Without `--run`, execution
 is NOT_RUN. Budget/timeout atoms are runtime-supported but have no generated policy cases;
-stateful behavior remains verified by the runtime tests. Unsupported atoms have no tests.
+stateful behavior remains verified by the runtime tests. Grouped identity and task-scope atoms
+also have no generated IDs and stay NOT_RUN: valid requests do not establish mismatch enforcement.
+The finite partition still exercises task capability/resource exclusions, but does not claim full
+scope consistency coverage. Dedicated manual runtime/policy tests remain separate evidence.
+Unsupported atoms have no tests.
 An offline command has no discovery proof: adapter requirements remain UNPROVEN. The MCP adapter
 can supply COVERED/UNCOVERED proof from discovered bindings; no applicable tool leaves it unproven.
-There is no generic security percentage.
+Adapter proof is a typed, versioned result bound to the exact plan and a digest of the discovery
+snapshot (wire metadata, descriptors and bindings, sorted by tool name). To compose it, pass the
+current registry's `discovery_snapshot_digest` to `coverage_report`; missing or mismatching snapshot
+identity and stale plans raise `STALE_ADAPTER_PROOF`. Snapshot/plan digests identify content, not
+trusted attestations. No applicable tool yields no atom proof. There is no generic security percentage.
 
 The evaluation bridge uses the native evaluator's actual decision to emit canonical evidence;
 Phase 1 causality/assertions check it. Approval cases contain a matching request and exact bound
@@ -66,6 +89,9 @@ is adapted to each protected plan; identity/environment and scope configuration 
 reported separately. Authority is ordered DENY < REQUIRE_APPROVAL < ALLOW, so approval-to-allow
 is an expansion and allow-to-approval a reduction; both also flag approval-boundary changes.
 Scope widening/narrowing is reported even when rules still deny the representative action.
+`policy_explanation_change` records exact before/after reason-code and matched-rule sets, even
+when outcomes stay equal. Rule renames and explicit-to-default deny transitions therefore remain
+visible without being classified as authority expansion or reduction.
 
 Supported budget changes treat an absent limit as unbounded. Approval timeout changes are
 reported without asserting a universal safety ordering. Unsupported intent changes are detected

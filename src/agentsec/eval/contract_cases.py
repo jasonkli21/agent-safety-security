@@ -3,7 +3,6 @@
 from agentsec.compiler import CompiledSecurityPlan, compile_contract
 from agentsec.compiler.probes import PolicyProbe, generate_probes
 from agentsec.compiler.reporting import ConformanceReport, ProbeResult, Status, run_conformance
-from agentsec.contracts.canonical import effective_policy_hash
 from agentsec.contracts.models import AgentSecurityContract
 from agentsec.domain.events import PolicyEvaluatedPayload
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
@@ -103,10 +102,7 @@ class ContractTarget(FixtureTarget):
         contract: AgentSecurityContract,
         context: EvaluationContext,
     ) -> PolicyDecision:
-        if (
-            self.plan.contract_id != contract.metadata.contract_id
-            or self.plan.effective_policy_hash != effective_policy_hash(contract)
-        ):
+        if self.plan != compile_contract(contract):
             raise EvaluationError("STALE_COMPILED_PLAN")
         try:
             return self.engine.decide(request, self.plan)
@@ -134,7 +130,11 @@ def run_contract_cases(
         status: Status = "ERROR" if result.error_code else "FAIL"
         if result.overall_status.value == "PASS" and len(decisions) == 1:
             decision = decisions[0]
-            if decision.outcome == probe.expected and probe.reason in decision.reason_codes:
+            if (
+                decision.outcome == probe.expected
+                and decision.reason_codes == frozenset({probe.reason})
+                and decision.matched_rule_ids == probe.matched_rule_ids
+            ):
                 status = "PASS"
         rows.append(
             ProbeResult(

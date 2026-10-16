@@ -13,6 +13,28 @@ from agentsec.domain.base import (
     VersionedModel,
 )
 from agentsec.domain.identity import AgentIdentity, PrincipalRef, TaskScope
+from agentsec.domain.serialization import content_digest
+
+
+class AgentBinding(SecurityModel):
+    agent_id: Identifier
+    environment: Identifier
+    owner: PrincipalRef | None = None
+    trust_level: Identifier | None = None
+
+    @classmethod
+    def from_identity(cls, agent: AgentIdentity) -> "AgentBinding":
+        return cls(**{name: getattr(agent, name) for name in cls.model_fields})
+
+    def request_agent(self) -> AgentIdentity:
+        return AgentIdentity(**self.model_dump(), name="Compiled agent")
+
+
+class PlanIdentity(SecurityModel):
+    contract_id: Identifier
+    compiler_version: str
+    effective_policy_hash: Digest
+    compiled_plan_digest: Digest
 
 
 class ResourceCeiling(SecurityModel):
@@ -22,14 +44,13 @@ class ResourceCeiling(SecurityModel):
 
 class CompiledScope(SecurityModel):
     task_id: Identifier
-    description: NonEmpty
     requested_capabilities: frozenset[CapabilityId] | None
     resources: tuple[ResourceCeiling, ...] | None
 
     def request_scope(self) -> TaskScope:
         return TaskScope(
             task_id=self.task_id,
-            description=self.description,
+            description="Compiled task scope",
             requested_capabilities=self.requested_capabilities,
             resource_scopes=(
                 {r.capability: r.resources for r in self.resources}
@@ -56,11 +77,11 @@ class SemanticAtom(SecurityModel):
 
 
 class CompiledSecurityPlan(VersionedModel):
-    compiler_version: Literal["phase3-v1"] = "phase3-v1"
+    compiler_version: Literal["phase3-v2"] = "phase3-v2"
     contract_id: Identifier
     contract_schema_version: Literal["0.1"]
     effective_policy_hash: Digest
-    agent: AgentIdentity
+    agent: AgentBinding
     principal: PrincipalRef
     environment: Identifier
     rules: tuple[ToolRule, ...]
@@ -68,6 +89,25 @@ class CompiledSecurityPlan(VersionedModel):
     budgets: RuntimeBudgets
     approvals: ApprovalSettings
     atoms: tuple[SemanticAtom, ...]
+
+    @property
+    def identity(self) -> PlanIdentity:
+        # Computed from the artifact, never from a caller-supplied digest field.
+        return PlanIdentity(
+            contract_id=self.contract_id,
+            compiler_version=self.compiler_version,
+            effective_policy_hash=self.effective_policy_hash,
+            compiled_plan_digest=content_digest(self),
+        )
+
+    def matches_scope(self, scope: TaskScope | None) -> bool:
+        if scope is None or self.scope is None:
+            return scope is None and self.scope is None
+        return (
+            scope.task_id == self.scope.task_id
+            and scope.requested_capabilities == self.scope.requested_capabilities
+            and scope.resource_scopes == self.scope.request_scope().resource_scopes
+        )
 
     @property
     def task_scope(self) -> TaskScope | None:

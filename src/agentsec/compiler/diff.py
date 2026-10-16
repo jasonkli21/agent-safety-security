@@ -15,6 +15,10 @@ class SemanticChange(VersionedModel):
     representative_digest: str | None = None
     old_outcome: PolicyOutcome | None = None
     new_outcome: PolicyOutcome | None = None
+    old_reason_codes: frozenset[ReasonCode] | None = None
+    new_reason_codes: frozenset[ReasonCode] | None = None
+    old_matched_rule_ids: frozenset[str] | None = None
+    new_matched_rule_ids: frozenset[str] | None = None
 
 
 class SemanticDiff(VersionedModel):
@@ -60,6 +64,25 @@ def semantic_diff(old: CompiledSecurityPlan, new: CompiledSecurityPlan) -> Seman
                         new_outcome=after.outcome,
                     )
                 )
+        if (before.reason_codes, before.matched_rule_ids) != (
+            after.reason_codes,
+            after.matched_rule_ids,
+        ):
+            changes.append(
+                SemanticChange(
+                    schema_version="0.1",
+                    kind="policy_explanation_change",
+                    source_ref="tools/task_scope",
+                    capability=capability,
+                    representative_digest=content_digest((capability, resource)),
+                    old_outcome=before.outcome,
+                    new_outcome=after.outcome,
+                    old_reason_codes=before.reason_codes,
+                    new_reason_codes=after.reason_codes,
+                    old_matched_rule_ids=before.matched_rule_ids,
+                    new_matched_rule_ids=after.matched_rule_ids,
+                )
+            )
         before_outside = ReasonCode.OUTSIDE_TASK_SCOPE in before.reason_codes
         after_outside = ReasonCode.OUTSIDE_TASK_SCOPE in after.reason_codes
         if before_outside != after_outside:

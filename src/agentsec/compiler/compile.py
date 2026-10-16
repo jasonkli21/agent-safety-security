@@ -1,6 +1,7 @@
 """Compile validated contract facts once; no protocol or runtime state belongs here."""
 
 from agentsec.compiler.models import (
+    AgentBinding,
     CompiledScope,
     CompiledSecurityPlan,
     ResourceCeiling,
@@ -27,13 +28,18 @@ def compile_contract(contract: AgentSecurityContract) -> CompiledSecurityPlan:
             )
         )
 
-    atom("identity", (contract.agent, contract.identity.principal, contract.environment))
+    agent = AgentBinding.from_identity(contract.agent)
+    atom("identity", (agent, contract.identity.principal, contract.environment))
     atom("tools.default_deny", "DENY")
     for rule in contract.tools.rules:
         atom(f"tools.rules/{rule.rule_id}", rule, adapter=rule.resource is not None)
     scope = contract.task_scope
     if scope is not None:
-        atom("task_scope", scope, adapter=bool(scope.resource_scopes))
+        atom(
+            "task_scope",
+            scope.model_dump(exclude={"description"}),
+            adapter=bool(scope.resource_scopes),
+        )
     for name in RuntimeBudgets.model_fields:
         if (value := getattr(contract.budgets, name)) is not None:
             atom(f"budgets.{name}", value)
@@ -52,14 +58,13 @@ def compile_contract(contract: AgentSecurityContract) -> CompiledSecurityPlan:
         contract_schema_version=contract.schema_version,
         contract_id=contract.metadata.contract_id,
         effective_policy_hash=effective_policy_hash(contract),
-        agent=contract.agent,
+        agent=agent,
         principal=contract.identity.principal,
         environment=contract.environment.mode,
         rules=contract.tools.rules,
         scope=(
             CompiledScope(
                 task_id=scope.task_id,
-                description=scope.description,
                 requested_capabilities=scope.requested_capabilities,
                 resources=(
                     tuple(

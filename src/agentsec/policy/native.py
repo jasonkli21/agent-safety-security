@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from agentsec.compiler import CompiledSecurityPlan, compile_contract
+from agentsec.compiler.models import AgentBinding
 from agentsec.contracts.models import AgentSecurityContract
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
 from agentsec.domain.taxonomy import PolicyOutcome, ReasonCode, RuleDecision
@@ -25,9 +26,9 @@ class NativePolicyEngine:
         scope = contract.task_scope
         if (
             request.principal != contract.principal
-            or request.agent != contract.agent
+            or AgentBinding.from_identity(request.agent) != contract.agent
             or request.environment != contract.environment
-            or request.task_scope != scope
+            or not contract.matches_scope(request.task_scope)
             or request.delegation_id is not None
             or request.tool_id is None
         ):
