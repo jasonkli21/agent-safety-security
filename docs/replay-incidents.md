@@ -167,3 +167,16 @@ in those identity fields. Hashes reveal equality and do not encrypt data.
 
 Phase 5 is ready for independent review after its documented gates pass. Phase 6 remains gated
 on that review/fixes and a reviewed Phase 6 plan.
+
+
+## Phase 6 verified authority facts
+
+Bundles retain historical `phase4-v1` source identities and meanings while candidate compilation
+uses `phase6-v1`. Historical-to-current replay without recorded verified authority is explicitly
+INCOMPLETE / MISSING_AUTHORITY_CONTEXT; promotion with such a candidate remains DRAFT.
+Replay never obtains a bearer token or calls an identity verifier. It uses canonical authority
+facts at recorded timestamps and rechecks freshness at dispatch, including approval waits.
+Resource-bearing grant evidence is redacted with an authority digest. An explicitly supplied
+`replay bundle create --authority PATH` artifact must match that digest; remaining resource/task
+redactions stay material blockers. Session authority commitments and unchanged request/authority
+bindings protect historical approval replay. See [identity and delegation](identity-delegation.md).

@@ -113,3 +113,15 @@ source plan binding, offline substituted security replay, semantic trace diff, e
 classification, safe assertion promotion and the local/CI regression gate. Historical evidence
 remains immutable; missing or redacted material is never reconstructed. This does not extend
 model/context coverage or authorize any live execution.
+
+
+## Phase 6 authority evidence
+
+RUN_STARTED optionally carries a typed AuthoritySummary with actor/assurance, OBO principal,
+delegation ID/digest, computed authority digest, earliest expiry, setup error and enforcement
+status. No raw JWT or arbitrary external claims are recorded. Requests bind canonical authority
+into the full policy-input digest. Resource-bearing grant context is explicitly redacted with
+an authority digest; otherwise minimized canonical facts support offline replay. Static trust
+is never labeled cryptographic authentication. DISABLED records enforcement_enabled=false;
+failed verification records no authenticated actor. Absent additive fields serialize as absent,
+preserving historical event identities. See [identity and delegation](identity-delegation.md).

@@ -13,7 +13,9 @@ from agentsec.contracts.models import AgentSecurityContract
 from agentsec.domain.serialization import content_digest
 
 
-def compile_contract(contract: AgentSecurityContract) -> CompiledSecurityPlan:
+def compile_contract(
+    contract: AgentSecurityContract, *, historical: bool = False
+) -> CompiledSecurityPlan:
     atoms: list[SemanticAtom] = []
 
     def atom(ref: str, value: object, *, supported: bool = True, adapter: bool = False) -> None:
@@ -30,6 +32,8 @@ def compile_contract(contract: AgentSecurityContract) -> CompiledSecurityPlan:
 
     agent = AgentBinding.from_identity(contract.agent)
     atom("identity", (agent, contract.identity.principal, contract.environment))
+    if not historical:
+        atom("identity.authority", "restrictive direct authority")
     atom("tools.default_deny", "DENY")
     for rule in contract.tools.rules:
         atom(f"tools.rules/{rule.rule_id}", rule, adapter=rule.resource is not None)
@@ -49,12 +53,18 @@ def compile_contract(contract: AgentSecurityContract) -> CompiledSecurityPlan:
     for invariant in contract.invariants:
         atom(f"invariants/{invariant.id}", invariant, supported=False)
     if contract.identity.acts_on_behalf_of is not None:
-        atom("identity.acts_on_behalf_of", contract.identity.acts_on_behalf_of, supported=False)
+        atom(
+            "identity.acts_on_behalf_of",
+            contract.identity.acts_on_behalf_of,
+            supported=not historical,
+        )
     for name in ("max_model_calls", "max_cost_usd", "max_delegated_agents"):
         if (value := getattr(contract.budgets, name)) is not None:
             atom(f"budgets.{name}", value, supported=False)
     return CompiledSecurityPlan(
         schema_version="0.1",
+        compiler_version="phase4-v1" if historical else "phase6-v1",
+        acts_on_behalf_of=None if historical else contract.identity.acts_on_behalf_of,
         contract_schema_version=contract.schema_version,
         contract_id=contract.metadata.contract_id,
         effective_policy_hash=effective_policy_hash(contract),

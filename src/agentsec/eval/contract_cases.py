@@ -6,6 +6,7 @@ from agentsec.compiler import CompiledSecurityPlan, compile_contract
 from agentsec.compiler.probes import PolicyProbe, generate_probes
 from agentsec.compiler.reporting import ConformanceReport, ProbeResult, Status, run_conformance
 from agentsec.contracts.models import AgentSecurityContract
+from agentsec.domain.authority import AuthorityContext
 from agentsec.domain.events import PolicyEvaluatedPayload, ToolRequestedPayload
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
 from agentsec.domain.provenance import DataArtifactRef, DataOrigin
@@ -144,6 +145,10 @@ class ContractTarget(FixtureTarget):
             )
         )
         self.plan, self.engine = plan, engine or NativePolicyEngine()
+        self.probe = probe
+
+    def authority_context(self) -> AuthorityContext | None:
+        return self.probe.request(self.plan).authority
 
     def approval_outcome(self, step: ToolCallStep) -> ApprovalOutcome:
         return ApprovalOutcome.APPROVE

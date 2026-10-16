@@ -14,6 +14,7 @@ from agentsec.domain.approvals import (
     NormalizedAction,
     action_digest,
 )
+from agentsec.domain.authority import AuthorityContext
 from agentsec.domain.base import CapabilityId, Identifier, NonEmpty, SecurityModel, VersionedModel
 from agentsec.domain.events import (
     ApprovalDecidedPayload,
@@ -173,9 +174,13 @@ class FixtureTarget:
         for step in self.fixture.steps:
             if isinstance(step, ToolCallStep):
                 tool = tools[step.tool_id]
+                authority = self.authority_context()
+                grant = authority.delegation if authority else None
                 action = NormalizedAction(
                     schema_version="0.1",
                     principal=contract.identity.principal,
+                    authority_digest=authority.authority_digest if authority else None,
+                    delegation_id=grant.delegation_id if grant else None,
                     agent_id=contract.agent.agent_id,
                     environment=contract.agent.environment,
                     task_id=scenario.task.task_id,
@@ -194,6 +199,8 @@ class FixtureTarget:
                     schema_version="0.1",
                     request_id=context.new_id("request"),
                     principal=contract.identity.principal,
+                    authority=authority,
+                    delegation_id=grant.delegation_id if grant else None,
                     agent=contract.agent,
                     task_scope=scenario.task.task_scope,
                     capability=step.capability,
@@ -349,6 +356,10 @@ class FixtureTarget:
                 tool_arguments_complete=True,
             ),
         )
+
+    def authority_context(self) -> AuthorityContext | None:
+        """Only trusted conformance subclasses supply synthetic canonical facts."""
+        return None
 
     def approval_outcome(self, step: ToolCallStep) -> ApprovalOutcome | None:
         return step.approval_outcome

@@ -10,6 +10,7 @@ from pydantic import BaseModel, ValidationError
 from agentsec.compiler import compile_contract
 from agentsec.contracts.errors import ArtifactValidationError
 from agentsec.contracts.loader import MAX_BYTES, load_artifact, load_contract
+from agentsec.domain.authority import AuthorityContext
 from agentsec.domain.events import RunStartedPayload
 from agentsec.domain.replay import Incident, ReplayBundle, ReplayError
 from agentsec.domain.scenarios import Scenario
@@ -63,6 +64,7 @@ def bundle_create(
     out: Annotated[Path, typer.Option()],
     scenario: Annotated[Path | None, typer.Option()] = None,
     report: Annotated[Path | None, typer.Option()] = None,
+    authority: Annotated[Path | None, typer.Option()] = None,
 ) -> None:
     """Package source evidence; optional scenario supplies tools and explicit expectations."""
 
@@ -92,6 +94,7 @@ def bundle_create(
                 tools=spec.setup.tools if spec else (),
                 expectations=spec.assertions if spec else (),
                 findings=source_report.findings if source_report else (),
+                authority=load_artifact(authority, AuthorityContext) if authority else None,
             ),
             out,
         )

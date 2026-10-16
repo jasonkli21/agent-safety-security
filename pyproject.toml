@@ -19,6 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+identity = ["PyJWT[crypto]>=2.10,<3"]
 mcp = ["mcp>=2.3,<3"]
 dev = [
   "build",

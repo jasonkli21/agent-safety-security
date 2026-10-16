@@ -27,12 +27,16 @@ If they appear to conflict, do not silently pick whichever is convenient. Prefer
 
 ## 3. Current phase boundary
 
-**Phase 5 incident replay/security regression is implemented and awaiting independent review.**
-The baseline includes the Phase 4 review fixes in `be727ec`. The active scope is
-`docs/plans/phase-5-implementation-plan.md`; verification and limitations are recorded in
-`docs/reports/phase-5-implementation-report.md` and `docs/replay-incidents.md`.
-Phase 0–4 security boundaries remain protected. Do not implement Phase 6 until Phase 5
-review/fixes are complete and a reviewed Phase 6 plan exists.
+**Phase 6 identity/delegation is implemented and awaiting independent review.**
+The baseline includes Phase 5 independent-review fixes in `c84b03f`. The active scope is
+`docs/plans/phase-6-implementation-plan.md`; behavior and verification are recorded in
+`docs/identity-delegation.md` and `docs/reports/phase-6-implementation-report.md`.
+Phase 0–5 boundaries remain protected. Phase 7 requires independent Phase 6 review/fixes
+and a reviewed Phase 7 plan. Phase 8 supply-chain expansion and Phase 9 agent graphs remain out of scope.
+Direct one-hop delegation only: identity proof is restrictive and never grants beyond contract.
+Static config is not remote authentication; JWT verification uses pinned trusted keys/mappings.
+Raw credentials never belong in contracts/evidence. Authority freshness is rechecked before
+post-approval dispatch. Parent chains and `max_delegated_agents` remain unsupported.
 
 Native authorization, generated conformance, coverage and semantic diff consume an immutable
 compiled plan. Runtime compiles once at startup; mutable approval/budget/provenance state stays
@@ -41,11 +45,11 @@ requests snapshot exposed context, and blocked responses never enter that fronti
 exposure evidence precedes ENFORCE release. MCP source/sink proof binds exact plan/discovery
 identity. Explicit source labels/static sink categories are trusted configuration; no argument
 can relabel context. Generated conformance proves synthetic policy/evidence behavior, not model
-robustness, semantic content detection or complete model-internal taint. Unsupported delegation
+robustness, semantic content detection or complete model-internal taint. Unsupported transitive delegation
 intent remains explicit. Replay is offline security-semantic substitution, never live tool or model execution. Source
 evidence and replay identities stay separate; material redaction is a blocker. Promotion requires
 explicit safe assertions and never edits security contracts. Do not add hosted services, UI,
-OAuth/OIDC, Cedar/OPA, general policy languages, automatic declassification or sandbox infrastructure.
+full OAuth/OIDC lifecycle services, Cedar/OPA, general policy languages, automatic declassification or sandbox infrastructure.
 
 ## 4. Architectural invariants
 

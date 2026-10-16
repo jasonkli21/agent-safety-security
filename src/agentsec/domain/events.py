@@ -2,12 +2,19 @@
 
 from typing import Annotated, Literal, Self
 
-from pydantic import ConfigDict, Field, model_validator
+from pydantic import (
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+    model_validator,
+)
 from pydantic_core import PydanticCustomError
 
 from agentsec.compiler.models import PlanIdentity
 from agentsec.contracts.errors import ErrorCode, fail
 from agentsec.domain.approvals import ApprovalDecision, ApprovalRequest
+from agentsec.domain.authority import AuthoritySummary
 from agentsec.domain.base import (
     Count,
     Digest,
@@ -31,11 +38,19 @@ from agentsec.domain.taxonomy import (
 
 
 class RunStartedPayload(SecurityModel):
+    authority_summary: AuthoritySummary | None = None
     kind: Literal[EventType.RUN_STARTED]
     contract_id: Identifier
     effective_policy_hash: Digest
     scenario_id: Identifier | None = None
     plan_identity: PlanIdentity | None = None
+
+    @model_serializer(mode="wrap")
+    def compatible_wire(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data: dict[str, object] = handler(self)
+        if self.authority_summary is None:
+            data.pop("authority_summary", None)
+        return data
 
 
 class RunFinishedPayload(SecurityModel):
@@ -48,9 +63,17 @@ class ToolRequestedPayload(SecurityModel):
     request: PolicyRequest
     action_digest: Digest
     policy_input_digest: Digest | None = None
-    redacted_fields: frozenset[Literal["resource", "task_scope"]] = frozenset()
+    redacted_fields: frozenset[Literal["resource", "task_scope", "authority"]] = frozenset()
     resource_digest: Digest | None = None
     task_scope_digest: Digest | None = None
+    authority_digest: Digest | None = None
+
+    @model_serializer(mode="wrap")
+    def compatible_wire(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data: dict[str, object] = handler(self)
+        if self.authority_digest is None:
+            data.pop("authority_digest", None)
+        return data
 
     @model_validator(mode="after")
     def truthful_redaction(self) -> Self:
@@ -66,6 +89,8 @@ class ToolRequestedPayload(SecurityModel):
             raise PydanticCustomError(
                 "INVALID_SCHEMA", "Task-scope redaction must carry its field digest"
             )
+        if ("authority" in self.redacted_fields) != (self.authority_digest is not None):
+            raise ValueError("AUTHORITY_REDACTION_DIGEST_REQUIRED")
         return self
 
 

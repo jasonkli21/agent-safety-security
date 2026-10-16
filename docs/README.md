@@ -10,3 +10,6 @@
 ## Keeping docs aligned
 
 The PRD should remain relatively stable. Architecture changes only for enduring technical decisions. Phase plans can be more operational and detailed. Reports describe reality after implementation.
+
+- [Identity and delegation](identity-delegation.md) — Phase 6 authority, verifier, operational trust and replay.
+- [Phase 6 implementation report](reports/phase-6-implementation-report.md) — verification and limitations.

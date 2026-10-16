@@ -133,3 +133,15 @@ source plan binding, offline substituted security replay, semantic trace diff, e
 classification, safe assertion promotion and the local/CI regression gate. Historical evidence
 remains immutable; missing or redacted material is never reconstructed. This does not extend
 model/context coverage or authorize any live execution.
+
+
+## Phase 6 authority probes
+
+Current compilation emits `phase6-v1`; historical replay retains `phase4-v1`. Trusted synthetic
+authority fixtures exercise direct/OBO behavior, missing or mismatched delegation, expiry,
+credential capability ceilings and delegated capability/resource narrowing. Existing rule,
+approval and data-flow obligations use valid synthetic authority, preserving deny precedence.
+The authority layer is shared with runtime/replay. These probes authenticate no external workload.
+`identity.authority` is separately covered; grouped identity/task atoms remain unclaimed.
+Authored OBO changes and compiler semantic changes appear explicitly in semantic diff.
+See [identity and delegation](identity-delegation.md).

@@ -11,6 +11,7 @@ from agentsec.compiler.models import CompiledSecurityPlan
 from agentsec.compiler.reporting import ConformanceReport, CoverageReport
 from agentsec.contracts.models import AgentSecurityContract
 from agentsec.domain.approvals import ApprovalDecision, ApprovalRequest, NormalizedAction
+from agentsec.domain.authority import AuthorityContext, VerifiedCredential
 from agentsec.domain.events import SecurityEvent
 from agentsec.domain.findings import Finding
 from agentsec.domain.identity import Delegation
@@ -23,6 +24,8 @@ from agentsec.eval.fixtures import TargetFixture
 from agentsec.eval.models import EvaluationResult, EvaluationSummary
 
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
+    "authority-context": AuthorityContext,
+    "verified-credential": VerifiedCredential,
     "incident": Incident,
     "replay-bundle": ReplayBundle,
     "replay-result": ReplayResult,

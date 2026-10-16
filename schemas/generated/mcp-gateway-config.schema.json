@@ -15,6 +15,87 @@
       "title": "DataLabel",
       "type": "string"
     },
+    "Delegation": {
+      "additionalProperties": false,
+      "properties": {
+        "capability_scope": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 3,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+            "type": "string"
+          },
+          "title": "Capability Scope",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "delegate": {
+          "$ref": "#/$defs/PrincipalRef"
+        },
+        "delegation_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Delegation Id",
+          "type": "string"
+        },
+        "delegator": {
+          "$ref": "#/$defs/PrincipalRef"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        },
+        "issued_at": {
+          "format": "date-time",
+          "title": "Issued At",
+          "type": "string"
+        },
+        "parent_delegation_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Parent Delegation Id"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "task_scope": {
+          "$ref": "#/$defs/TaskScope"
+        }
+      },
+      "required": [
+        "schema_version",
+        "delegation_id",
+        "delegator",
+        "delegate",
+        "task_scope",
+        "capability_scope",
+        "issued_at"
+      ],
+      "title": "Delegation",
+      "type": "object"
+    },
     "EnforcementMode": {
       "enum": [
         "ENFORCE",
@@ -45,6 +126,146 @@
       ],
       "title": "HttpUpstream",
       "type": "object"
+    },
+    "JwtIdentityConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "audience": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Audience",
+          "type": "string"
+        },
+        "clock_skew_seconds": {
+          "default": 0,
+          "maximum": 60,
+          "minimum": 0,
+          "title": "Clock Skew Seconds",
+          "type": "integer"
+        },
+        "issuer": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Issuer",
+          "type": "string"
+        },
+        "keys": {
+          "items": {
+            "$ref": "#/$defs/JwtKey"
+          },
+          "minItems": 1,
+          "title": "Keys",
+          "type": "array"
+        },
+        "provider": {
+          "const": "signed_jwt",
+          "title": "Provider",
+          "type": "string"
+        },
+        "scope_mapping": {
+          "anyOf": [
+            {
+              "additionalProperties": {
+                "maxLength": 128,
+                "minLength": 3,
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+                "type": "string"
+              },
+              "propertyNames": {
+                "maxLength": 8192,
+                "minLength": 1
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Scope Mapping"
+        },
+        "subjects": {
+          "items": {
+            "$ref": "#/$defs/SubjectMapping"
+          },
+          "minItems": 1,
+          "title": "Subjects",
+          "type": "array"
+        }
+      },
+      "required": [
+        "provider",
+        "issuer",
+        "audience",
+        "keys",
+        "subjects"
+      ],
+      "title": "JwtIdentityConfig",
+      "type": "object"
+    },
+    "JwtKey": {
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "enum": [
+            "RS256",
+            "ES256",
+            "EdDSA"
+          ],
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "kid": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Kid",
+          "type": "string"
+        },
+        "public_key_pem": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Public Key Pem",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kid",
+        "algorithm",
+        "public_key_pem"
+      ],
+      "title": "JwtKey",
+      "type": "object"
+    },
+    "PrincipalRef": {
+      "additionalProperties": false,
+      "properties": {
+        "principal_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Principal Id",
+          "type": "string"
+        },
+        "principal_type": {
+          "$ref": "#/$defs/PrincipalType"
+        }
+      },
+      "required": [
+        "principal_id",
+        "principal_type"
+      ],
+      "title": "PrincipalRef",
+      "type": "object"
+    },
+    "PrincipalType": {
+      "enum": [
+        "USER",
+        "AGENT",
+        "SERVICE"
+      ],
+      "title": "PrincipalType",
+      "type": "string"
     },
     "SecurityCategory": {
       "enum": [
@@ -81,6 +302,44 @@
       ],
       "title": "SideEffectClass",
       "type": "string"
+    },
+    "StaticIdentityConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "capability_ceiling": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 3,
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capability Ceiling"
+        },
+        "principal": {
+          "$ref": "#/$defs/PrincipalRef"
+        },
+        "provider": {
+          "const": "static",
+          "title": "Provider",
+          "type": "string"
+        }
+      },
+      "required": [
+        "provider",
+        "principal"
+      ],
+      "title": "StaticIdentityConfig",
+      "type": "object"
     },
     "StdioUpstream": {
       "additionalProperties": false,
@@ -131,6 +390,96 @@
         "command"
       ],
       "title": "StdioUpstream",
+      "type": "object"
+    },
+    "SubjectMapping": {
+      "additionalProperties": false,
+      "properties": {
+        "principal": {
+          "$ref": "#/$defs/PrincipalRef"
+        },
+        "subject": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Subject",
+          "type": "string"
+        }
+      },
+      "required": [
+        "subject",
+        "principal"
+      ],
+      "title": "SubjectMapping",
+      "type": "object"
+    },
+    "TaskScope": {
+      "additionalProperties": false,
+      "properties": {
+        "description": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Description",
+          "type": "string"
+        },
+        "requested_capabilities": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 3,
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Requested Capabilities"
+        },
+        "resource_scopes": {
+          "anyOf": [
+            {
+              "patternProperties": {
+                "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$": {
+                  "items": {
+                    "maxLength": 8192,
+                    "minLength": 1,
+                    "type": "string"
+                  },
+                  "type": "array",
+                  "uniqueItems": true
+                }
+              },
+              "propertyNames": {
+                "maxLength": 128,
+                "minLength": 3
+              },
+              "type": "object"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource Scopes"
+        },
+        "task_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "description"
+      ],
+      "title": "TaskScope",
       "type": "object"
     },
     "ToolBinding": {
@@ -288,12 +637,49 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "delegation": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/Delegation"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "gateway_id": {
       "maxLength": 128,
       "minLength": 1,
       "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
       "title": "Gateway Id",
       "type": "string"
+    },
+    "identity": {
+      "anyOf": [
+        {
+          "discriminator": {
+            "mapping": {
+              "signed_jwt": "#/$defs/JwtIdentityConfig",
+              "static": "#/$defs/StaticIdentityConfig"
+            },
+            "propertyName": "provider"
+          },
+          "oneOf": [
+            {
+              "$ref": "#/$defs/StaticIdentityConfig"
+            },
+            {
+              "$ref": "#/$defs/JwtIdentityConfig"
+            }
+          ]
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Identity"
     },
     "mode": {
       "$ref": "#/$defs/EnforcementMode",

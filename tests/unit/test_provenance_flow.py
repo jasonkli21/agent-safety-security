@@ -208,7 +208,7 @@ def test_independent_flow_generation_nonvacuity_and_mutant(monkeypatch):
         {"rule_id": "u", "label": "UNTRUSTED_CONTENT", "denied_capabilities": ["web.search"]},
     )
     plan = compile_contract(c)
-    assert plan.compiler_version == "phase4-v1" and not plan.gaps
+    assert plan.compiler_version == "phase6-v1" and not plan.gaps
     original = NativePolicyEngine.decide
     monkeypatch.setattr(
         NativePolicyEngine, "decide", lambda *args: (_ for _ in ()).throw(AssertionError())

@@ -49,9 +49,10 @@ requires the binding to declare `resource_semantics: opaque_exact`, an operator 
 the upstream treats that identifier exactly as supplied. Resource-specific ALLOW rules under
 default deny remain safe when an alias mismatch only denies the request. No generic path, URL,
 email, or Unicode canonicalizer is applied. Identity, agent, environment, task and delegation
-consistency checks fail closed; they do not authenticate the MCP host.
+consistency checks fail closed. Default static configuration does not authenticate the MCP host;
+the optional Phase 6 JWT provider verifies the session workload proof as described below.
 
-Prose invariants, acts-on-behalf-of identity, model-call, cost and
+Prose invariants, model-call, cost and
 agent-delegation budgets are unsupported. Even configured zero budgets count as active.
 ENFORCE refuses these contracts; SHADOW lists gaps and evaluates only the supported subset.
 `--check` checks configured binding coverage without connecting; serving startup repeats the
@@ -184,3 +185,15 @@ source plan binding, offline substituted security replay, semantic trace diff, e
 classification, safe assertion promotion and the local/CI regression gate. Historical evidence
 remains immutable; missing or redacted material is never reconstructed. This does not extend
 model/context coverage or authorize any live execution.
+
+
+## Phase 6 identity configuration
+
+Install `.[dev,mcp,identity]` to exercise the optional pinned signed-JWT verifier. Gateway
+configuration may contain `identity` (static or signed_jwt) and a protected `delegation` object.
+Absent identity configuration explicitly means STATIC_TRUSTED_CONFIG for the contract actor.
+`--credential-file` accepts bounded protected out-of-band JWT proof; it never comes from tool
+arguments or inherited upstream environment. `--check` validates keys/mappings and delegation
+coverage without reading a token. ENFORCE checks authority at startup, every call and after
+approval; SHADOW/DISABLED evidence states actual assurance/error and enforcement status.
+See [identity and delegation](identity-delegation.md) for operational examples and limitations.

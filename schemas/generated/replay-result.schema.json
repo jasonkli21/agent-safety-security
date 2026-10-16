@@ -335,6 +335,166 @@
       "title": "AssertionResult",
       "type": "object"
     },
+    "AuthorityContext": {
+      "additionalProperties": false,
+      "properties": {
+        "credential": {
+          "$ref": "#/$defs/VerifiedCredential"
+        },
+        "delegation_json": {
+          "anyOf": [
+            {
+              "maxLength": 8192,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delegation Json"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "credential"
+      ],
+      "title": "AuthorityContext",
+      "type": "object"
+    },
+    "AuthoritySummary": {
+      "additionalProperties": false,
+      "properties": {
+        "actor": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PrincipalRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "acts_on_behalf_of": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PrincipalRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "assurance": {
+          "anyOf": [
+            {
+              "enum": [
+                "STATIC_TRUSTED_CONFIG",
+                "SIGNED_JWT"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Assurance"
+        },
+        "authority_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Authority Digest"
+        },
+        "delegation_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delegation Digest"
+        },
+        "delegation_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Delegation Id"
+        },
+        "enforcement_enabled": {
+          "title": "Enforcement Enabled",
+          "type": "boolean"
+        },
+        "error": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Error"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "enforcement_enabled"
+      ],
+      "title": "AuthoritySummary",
+      "type": "object"
+    },
     "DataArtifactRef": {
       "additionalProperties": false,
       "properties": {
@@ -920,6 +1080,17 @@
           "default": null,
           "title": "Arguments Summary"
         },
+        "authority": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthorityContext"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "capability": {
           "maxLength": 128,
           "minLength": 3,
@@ -1092,6 +1263,11 @@
     },
     "ReasonCode": {
       "enum": [
+        "IDENTITY_MISMATCH",
+        "DELEGATION_REQUIRED",
+        "INVALID_DELEGATION",
+        "AUTHORITY_EXPIRED",
+        "OUTSIDE_AUTHORITY_SCOPE",
         "EXPLICIT_ALLOW",
         "EXPLICIT_DENY",
         "DEFAULT_DENY",
@@ -1178,6 +1354,17 @@
     "RunStartedPayload": {
       "additionalProperties": false,
       "properties": {
+        "authority_summary": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/AuthoritySummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
         "contract_id": {
           "maxLength": 128,
           "minLength": 1,
@@ -1921,6 +2108,19 @@
           "title": "Action Digest",
           "type": "string"
         },
+        "authority_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Authority Digest"
+        },
         "kind": {
           "const": "TOOL_REQUESTED",
           "title": "Kind",
@@ -1944,7 +2144,8 @@
           "items": {
             "enum": [
               "resource",
-              "task_scope"
+              "task_scope",
+              "authority"
             ],
             "type": "string"
           },
@@ -2169,6 +2370,72 @@
       ],
       "title": "TrustClass",
       "type": "string"
+    },
+    "VerifiedCredential": {
+      "additionalProperties": false,
+      "properties": {
+        "assurance": {
+          "enum": [
+            "STATIC_TRUSTED_CONFIG",
+            "SIGNED_JWT"
+          ],
+          "title": "Assurance",
+          "type": "string"
+        },
+        "capability_ceiling": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 3,
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capability Ceiling"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        },
+        "principal": {
+          "$ref": "#/$defs/PrincipalRef"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "valid_from": {
+          "format": "date-time",
+          "title": "Valid From",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "principal",
+        "assurance",
+        "valid_from"
+      ],
+      "title": "VerifiedCredential",
+      "type": "object"
     }
   },
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -2184,6 +2451,17 @@
     },
     "assessment": {
       "$ref": "#/$defs/ReplayAssessment"
+    },
+    "authority": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AuthorityContext"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "current_identity": {
       "$ref": "#/$defs/PlanIdentity"

@@ -3,10 +3,16 @@
 from enum import StrEnum
 from typing import Literal, Self
 
-from pydantic import field_validator, model_validator
+from pydantic import (
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from agentsec.compiler.models import CompiledSecurityPlan, PlanIdentity
 from agentsec.contracts.models import AgentSecurityContract
+from agentsec.domain.authority import AuthorityContext
 from agentsec.domain.base import Digest, Identifier, SecurityModel, VersionedModel
 from agentsec.domain.events import SecurityEvent
 from agentsec.domain.findings import Finding
@@ -43,6 +49,15 @@ class ReplayAssessment(SecurityModel):
 
 class ReplayProgram(VersionedModel):
     """Ordered requests and metadata-only substitute lifecycles, no executable tools."""
+
+    authority: AuthorityContext | None = None
+
+    @model_serializer(mode="wrap")
+    def compatible_wire(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data: dict[str, object] = handler(self)
+        if self.authority is None:
+            data.pop("authority", None)
+        return data
 
     events: tuple[SecurityEvent, ...]
     tools: tuple[ToolDescriptor, ...] = ()
@@ -111,6 +126,15 @@ class ReplayResult(VersionedModel):
     source_identity: PlanIdentity | None
     current_identity: PlanIdentity
     assessment: ReplayAssessment
+    authority: AuthorityContext | None = None
+
+    @model_serializer(mode="wrap")
+    def compatible_wire(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data: dict[str, object] = handler(self)
+        if self.authority is None:
+            data.pop("authority", None)
+        return data
+
     events: tuple[SecurityEvent, ...]
     diff: TraceDiff
     assertions: tuple[AssertionResult, ...] = ()

@@ -47,9 +47,10 @@ from agentsec.domain.taxonomy import (
     Severity,
 )
 from agentsec.eval.models import AssertionResult
+from agentsec.identity.authority import authority_failure
 from agentsec.policy.native import NativePolicyEngine
 from agentsec.provenance.engine import ProvenanceEngine
-from agentsec.replay.bundle import validate_bundle, validate_program
+from agentsec.replay.bundle import recovered_request, validate_bundle, validate_program
 from agentsec.replay.expectations import evaluate_program
 from agentsec.replay.projection import semantic_diff
 from agentsec.runtime.approvals import ApprovalLedger
@@ -110,10 +111,17 @@ def run_program(
     limitations = set(assessment.limitations)
     blockers = set(assessment.blockers)
     if any(
-        isinstance(e.payload, ToolRequestedPayload) and e.payload.redacted_fields
+        isinstance(e.payload, ToolRequestedPayload)
+        and (e.payload.redacted_fields - ({"authority"} if program.authority else set()))
         for e in program.events
     ):
         blockers.add("MATERIAL_REDACTION")
+    if current.compiler_version == "phase6-v1" and any(
+        isinstance(e.payload, ToolRequestedPayload)
+        and recovered_request(e.payload, program).authority is None
+        for e in program.events
+    ):
+        blockers.add("MISSING_AUTHORITY_CONTEXT")
     if current.gaps:
         blockers.add("UNSUPPORTED_POLICY_SEMANTICS")
     if current.budgets.max_runtime_seconds is not None:
@@ -148,6 +156,17 @@ def run_program(
     def dispatch(request_id: str, dispatch_id: str, approval_id: str | None = None) -> bool:
         d = decisions[request_id]
         if d.outcome not in {PolicyOutcome.ALLOW, PolicyOutcome.REQUIRE_APPROVAL}:
+            return False
+        r = requests[request_id]
+        if current.compiler_version == "phase6-v1" and authority_failure(
+            r.authority,
+            current.principal,
+            current.acts_on_behalf_of,
+            current.task_scope,
+            clock(),
+            capability=r.capability,
+            resource=r.resource,
+        ):
             return False
         if request_id in budget_blocked:
             return False
@@ -213,9 +232,20 @@ def run_program(
                     )
                 )
             elif isinstance(p, ToolRequestedPayload):
-                r = p.request.model_copy(update={"data_artifact_refs": provenance.snapshot()})
+                r = recovered_request(p, program).model_copy(
+                    update={"data_artifact_refs": provenance.snapshot()}
+                )
                 requests[r.request_id], actions[r.request_id] = r, p.action_digest
-                emit(p.model_copy(update={"request": r, "policy_input_digest": content_digest(r)}))
+                emit(
+                    p.model_copy(
+                        update={
+                            "request": r,
+                            "policy_input_digest": content_digest(r),
+                            "redacted_fields": p.redacted_fields - {"authority"},
+                            "authority_digest": None,
+                        }
+                    )
+                )
             elif isinstance(p, PolicyEvaluatedPayload):
                 r = requests[p.decision.request_id]
                 d = policy.decide(r, current)
@@ -253,7 +283,7 @@ def run_program(
                 # Historical action hashes include full arguments and policy identity. No grant
                 # may cross a changed policy or changed causal frontier without a full action.
                 original = next(
-                    e.payload.request
+                    recovered_request(e.payload, program)
                     for e in program.events
                     if isinstance(e.payload, ToolRequestedPayload)
                     and e.payload.request.request_id == rid

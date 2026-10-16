@@ -18,3 +18,4 @@ changes, verification, deviations, remaining limitations, and next-phase readine
 - [Phase 4 implementation and review fixes](phase-4-implementation-report.md)
 - [Phase 5 incident replay implementation](phase-5-implementation-report.md)
 - [Phase 5 independent review fixes](phase-5-review-fixes-report.md)
+- [Phase 6 identity and delegation implementation](phase-6-implementation-report.md)

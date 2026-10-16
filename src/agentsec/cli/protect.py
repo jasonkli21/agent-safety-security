@@ -2,6 +2,7 @@
 
 import asyncio
 import logging
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
 
@@ -12,10 +13,16 @@ from agentsec.adapters.mcp.coverage import configured_resource_coverage_gaps
 from agentsec.contracts.errors import ArtifactValidationError
 from agentsec.contracts.loader import load_artifact, load_contract
 from agentsec.contracts.models import AgentSecurityContract
+from agentsec.domain.authority import AuthorityContext
+from agentsec.domain.serialization import canonical_json
 from agentsec.domain.taxonomy import EnforcementMode
 from agentsec.evidence.jsonl import EvidenceError, JsonlEventSink
 from agentsec.evidence.memory import InMemoryEventSink
 from agentsec.evidence.ports import EventSink
+from agentsec.identity.authority import authority_failure
+from agentsec.identity.config import JwtIdentityConfig
+from agentsec.identity.ports import IdentityError
+from agentsec.identity.setup import bind_authority, configured_provider
 from agentsec.policy.coverage import coverage_gaps
 from agentsec.runtime.events import RuntimeEvents
 from agentsec.runtime.gateway import RuntimeGateway
@@ -25,7 +32,12 @@ from agentsec.runtime.terminal_approval import TerminalApprovalBroker
 app = typer.Typer(no_args_is_help=True)
 
 
-async def run(contract: AgentSecurityContract, config: McpGatewayConfig, sink: EventSink) -> None:
+async def run(
+    contract: AgentSecurityContract,
+    config: McpGatewayConfig,
+    sink: EventSink,
+    credential_file: Path | None = None,
+) -> None:
     from agentsec.adapters.mcp.server import create_server, serve_stdio
     from agentsec.adapters.mcp.upstream import connect
 
@@ -38,7 +50,28 @@ async def run(contract: AgentSecurityContract, config: McpGatewayConfig, sink: E
         required=config.mode == EnforcementMode.ENFORCE,
         on_failure=lambda: typer.echo("EVIDENCE_WRITE_FAILURE", err=True),
     )
-    runtime = RuntimeGateway(contract, config.mode, events, TerminalApprovalBroker())
+    authority = None
+    identity_error = None
+    try:
+        authority = bind_authority(
+            config.identity,
+            contract.identity.principal,
+            config.delegation,
+            credential_file,
+            events.clock(),
+        )
+    except IdentityError as exc:
+        if config.mode == EnforcementMode.ENFORCE:
+            raise RuntimeFailure(exc.code) from None
+        identity_error = exc.code
+    runtime = RuntimeGateway(
+        contract,
+        config.mode,
+        events,
+        TerminalApprovalBroker(),
+        authority=authority,
+        identity_error=identity_error,
+    )
     async with connect(config.upstream) as client:
         server, gaps = await create_server(client, config, runtime)
         for gap in gaps:
@@ -56,6 +89,9 @@ def protect_mcp(
     contract: Annotated[Path, typer.Option()],
     config: Annotated[Path, typer.Option()],
     evidence_out: Annotated[Path | None, typer.Option()] = None,
+    credential_file: Annotated[
+        Path | None, typer.Option(help="Protected out-of-band JWT file")
+    ] = None,
     check: Annotated[
         bool, typer.Option(help="Validate config/coverage without connecting upstream")
     ] = False,
@@ -64,6 +100,38 @@ def protect_mcp(
     try:
         loaded_contract = load_contract(contract)
         loaded_config = load_artifact(config, McpGatewayConfig)
+        configured_provider(loaded_config.identity, loaded_contract.identity.principal)
+        # Configuration coverage only: JWT proof is deliberately not required by --check.
+        from agentsec.identity.static import StaticIdentityProvider
+
+        cfg = loaded_config.identity
+        expected = (
+            cfg.principal
+            if cfg is not None and not isinstance(cfg, JwtIdentityConfig)
+            else loaded_contract.identity.principal
+        )
+        if isinstance(cfg, JwtIdentityConfig) and not any(
+            s.principal == loaded_contract.identity.principal for s in cfg.subjects
+        ):
+            raise RuntimeFailure("IDENTITY_PRINCIPAL_UNMAPPED")
+        check_authority = AuthorityContext(
+            schema_version="0.1",
+            credential=StaticIdentityProvider(expected).verify(None, datetime.now(UTC)),
+            delegation_json=canonical_json(loaded_config.delegation)
+            if loaded_config.delegation
+            else None,
+        )
+        failure = authority_failure(
+            check_authority,
+            loaded_contract.identity.principal,
+            loaded_contract.identity.acts_on_behalf_of,
+            loaded_contract.task_scope,
+            datetime.now(UTC),
+        )
+        if failure and loaded_config.mode == EnforcementMode.ENFORCE:
+            raise RuntimeFailure(failure.value)
+        if failure:
+            typer.echo(f"AUTHORITY_COVERAGE: {failure.value}", err=True)
         contract_gaps = coverage_gaps(loaded_contract)
         resource_gaps = configured_resource_coverage_gaps(
             loaded_contract, loaded_config.tool_bindings
@@ -89,10 +157,10 @@ def protect_mcp(
                 raise RuntimeFailure("OUTPUT_PATH_COLLISION")
             # Exclusive creation prevents overwriting protected inputs, executables or old audit.
             with JsonlEventSink(evidence_out, exclusive=True) as sink:
-                asyncio.run(run(loaded_contract, loaded_config, sink))
+                asyncio.run(run(loaded_contract, loaded_config, sink, credential_file))
         else:
-            asyncio.run(run(loaded_contract, loaded_config, InMemoryEventSink()))
-    except (RuntimeFailure, EvidenceError) as exc:
+            asyncio.run(run(loaded_contract, loaded_config, InMemoryEventSink(), credential_file))
+    except (RuntimeFailure, EvidenceError, IdentityError) as exc:
         typer.echo(exc.code, err=True)
         raise typer.Exit(1) from exc
     except ArtifactValidationError as exc:

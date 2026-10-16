@@ -13,7 +13,9 @@ from agentsec.domain.base import (
     SecurityModel,
     VersionedModel,
 )
+from agentsec.domain.identity import Delegation
 from agentsec.domain.taxonomy import DataLabel, EnforcementMode, SecurityCategory, SideEffectClass
+from agentsec.identity.config import IdentityConfig
 
 
 class StdioUpstream(SecurityModel):
@@ -95,6 +97,8 @@ class McpGatewayConfig(VersionedModel):
     mode: EnforcementMode = EnforcementMode.ENFORCE
     upstream: Annotated[StdioUpstream | HttpUpstream, Field(discriminator="transport")]
     tool_bindings: tuple[ToolBinding, ...] = ()
+    identity: IdentityConfig | None = None
+    delegation: Delegation | None = None
 
     @model_validator(mode="after")
     def unique_bindings(self) -> Self:

@@ -1792,3 +1792,19 @@ its exact plan; older producers stay explicitly legacy and expose no recorded so
 Historical approval reuse requires exact source-plan binding. Promotion preserves original commitments
 and explicit safe assertions in minimized derived regression material, optionally capturing a
 separately supplied candidate plan. It never modifies policy. See [replay/incidents](replay-incidents.md).
+
+
+## Phase 6 restrictive identity authority
+
+Current `phase6-v1` compilation makes OBO executable; historical `phase4-v1` plans retain
+original serialization, identity and semantics. A protocol-independent provider port returns
+minimized VerifiedCredential facts. Protected static configuration is explicit local trust;
+the optional PyJWT adapter verifies pinned asymmetric proofs and explicit subject/scope mappings.
+AuthorityContext freezes the direct grant and credential ceiling independently of authored policy.
+The shared pure authority layer intersects task/resource restrictions and checks activation,
+identity and freshness; native policy, conformance and offline replay reuse it. Runtime owns an
+immutable authority snapshot and rechecks expiry immediately before dispatch after approval.
+Normalized actions and policy-input evidence bind its computed digest. Resource-bearing grant
+facts are explicitly redacted; replay needs trusted matching context or remains incomplete.
+No bearer credential, identity federation service or transitive graph belongs in the domain.
+See [identity and delegation](identity-delegation.md).

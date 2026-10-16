@@ -112,8 +112,8 @@ agentsec protect mcp --contract examples/mcp/contract.yaml --config examples/mcp
 Configure the second command as your MCP host's server command. The synthetic tools have no
 external effects. Email simulation requires approval through a separate controlling terminal;
 file-write simulation is denied. Evidence paths must be new. Install the optional `mcp` extra
-for runtime use; validation/evaluation work without it. Full development checks require both
-`dev` and `mcp`. See [runtime setup and coverage](docs/runtime-mcp.md).
+for runtime use; validation/evaluation work without it. Full development checks require
+`dev`, `mcp` and `identity`. See [runtime setup and coverage](docs/runtime-mcp.md).
 
 ## License
 
@@ -137,17 +137,33 @@ Phase 4 adds [tracked provenance and data-flow restrictions](docs/provenance-dat
 including labeled tool-output → external-sink and untrusted-output → memory-tool protection.
 Use `examples/mcp/flow-contract.yaml` with `examples/mcp/flow-gateway.yaml` and the existing
 synthetic server. This tracks released tool outputs conservatively; it does not classify arbitrary
-user/model text or provide complete DLP. The Phase 4 review fixes are included in the baseline. Phase 5 awaits independent review.
+user/model text or provide complete DLP. The Phase 4 review fixes are included in the baseline. Phase 5 review fixes are included; Phase 6 awaits independent review.
 
 ## Incident replay and regression
 
 ```bash
-agentsec replay run --bundle examples/replay/bundle.json --contract examples/replay/current-contract.json
+agentsec replay run --bundle examples/replay/bundle.json
 agentsec regression validate --root examples/regressions
 agentsec regression run --root examples/regressions
 ```
 
 Replay uses structured source evidence and deterministic substitutes without calling live tools.
-The public regression corpus reports one ACTIVE pass and one DRAFT requiring review. See
+The public regression corpus reports two ACTIVE passes and one DRAFT requiring review. See
 [the workflow and fidelity limits](docs/replay-incidents.md) and
 [the Phase 5 implementation report](docs/reports/phase-5-implementation-report.md).
+
+## Identity and delegation
+
+Phase 6 adds protected static identity and optional pinned signed-JWT verification, direct
+OBO delegation, intersected credential/task/resource ceilings, and authority-bound approvals
+and replay. Identity never grants beyond the contract.
+
+```bash
+python -m pip install -e '.[dev,mcp,identity]'
+.venv/bin/python examples/identity/least_privilege.py
+```
+
+See [identity setup, trust boundaries and limitations](docs/identity-delegation.md). Historical
+Phase 5 source can replay under its historical plan; comparison to a new Phase 6 candidate
+without recorded authority facts is explicitly INCOMPLETE. Phase 6 is ready for independent
+review; Phase 7 is not started.

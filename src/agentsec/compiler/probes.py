@@ -1,14 +1,17 @@
 """Declarative obligations: this module never calls the native evaluator for expectations."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC, datetime
 from itertools import product
 
 from agentsec.compiler.models import CompiledSecurityPlan
+from agentsec.domain.authority import AuthorityContext
+from agentsec.domain.identity import Delegation, PrincipalRef, TaskScope
 from agentsec.domain.policy import PolicyRequest
 from agentsec.domain.provenance import DataArtifactRef, DataOrigin
-from agentsec.domain.serialization import content_digest
+from agentsec.domain.serialization import canonical_json, content_digest
 from agentsec.domain.taxonomy import DataLabel, PolicyOutcome, ReasonCode, TrustClass
+from agentsec.identity.static import StaticIdentityProvider
 from agentsec.provenance import ProvenanceEngine
 
 
@@ -27,11 +30,17 @@ class PolicyProbe:
     derivable: bool = True
     obligation_kind: str = "tool_policy"
 
+    authority: AuthorityContext | None = None
+
     def request(self, plan: CompiledSecurityPlan) -> PolicyRequest:
+        authority = self.authority or synthetic_authority(plan)
+        grant = authority.delegation if authority else None
         return PolicyRequest(
             schema_version="0.1",
             request_id=self.probe_id,
             principal=plan.principal,
+            authority=authority,
+            delegation_id=grant.delegation_id if grant else None,
             agent=plan.agent.request_agent(),
             environment=plan.environment,
             task_scope=plan.task_scope,
@@ -148,7 +157,7 @@ def generate_probes(plan: CompiledSecurityPlan) -> tuple[PolicyProbe, ...]:
                 ),
             )
         )
-    return tuple(probes) + generate_flow_probes(plan)
+    return tuple(probes) + generate_flow_probes(plan) + generate_authority_probes(plan)
 
 
 def flow_partition(*plans: CompiledSecurityPlan) -> tuple[tuple[DataLabel, str, str | None], ...]:
@@ -332,4 +341,148 @@ def generate_flow_probes(plan: CompiledSecurityPlan) -> tuple[PolicyProbe, ...]:
                         )
                     )
                     break
+    return tuple(probes)
+
+
+def synthetic_authority(plan: CompiledSecurityPlan) -> AuthorityContext | None:
+    """Trusted synthetic facts, never an external authentication claim."""
+    if plan.compiler_version != "phase6-v1":
+        return None
+    credential = StaticIdentityProvider(plan.principal).verify(
+        None, datetime(2000, 1, 1, tzinfo=UTC)
+    )
+    grant = None
+    if plan.acts_on_behalf_of:
+        grant = Delegation(
+            schema_version="0.1",
+            delegation_id="synthetic-direct",
+            delegator=plan.acts_on_behalf_of,
+            delegate=plan.principal,
+            capability_scope=frozenset(c for c, _ in partition(plan)),
+            task_scope=TaskScope(
+                task_id=plan.scope.task_id if plan.scope else "synthetic-task",
+                description="Trusted synthetic ceiling",
+            ),
+            issued_at=datetime(2000, 1, 1, tzinfo=UTC),
+            expires_at=datetime(2100, 1, 1, tzinfo=UTC),
+        )
+    return AuthorityContext(
+        schema_version="0.1",
+        credential=credential,
+        delegation_json=canonical_json(grant) if grant else None,
+    )
+
+
+def generate_authority_probes(plan: CompiledSecurityPlan) -> tuple[PolicyProbe, ...]:
+    authority = synthetic_authority(plan)
+    if authority is None:
+        return ()
+    bases = [(c, r, *obligation(plan, c, r)) for c, r in partition(plan)]
+    probes = []
+    for c, resource, out, reason in bases:
+        if out not in {PolicyOutcome.ALLOW, PolicyOutcome.REQUIRE_APPROVAL}:
+            continue
+        matched = frozenset(
+            r.rule_id for r in plan.rules if r.capability == c and r.resource in {None, resource}
+        )
+        base = PolicyProbe(
+            "authority-valid-" + content_digest((c, resource))[7:23],
+            c,
+            resource,
+            out,
+            reason,
+            ("identity.authority",)
+            + (("identity.acts_on_behalf_of",) if plan.acts_on_behalf_of else ()),
+            matched,
+            authority=authority,
+            obligation_kind="authority_valid",
+        )
+        probes.append(base)
+        variants = [
+            (
+                "credential_ceiling",
+                AuthorityContext(
+                    schema_version="0.1",
+                    credential=authority.credential.model_copy(
+                        update={"capability_ceiling": frozenset()}
+                    ),
+                    delegation_json=authority.delegation_json,
+                ),
+                ReasonCode.OUTSIDE_AUTHORITY_SCOPE,
+            ),
+            (
+                "expired",
+                AuthorityContext(
+                    schema_version="0.1",
+                    credential=authority.credential.model_copy(
+                        update={"expires_at": datetime(2001, 1, 1, tzinfo=UTC)}
+                    ),
+                    delegation_json=authority.delegation_json,
+                ),
+                ReasonCode.AUTHORITY_EXPIRED,
+            ),
+        ]
+        grant = authority.delegation
+        if grant:
+            variants.append(
+                (
+                    "missing_delegation",
+                    AuthorityContext(schema_version="0.1", credential=authority.credential),
+                    ReasonCode.DELEGATION_REQUIRED,
+                )
+            )
+            other = PrincipalRef(
+                principal_id=sentinel(
+                    {plan.principal.principal_id, grant.delegator.principal_id}, "synthetic-other"
+                ),
+                principal_type=plan.principal.principal_type,
+            )
+            for kind, updates, expected in (
+                ("delegator_mismatch", {"delegator": other}, ReasonCode.INVALID_DELEGATION),
+                ("delegate_mismatch", {"delegate": other}, ReasonCode.INVALID_DELEGATION),
+                (
+                    "expired_delegation",
+                    {"expires_at": datetime(2001, 1, 1, tzinfo=UTC)},
+                    ReasonCode.AUTHORITY_EXPIRED,
+                ),
+                (
+                    "delegation_capability",
+                    {"capability_scope": frozenset()},
+                    ReasonCode.OUTSIDE_AUTHORITY_SCOPE,
+                ),
+                (
+                    "delegation_resource",
+                    {
+                        "task_scope": grant.task_scope.model_copy(
+                            update={"resource_scopes": {c: frozenset()}}
+                        )
+                    },
+                    ReasonCode.OUTSIDE_AUTHORITY_SCOPE,
+                ),
+            ):
+                variants.append(
+                    (
+                        kind,
+                        AuthorityContext(
+                            schema_version="0.1",
+                            credential=authority.credential,
+                            delegation_json=canonical_json(grant.model_copy(update=updates)),
+                        ),
+                        expected,
+                    )
+                )
+        for kind, context, expected in variants:
+            probes.append(
+                replace(
+                    base,
+                    probe_id=base.probe_id + "-" + kind,
+                    expected=PolicyOutcome.DENY,
+                    reason=expected,
+                    matched_rule_ids=frozenset(),
+                    authority=context,
+                    obligation_kind="authority_" + kind,
+                )
+            )
+        # One discriminating base is sufficient for generic binding/freshness checks.
+        break
     return tuple(probes)

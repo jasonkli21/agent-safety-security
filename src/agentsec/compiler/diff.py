@@ -42,6 +42,10 @@ def semantic_diff(old: CompiledSecurityPlan, new: CompiledSecurityPlan) -> Seman
     def change(kind: str, ref: str) -> None:
         changes.append(SemanticChange(schema_version="0.1", kind=kind, source_ref=ref))
 
+    if old.acts_on_behalf_of != new.acts_on_behalf_of:
+        change("on_behalf_of_binding_change", "identity.acts_on_behalf_of")
+    if old.compiler_version != new.compiler_version:
+        change("compiler_semantics_change", "compiler_version")
     rank = {PolicyOutcome.DENY: 0, PolicyOutcome.REQUIRE_APPROVAL: 1, PolicyOutcome.ALLOW: 2}
     engine = NativePolicyEngine()
     rows = partition(old, new)

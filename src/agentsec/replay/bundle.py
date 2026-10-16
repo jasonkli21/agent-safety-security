@@ -3,9 +3,11 @@
 from pathlib import Path
 
 from agentsec.compiler import compile_contract
+from agentsec.compiler.models import CompiledSecurityPlan
 from agentsec.contracts.errors import ArtifactValidationError
 from agentsec.contracts.loader import MAX_BYTES
 from agentsec.contracts.models import AgentSecurityContract
+from agentsec.domain.authority import AuthorityContext
 from agentsec.domain.events import (
     DataExposedPayload,
     PolicyEvaluatedPayload,
@@ -18,6 +20,7 @@ from agentsec.domain.events import (
     validate_event_sequence,
 )
 from agentsec.domain.findings import Finding
+from agentsec.domain.policy import PolicyRequest
 from agentsec.domain.replay import (
     Fidelity,
     ReplayAssessment,
@@ -106,6 +109,14 @@ def validate_program(program: ReplayProgram) -> bool:
             )
         ):
             raise ReplayError("POLICY_INPUT_DIGEST_MISMATCH")
+    if start.authority_summary is not None:
+        for event in events:
+            p = event.payload
+            if isinstance(p, ToolRequestedPayload):
+                recorded = p.request.authority
+                digest = recorded.authority_digest if recorded else p.authority_digest
+                if digest != start.authority_summary.authority_digest:
+                    raise ReplayError("SESSION_AUTHORITY_MISMATCH")
     ids = [t.tool_id for t in program.tools]
     if len(ids) != len(set(ids)):
         raise ReplayError("DUPLICATE_TOOL_ID")
@@ -184,9 +195,31 @@ def _validate_non_enforcing_source(events: tuple[SecurityEvent, ...]) -> None:
         raise ReplayError("INVALID_TRAJECTORY")
 
 
+def source_plan(program: ReplayProgram, contract: AgentSecurityContract) -> CompiledSecurityPlan:
+    start = program.events[0].payload
+    assert isinstance(start, RunStartedPayload)
+    version = (
+        start.plan_identity.compiler_version
+        if start.plan_identity
+        else ("phase6-v1" if start.authority_summary is not None else "phase4-v1")
+    )
+    if version not in {"phase4-v1", "phase6-v1"}:
+        raise ReplayError("UNSUPPORTED_SOURCE_COMPILER")
+    return compile_contract(contract, historical=version == "phase4-v1")
+
+
+def recovered_request(payload: ToolRequestedPayload, program: ReplayProgram) -> PolicyRequest:
+    request = payload.request
+    if "authority" in payload.redacted_fields and program.authority is not None:
+        if program.authority.authority_digest != payload.authority_digest:
+            raise ReplayError("AUTHORITY_DIGEST_MISMATCH")
+        request = request.model_copy(update={"authority": program.authority})
+    return request
+
+
 def assess(program: ReplayProgram, contract: AgentSecurityContract) -> ReplayAssessment:
     complete = validate_program(program)
-    plan = compile_contract(contract)
+    plan = source_plan(program, contract)
     start = program.events[0].payload
     assert isinstance(start, RunStartedPayload)
     if (start.contract_id, start.effective_policy_hash) != (
@@ -215,12 +248,16 @@ def assess(program: ReplayProgram, contract: AgentSecurityContract) -> ReplayAss
     for event in program.events:
         p = event.payload
         if isinstance(p, ToolRequestedPayload):
-            if p.redacted_fields:
+            r = recovered_request(p, program)
+            remaining = p.redacted_fields - ({"authority"} if program.authority else set())
+            if remaining:
                 blockers.add("MATERIAL_REDACTION")
-            elif p.policy_input_digest is not None and content_digest(p.request) != (
-                p.policy_input_digest
-            ):
+            elif p.policy_input_digest is not None and content_digest(r) != p.policy_input_digest:
                 raise ReplayError("POLICY_INPUT_DIGEST_MISMATCH")
+            if plan.compiler_version == "phase6-v1" and r.authority is None:
+                blockers.add("MISSING_AUTHORITY_CONTEXT")
+            if "authority" in p.redacted_fields and program.authority is None:
+                blockers.add("MISSING_AUTHORITY_CONTEXT")
             tool = tools.get(p.request.tool_id or "")
             if tool is None:
                 limitations.add("MISSING_TOOL_METADATA")
@@ -268,12 +305,14 @@ def create_bundle(
     tools: tuple[ToolDescriptor, ...] = (),
     expectations: tuple[Assertion, ...] = (),
     findings: tuple[Finding, ...] = (),
+    authority: AuthorityContext | None = None,
 ) -> ReplayBundle:
     # Re-parse to reject unchecked model_copy mutations and detach caller-owned maps.
     program = ReplayProgram.model_validate_json(
         ReplayProgram(
             schema_version="0.1",
             events=events,
+            authority=authority,
             tools=tools,
             expectations=expectations,
             findings=tuple(
@@ -298,7 +337,7 @@ def create_bundle(
         source_trace_id=events[0].trace_id,
         source_evidence_digest=content_digest(program.events),
         source_contract=contract,
-        source_plan=compile_contract(contract),
+        source_plan=source_plan(program, contract),
         program=program,
         assessment=assessment,
     )
@@ -308,7 +347,7 @@ def create_bundle(
         source_trace_id=events[0].trace_id,
         source_evidence_digest=content_digest(program.events),
         source_contract=contract,
-        source_plan=compile_contract(contract),
+        source_plan=source_plan(program, contract),
         program=program,
         assessment=assessment,
         bundle_digest=content_digest(values),
@@ -326,6 +365,7 @@ def validate_bundle(bundle: ReplayBundle) -> ReplayBundle:
         tools=bundle.program.tools,
         expectations=bundle.program.expectations,
         findings=bundle.program.findings,
+        authority=bundle.program.authority,
     )
     if bundle != expected:
         raise ReplayError("BUNDLE_BINDING_MISMATCH")

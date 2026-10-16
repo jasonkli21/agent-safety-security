@@ -1,0 +1,25 @@
+schema_version: "0.1"
+metadata:
+  contract_id: identity-demo
+  name: Direct delegation demonstration
+agent:
+  agent_id: local-agent
+  name: Local agent
+  environment: local
+identity:
+  principal:
+    principal_id: local-agent
+    principal_type: AGENT
+  acts_on_behalf_of:
+    principal_id: local-user
+    principal_type: USER
+tools:
+  rules:
+    - rule_id: read
+      capability: filesystem.read
+      decision: ALLOW
+    - rule_id: write
+      capability: filesystem.write
+      decision: ALLOW
+environment:
+  mode: local

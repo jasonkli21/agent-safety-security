@@ -743,7 +743,13 @@ def test_cli_bundle_create_and_run_public_workflow(tmp_path, root):
     assert result.exit_code == 0, result.output
     from agentsec.domain.replay import RegressionCase
 
-    assert run_case(load_artifact(regression, RegressionCase)) == "PASS"
+    assert run_case(load_artifact(regression, RegressionCase)) == "DRAFT"
+    # Phase 5 source lacks verified authority facts required for a Phase 6 candidate.
+    result = replay(
+        load_artifact(b, ReplayBundle),
+        load_artifact(root / "examples/replay/current-contract.json", type(contract())),
+    )
+    assert "MISSING_AUTHORITY_CONTEXT" in result.assessment.blockers
     replayed = runner.invoke(app, ["replay", "run", "--bundle", str(b)])
     assert replayed.exit_code == 0
     assert json.loads(replayed.stdout)["diff"]["status"] == "UNCHANGED"

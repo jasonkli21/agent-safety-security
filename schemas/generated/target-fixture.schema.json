@@ -181,6 +181,11 @@
     },
     "ReasonCode": {
       "enum": [
+        "IDENTITY_MISMATCH",
+        "DELEGATION_REQUIRED",
+        "INVALID_DELEGATION",
+        "AUTHORITY_EXPIRED",
+        "OUTSIDE_AUTHORITY_SCOPE",
         "EXPLICIT_ALLOW",
         "EXPLICIT_DENY",
         "DEFAULT_DENY",

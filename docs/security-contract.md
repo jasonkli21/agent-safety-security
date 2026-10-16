@@ -18,7 +18,7 @@ special meaning and are rejected in capability IDs.
 | --- | --- |
 | `metadata` | Required `contract_id`, `name`; optional `description`, `contract_version`. Version is authored revision metadata, separate from schema version. |
 | `agent` | Required `agent_id`, `name`, `environment`; optional `owner` principal, opaque `trust_level` identifier, `framework`, `model_provider`, `model_name`. The trust-level identifier is future-facing context with no authority by itself; it is distinct from provenance `TrustClass`. These context strings carry no credentials or implicit authority. |
-| `identity` | Required `principal`; optional `acts_on_behalf_of`. Each is a `principal_id` plus `principal_type` (`USER`, `AGENT`, `SERVICE`). References are external; there is no contained principal registry or authentication check. |
+| `identity` | Required `principal`; optional `acts_on_behalf_of`. Each is a `principal_id` plus `principal_type` (`USER`, `AGENT`, `SERVICE`). References are external; Phase 6 binds the runtime actor through a protected static or signed-JWT provider. There is no contained principal registry. |
 | `task_scope` | Optional `task_id`, `description`, `requested_capabilities`, `resource_scopes` model. Within a supplied scope the first two are required. Resources map capability IDs to sets of opaque resource strings. Scope expresses requested work and never grants permission. |
 | `tools.rules` | Unordered rules with required `rule_id`, `capability`, `decision`; optional opaque exact `resource` selector. Decisions are `ALLOW`, `DENY`, `REQUIRE_APPROVAL`. Omitted `tools` or rules means no explicit grants. No argument constraint language exists yet. |
 | `data.rules` | Unordered rules with required `rule_id`, `label`; sets `allowed_destinations`, `denied_destinations`, `allowed_capabilities`, `denied_capabilities` default empty. Destination names are opaque category IDs; no URL/glob matching is implemented. Each label has at most one rule. Phase 4 compiles these as restrictive tracked-data semantics; see below. |
@@ -143,7 +143,7 @@ evaluation remains independent; it does not implicitly execute contract rules. S
 The supported tool rules, protected identity, task ceiling, runtime budget configuration and
 approval timeout compile into an immutable `CompiledSecurityPlan`. Its explicit version,
 compiler version, contract ID, effective policy hash and source-linked semantic atoms make
-executable intent inspectable. Invariants, acts-on-behalf-of and unsupported
+executable intent inspectable. Invariants and unsupported
 budgets remain gaps; compilation does not enforce them. ENFORCE still refuses those gaps.
 
 `contract compile` intentionally exposes authored policy values, including exact resources.
@@ -168,3 +168,14 @@ cover these fields. Existing effective-policy hashing already includes data rule
 unchanged. Schema stays 0.1 for additive pre-1.0 changes; strict consumers and old approvals need
 regeneration. See [tracked provenance](provenance-data-flow.md) for classification, release,
 concurrency and unobserved-context limitations.
+
+
+## Phase 6 executable identity
+
+`acts_on_behalf_of` now requires a protected direct grant from that principal to the authenticated
+actor, matching `identity.principal`. Missing, unrelated, chained, expired or mismatched grants
+fail closed in ENFORCE. Identity/credential/delegation scopes only restrict contract grants.
+NormalizedAction additionally binds `authority_digest`; PolicyRequest carries replay-safe authority.
+No authored fields or document/effective-policy hash projections changed. Current compiler is
+`phase6-v1`; old `phase4-v1` artifacts retain historical meaning. See
+[identity and delegation](identity-delegation.md) for exact null/empty/scope and trust semantics.

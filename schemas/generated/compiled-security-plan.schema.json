@@ -412,6 +412,17 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "additionalProperties": false,
   "properties": {
+    "acts_on_behalf_of": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PrincipalRef"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
     "agent": {
       "$ref": "#/$defs/AgentBinding"
     },
@@ -429,8 +440,11 @@
       "$ref": "#/$defs/RuntimeBudgets"
     },
     "compiler_version": {
-      "const": "phase4-v1",
-      "default": "phase4-v1",
+      "default": "phase6-v1",
+      "enum": [
+        "phase4-v1",
+        "phase6-v1"
+      ],
       "title": "Compiler Version",
       "type": "string"
     },

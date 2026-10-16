@@ -2,6 +2,8 @@
 
 from typing import Literal
 
+from pydantic import SerializerFunctionWrapHandler, model_serializer, model_validator
+
 from agentsec.contracts.models import ApprovalSettings, DataRule, ToolRule
 from agentsec.domain.base import (
     CapabilityId,
@@ -77,7 +79,22 @@ class SemanticAtom(SecurityModel):
 
 
 class CompiledSecurityPlan(VersionedModel):
-    compiler_version: Literal["phase4-v1"] = "phase4-v1"
+    compiler_version: Literal["phase4-v1", "phase6-v1"] = "phase6-v1"
+    acts_on_behalf_of: PrincipalRef | None = None
+
+    @model_validator(mode="after")
+    def historical_shape(self) -> "CompiledSecurityPlan":
+        if self.compiler_version == "phase4-v1" and self.acts_on_behalf_of is not None:
+            raise ValueError("HISTORICAL_AUTHORITY_UNSUPPORTED")
+        return self
+
+    @model_serializer(mode="wrap")
+    def compatible_wire(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data: dict[str, object] = handler(self)
+        if self.compiler_version == "phase4-v1":
+            data.pop("acts_on_behalf_of", None)
+        return data
+
     contract_id: Identifier
     contract_schema_version: Literal["0.1"]
     effective_policy_hash: Digest

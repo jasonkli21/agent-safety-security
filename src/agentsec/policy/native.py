@@ -9,6 +9,7 @@ from agentsec.compiler.models import AgentBinding
 from agentsec.contracts.models import AgentSecurityContract
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
 from agentsec.domain.taxonomy import PolicyOutcome, ReasonCode, RuleDecision
+from agentsec.identity.authority import authority_failure
 
 
 class NativePolicyEngine:
@@ -29,15 +30,30 @@ class NativePolicyEngine:
         reason = ReasonCode.DEFAULT_DENY
         matched: frozenset[str] = frozenset()
         scope = contract.task_scope
+        failure = None
+        if contract.compiler_version == "phase6-v1":
+            failure = authority_failure(
+                request.authority,
+                contract.principal,
+                contract.acts_on_behalf_of,
+                scope,
+                self.clock(),
+                capability=request.capability,
+                resource=request.resource,
+            )
+        grant = request.authority.delegation if request.authority else None
         if (
             request.principal != contract.principal
             or AgentBinding.from_identity(request.agent) != contract.agent
             or request.environment != contract.environment
             or not contract.matches_scope(request.task_scope)
-            or request.delegation_id is not None
+            or (request.delegation_id != (grant.delegation_id if grant else None))
+            or (contract.compiler_version == "phase4-v1" and request.authority is not None)
             or request.tool_id is None
         ):
             reason = ReasonCode.INVALID_REQUEST
+        elif failure is not None:
+            reason = failure
         elif scope is not None and (
             (
                 scope.requested_capabilities is not None

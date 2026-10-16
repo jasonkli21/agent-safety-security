@@ -14,6 +14,7 @@ from pydantic import JsonValue
 from agentsec.compiler import CompiledSecurityPlan, compile_contract
 from agentsec.contracts.models import AgentSecurityContract, Budgets
 from agentsec.domain.approvals import ApprovalRequest, NormalizedAction, action_digest
+from agentsec.domain.authority import AuthorityContext, AuthoritySummary
 from agentsec.domain.events import (
     ApprovalDecidedPayload,
     ApprovalRequestedPayload,
@@ -40,6 +41,8 @@ from agentsec.domain.taxonomy import (
     TrustClass,
 )
 from agentsec.domain.tools import ToolDescriptor
+from agentsec.identity.authority import authority_failure
+from agentsec.identity.static import StaticIdentityProvider
 from agentsec.policy.coverage import coverage_gaps
 from agentsec.policy.native import NativePolicyEngine
 from agentsec.policy.ports import PolicyEngine
@@ -98,12 +101,53 @@ class RuntimeGateway:
         policy: PolicyEngine | None = None,
         budgets: BudgetLedger | None = None,
         plan: CompiledSecurityPlan | None = None,
+        authority: AuthorityContext | None = None,
+        identity_error: str | None = None,
     ) -> None:
         self._contract = contract.model_copy(deep=True)
         compiled = compile_contract(self._contract)
         if plan is not None and plan != compiled:
             raise RuntimeFailure("STALE_COMPILED_PLAN")
         self._plan = compiled
+        self._authority = (
+            AuthorityContext.model_validate_json(authority.model_dump_json())
+            if authority
+            else (
+                None
+                if identity_error
+                else AuthorityContext(
+                    schema_version="0.1",
+                    credential=StaticIdentityProvider(compiled.principal).verify(
+                        None, events.clock()
+                    ),
+                )
+            )
+        )
+        self._identity_error = identity_error
+        failure = authority_failure(
+            self._authority,
+            compiled.principal,
+            compiled.acts_on_behalf_of,
+            compiled.task_scope,
+            events.clock(),
+        )
+        if mode == EnforcementMode.ENFORCE and (failure or identity_error):
+            raise RuntimeFailure(
+                identity_error or (failure.value if failure else "AUTHORITY_INVALID")
+            )
+        grant = self._authority.delegation if self._authority else None
+        summary = AuthoritySummary(
+            schema_version="0.1",
+            actor=self._authority.credential.principal if self._authority else None,
+            assurance=self._authority.credential.assurance if self._authority else None,
+            acts_on_behalf_of=compiled.acts_on_behalf_of,
+            delegation_id=grant.delegation_id if grant else None,
+            delegation_digest=content_digest(grant) if grant else None,
+            authority_digest=self._authority.authority_digest if self._authority else None,
+            expires_at=self._authority.expires_at if self._authority else None,
+            error=identity_error or (failure.value if failure else None),
+            enforcement_enabled=mode == EnforcementMode.ENFORCE,
+        )
         self.mode, self.events, self.broker = mode, events, broker
         self.policy = policy or NativePolicyEngine(events.clock)
         self.budgets = budgets or BudgetLedger(Budgets(**self._plan.budgets.model_dump()))
@@ -118,6 +162,7 @@ class RuntimeGateway:
                 contract_id=self._plan.contract_id,
                 effective_policy_hash=self._plan.effective_policy_hash,
                 plan_identity=self._plan.identity,
+                authority_summary=summary,
             )
         )
         if coverage_gaps(self._plan):
@@ -175,7 +220,11 @@ class RuntimeGateway:
             raise RuntimeFailure("AMBIGUOUS_CAPABILITY")
         action = NormalizedAction(
             schema_version="0.1",
-            principal=plan.principal,
+            principal=self._authority.credential.principal if self._authority else plan.principal,
+            delegation_id=self._authority.delegation.delegation_id
+            if self._authority and self._authority.delegation
+            else None,
+            authority_digest=self._authority.authority_digest if self._authority else None,
             agent_id=plan.agent.agent_id,
             environment=plan.environment,
             task_id=plan.scope.task_id if plan.scope else None,
@@ -194,7 +243,11 @@ class RuntimeGateway:
         request = PolicyRequest(
             schema_version="0.1",
             request_id=str(uuid4()),
-            principal=plan.principal,
+            principal=self._authority.credential.principal if self._authority else plan.principal,
+            delegation_id=self._authority.delegation.delegation_id
+            if self._authority and self._authority.delegation
+            else None,
+            authority=self._authority,
             agent=plan.agent.request_agent(),
             task_scope=plan.task_scope,
             capability=capability,
@@ -206,18 +259,34 @@ class RuntimeGateway:
             environment=plan.environment,
             requested_at=self.events.clock(),
         )
-        redacted_fields: frozenset[Literal["resource", "task_scope"]] = frozenset()
+        redacted_fields: frozenset[Literal["resource", "task_scope", "authority"]] = frozenset()
         if request.resource is not None:
             redacted_fields |= frozenset({"resource"})
         if request.task_scope is not None:
             redacted_fields |= frozenset({"task_scope"})
-        evidence_request = request.model_copy(update={"resource": None, "task_scope": None})
+        redact_authority = bool(
+            self._authority
+            and self._authority.delegation
+            and self._authority.delegation.task_scope.resource_scopes is not None
+        )
+        if redact_authority:
+            redacted_fields |= frozenset({"authority"})
+        evidence_request = request.model_copy(
+            update={
+                "resource": None,
+                "task_scope": None,
+                "authority": None if redact_authority else self._authority,
+            }
+        )
         self.events.emit(
             ToolRequestedPayload(
                 kind=EventType.TOOL_REQUESTED,
                 request=evidence_request,
                 action_digest=digest,
                 policy_input_digest=content_digest(request),
+                authority_digest=self._authority.authority_digest
+                if redact_authority and self._authority
+                else None,
                 redacted_fields=redacted_fields,
                 resource_digest=(content_digest(request.resource) if request.resource else None),
                 task_scope_digest=(
@@ -228,6 +297,8 @@ class RuntimeGateway:
         decision: PolicyDecision | None = None
         if self.mode != EnforcementMode.DISABLED:
             try:
+                if self._identity_error:
+                    raise RuntimeFailure(self._identity_error)
                 if resource_coverage_gap or data_coverage_gap:
                     decision = PolicyDecision(
                         schema_version="0.1",
@@ -353,6 +424,19 @@ class RuntimeGateway:
                     ApprovalDecidedPayload(kind=EventType.APPROVAL_DECIDED, decision=result)
                 )
                 self.approvals.redeem(approval.approval_id, digest)
+            if enforce:
+                failure = authority_failure(
+                    self._authority,
+                    plan.principal,
+                    plan.acts_on_behalf_of,
+                    plan.task_scope,
+                    self.events.clock(),
+                    capability=capability,
+                    resource=resource,
+                )
+                if failure:
+                    self.signal(SecurityCategory.DELEGATION_ESCALATION, failure.value)
+                    raise RuntimeFailure(failure.value)
             dispatch_id = str(uuid4())
             # No await between final expiry/budget checks, evidence and dispatcher entry.
             self.budgets.commit(token, enforce=enforce)

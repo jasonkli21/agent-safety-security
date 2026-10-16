@@ -2,7 +2,13 @@
 
 from typing import Self
 
-from pydantic import JsonValue, field_validator, model_validator
+from pydantic import (
+    JsonValue,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 from pydantic_core import PydanticCustomError
 
 from agentsec.domain.base import (
@@ -22,6 +28,7 @@ from agentsec.domain.taxonomy import ApprovalOutcome, ApprovalScope, ReasonCode
 class NormalizedAction(VersionedModel):
     """Use complete arguments, never a lossy/redacted PolicyRequest summary."""
 
+    authority_digest: Digest | None = None
     principal: PrincipalRef
     agent_id: Identifier
     environment: Identifier
@@ -39,6 +46,13 @@ class NormalizedAction(VersionedModel):
     tool_schema_hash: Digest
     tool_description_hash: Digest
     effective_policy_hash: Digest
+
+    @model_serializer(mode="wrap")
+    def compatible_wire(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data: dict[str, object] = handler(self)
+        if self.authority_digest is None:
+            data.pop("authority_digest", None)
+        return data
 
 
 def action_digest(action: NormalizedAction) -> str:
