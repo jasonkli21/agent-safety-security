@@ -1,0 +1,36 @@
+schema_version: "0.1"
+metadata:
+  contract_id: mcp-demo
+  name: Synthetic protected tools
+agent:
+  agent_id: demo-agent
+  name: Demo agent
+  environment: local
+identity:
+  principal:
+    principal_id: local-user
+    principal_type: USER
+environment:
+  mode: local
+task_scope:
+  task_id: demo-task
+  description: Search and optionally simulate email
+  requested_capabilities: [web.search, email.send, filesystem.write]
+  resource_scopes:
+    email.send: [demo@example.invalid]
+tools:
+  rules:
+    - rule_id: search
+      capability: web.search
+      decision: ALLOW
+    - rule_id: email
+      capability: email.send
+      decision: REQUIRE_APPROVAL
+    - rule_id: write
+      capability: filesystem.write
+      decision: DENY
+budgets:
+  max_tool_calls: 3
+  max_external_writes: 1
+  max_destructive_calls: 0
+  max_runtime_seconds: 600

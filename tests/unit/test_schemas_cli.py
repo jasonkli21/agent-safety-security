@@ -130,7 +130,7 @@ def test_cli_schema_export_and_file_error(tmp_path):
     assert "PATH_ERROR" in result.output
 
 
-@pytest.mark.parametrize("command", ["protect", "replay"])
+@pytest.mark.parametrize("command", ["replay"])
 def test_no_future_commands(command):
     result = runner.invoke(app, [command])
     assert result.exit_code == 2
@@ -146,3 +146,33 @@ def test_cli_examples_reports_invalid_file(tmp_path):
     result = runner.invoke(app, ["examples", "validate", "--root", str(tmp_path)])
     assert result.exit_code == 1
     assert "UNSUPPORTED_SCHEMA_VERSION" in result.output
+
+
+def test_dispatch_mode_requires_truthful_policy_reference():
+    from agentsec.contracts.errors import ArtifactValidationError
+    from agentsec.domain.events import ToolDispatchedPayload
+
+    validator = Draft202012Validator(json.loads(schema_text(ToolDispatchedPayload)))
+    base = dict(
+        kind="TOOL_DISPATCHED",
+        dispatch_id="dispatch",
+        request_id="request",
+        tool_id="tool",
+        action_digest="sha256:" + "a" * 64,
+    )
+    for extra, valid in [
+        ({"decision_id": "decision"}, True),
+        ({"enforcement_mode": "SHADOW", "decision_id": "decision"}, True),
+        ({"enforcement_mode": "DISABLED"}, True),
+        ({}, False),
+        ({"enforcement_mode": "SHADOW"}, False),
+        ({"enforcement_mode": "DISABLED", "decision_id": "decision"}, False),
+        ({"enforcement_mode": "DISABLED", "approval_id": "approval"}, False),
+    ]:
+        data = {**base, **extra}
+        assert validator.is_valid(data) == valid
+        if valid:
+            validate_data(ToolDispatchedPayload, data)
+        else:
+            with pytest.raises(ArtifactValidationError):
+                validate_data(ToolDispatchedPayload, data)

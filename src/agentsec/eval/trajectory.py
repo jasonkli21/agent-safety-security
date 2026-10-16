@@ -12,7 +12,7 @@ from agentsec.domain.events import (
     ToolReturnedPayload,
     validate_event_sequence,
 )
-from agentsec.domain.taxonomy import ApprovalOutcome, EventType, PolicyOutcome
+from agentsec.domain.taxonomy import ApprovalOutcome, EnforcementMode, EventType, PolicyOutcome
 from agentsec.eval.observations import EvaluationObservation, TextSurface
 
 
@@ -90,9 +90,11 @@ def validate_evaluation_trajectory(observation: EvaluationObservation) -> None:
             require(a.expires_at is None or approval_decision.decided_at < a.expires_at)
             approved[approval_decision.approval_id] = p
         elif isinstance(p, ToolDispatchedPayload):
+            require(p.enforcement_mode == EnforcementMode.ENFORCE)
             require(p.request_id in requests and p.decision_id in decisions)
             require(p.dispatch_id not in dispatches)
             r = requests[p.request_id]
+            assert p.decision_id is not None
             d = decisions[p.decision_id].decision
             require(p.tool_id == r.request.tool_id and p.action_digest == r.action_digest)
             require(d.request_id == p.request_id)

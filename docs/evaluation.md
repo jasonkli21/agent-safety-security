@@ -185,6 +185,7 @@ SQLite, signature chain, incident replay, or durable tamper resistance.
 
 ## Review gate
 
-Phase 1 implementation and review fixes await final independent verification. Phase 2 requires
-that verification and a reviewed Phase 2 plan. Scripted fixture success provides no claim about
+Phase 1 review fixes were preserved and verified again during Phase 2. Runtime MCP protection
+now exists separately; see [runtime MCP](runtime-mcp.md). The evaluator rejects non-enforcing
+dispatch trajectories and retains its original authorization-causality checks. Scripted fixture success provides no claim about
 production agent behavior or model robustness.

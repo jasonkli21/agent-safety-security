@@ -447,6 +447,15 @@
       "title": "EffectVerifiedPayload",
       "type": "object"
     },
+    "EnforcementMode": {
+      "enum": [
+        "ENFORCE",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "title": "EnforcementMode",
+      "type": "string"
+    },
     "EventType": {
       "enum": [
         "RUN_STARTED",
@@ -1021,6 +1030,40 @@
     },
     "ToolDispatchedPayload": {
       "additionalProperties": false,
+      "allOf": [
+        {
+          "else": {
+            "properties": {
+              "approval_id": {
+                "type": "null"
+              },
+              "decision_id": {
+                "type": "null"
+              }
+            }
+          },
+          "if": {
+            "properties": {
+              "enforcement_mode": {
+                "enum": [
+                  "ENFORCE",
+                  "SHADOW"
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "decision_id": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "decision_id"
+            ]
+          }
+        }
+      ],
       "properties": {
         "action_digest": {
           "pattern": "^sha256:[0-9a-f]{64}$",
@@ -1043,11 +1086,19 @@
           "title": "Approval Id"
         },
         "decision_id": {
-          "maxLength": 128,
-          "minLength": 1,
-          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
-          "title": "Decision Id",
-          "type": "string"
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Decision Id"
         },
         "dispatch_id": {
           "maxLength": 128,
@@ -1055,6 +1106,10 @@
           "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
           "title": "Dispatch Id",
           "type": "string"
+        },
+        "enforcement_mode": {
+          "$ref": "#/$defs/EnforcementMode",
+          "default": "ENFORCE"
         },
         "kind": {
           "const": "TOOL_DISPATCHED",
@@ -1081,8 +1136,7 @@
         "dispatch_id",
         "request_id",
         "tool_id",
-        "action_digest",
-        "decision_id"
+        "action_digest"
       ],
       "title": "ToolDispatchedPayload",
       "type": "object"

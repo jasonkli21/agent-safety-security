@@ -67,3 +67,15 @@ The fixture target omits raw arguments/responses/output/signal summaries from ev
 redacts canaries in resource summaries while retaining exact-action digests. Evaluation adds
 causal reference, one-shot approval, expiry, terminal, and identity checks without changing
 `validate_event_sequence` or existing event schemas.
+
+## Phase 2 runtime representation
+
+`TOOL_DISPATCHED.enforcement_mode` defaults to `ENFORCE` for older streams. SHADOW may
+reference a DENY, ERROR or REQUIRE_APPROVAL decision while forwarding; the original decision
+is retained. DISABLED requires null `decision_id`/`approval_id` and makes no policy claim.
+ENFORCE and SHADOW require a decision ID. Schema version remains `0.1` for this additive,
+pre-1.0 extension; older strict consumers need the regenerated event schema to read new fields.
+Phase 1 trajectory evaluation rejects non-ENFORCE dispatches, preserving its authorization checks.
+Runtime request evidence omits resources/task scope and argument summaries; the ephemeral full
+request still drives policy and the complete NormalizedAction drives exact approvals.
+See [MCP runtime](runtime-mcp.md) for counter, response, failure and privacy semantics.

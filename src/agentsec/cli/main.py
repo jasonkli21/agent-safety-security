@@ -1,4 +1,4 @@
-"""Local validation, evaluation, and schema tooling; no runtime protection."""
+"""Local validation, evaluation, schema tooling, and MCP runtime protection."""
 
 from collections.abc import Callable
 from pathlib import Path
@@ -7,6 +7,7 @@ from typing import Annotated
 import typer
 
 from agentsec.cli.evaluation import app as eval_app
+from agentsec.cli.protect import app as protect_app
 from agentsec.contracts.canonical import document_hash, effective_policy_hash
 from agentsec.contracts.errors import ArtifactValidationError
 from agentsec.contracts.loader import load_artifact, load_contract, load_contracts
@@ -20,6 +21,7 @@ scenario_app = typer.Typer(no_args_is_help=True)
 schema_app = typer.Typer(no_args_is_help=True)
 examples_app = typer.Typer(no_args_is_help=True)
 app.add_typer(eval_app, name="eval")
+app.add_typer(protect_app, name="protect")
 app.add_typer(contract_app, name="contract")
 app.add_typer(scenario_app, name="scenario")
 app.add_typer(schema_app, name="schema")

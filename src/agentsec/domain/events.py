@@ -19,7 +19,14 @@ from agentsec.domain.base import (
 from agentsec.domain.identity import PrincipalRef
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
 from agentsec.domain.provenance import DataArtifactRef
-from agentsec.domain.taxonomy import DataLabel, EventType, ReasonCode, SecurityCategory, Severity
+from agentsec.domain.taxonomy import (
+    DataLabel,
+    EnforcementMode,
+    EventType,
+    ReasonCode,
+    SecurityCategory,
+    Severity,
+)
 
 
 class RunStartedPayload(SecurityModel):
@@ -56,13 +63,43 @@ class ApprovalDecidedPayload(SecurityModel):
 
 
 class ToolDispatchedPayload(SecurityModel):
+    model_config = ConfigDict(
+        json_schema_extra={
+            "allOf": [
+                {
+                    "if": {"properties": {"enforcement_mode": {"enum": ["ENFORCE", "SHADOW"]}}},
+                    "then": {
+                        "required": ["decision_id"],
+                        "properties": {"decision_id": {"type": "string"}},
+                    },
+                    "else": {
+                        "properties": {
+                            "decision_id": {"type": "null"},
+                            "approval_id": {"type": "null"},
+                        }
+                    },
+                }
+            ]
+        }
+    )
     kind: Literal[EventType.TOOL_DISPATCHED]
     dispatch_id: Identifier
     request_id: Identifier
     tool_id: Identifier
     action_digest: Digest
-    decision_id: Identifier
+    decision_id: Identifier | None = None
+    enforcement_mode: EnforcementMode = EnforcementMode.ENFORCE
     approval_id: Identifier | None = None
+
+    @model_validator(mode="after")
+    def truthful_mode(self) -> Self:
+        if self.enforcement_mode != EnforcementMode.DISABLED and self.decision_id is None:
+            raise PydanticCustomError("INVALID_SCHEMA", "Protected dispatch requires decision")
+        if self.enforcement_mode == EnforcementMode.DISABLED and (
+            self.decision_id is not None or self.approval_id is not None
+        ):
+            raise PydanticCustomError("INVALID_SCHEMA", "Disabled dispatch has no policy authority")
+        return self
 
 
 class ToolReturnedPayload(SecurityModel):

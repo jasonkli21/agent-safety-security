@@ -126,3 +126,10 @@ Schema `0.1` is the only accepted version. No migration or compatibility fallbac
 Before 1.0, schema changes require review of generated schemas, golden forms, and these hash
 projections. Delegation subset checks, resource matching, argument constraints, budget metering,
 provenance propagation, enforcement, and actual approval workflows belong to later phases.
+
+## Phase 2 executable subset
+
+The native runtime engine now implements the documented exact rule precedence, task ceilings,
+identity consistency, exact approval redemption, and supported session budgets. Unsupported
+active semantics refuse ENFORCE startup. Phase 1's scripted evaluation remains independent;
+it does not implicitly execute contract rules. See [runtime coverage](runtime-mcp.md).

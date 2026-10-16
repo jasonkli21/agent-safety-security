@@ -27,15 +27,16 @@ If they appear to conflict, do not silently pick whichever is convenient. Prefer
 
 ## 3. Current phase boundary
 
-**Phase 1 implementation and review fixes are complete and awaiting final independent
-verification.** Do not implement Phase 2 until final Phase 1 verification is complete and a
-reviewed Phase 2 plan exists.
-The implementation follows `docs/plans/phase-1-implementation-plan.md`; its verification and
-limitations are recorded in `docs/reports/phase-1-implementation-report.md`.
-Phase 0 canonical types and semantics remain shared and protected.
+**Phase 2 MCP runtime implementation is complete and awaiting independent review.**
+The active scope is `docs/plans/phase-2-implementation-plan.md`; verification and limitations
+are recorded in `docs/reports/phase-2-implementation-report.md` and `docs/runtime-mcp.md`.
+Phase 0 canonical types and Phase 1 evaluation semantics remain shared and protected.
+Do not implement Phase 3 until Phase 2 review/fixes are complete and a reviewed Phase 3 plan exists.
 
-Do not implement production policy, MCP gateways, model providers, provenance propagation,
-hosted services, UI, OAuth/OIDC, Cedar/OPA, or sandbox infrastructure in Phase 1.
+Phase 2 supports the conservative native policy subset, MCP stdio ingress, official-SDK stdio
+and Streamable HTTP upstreams, exact one-shot approvals, session budgets and canonical evidence.
+Do not add provenance propagation, hosted services, UI, OAuth/OIDC, Cedar/OPA, general policy
+compilation, or sandbox infrastructure in Phase 2.
 
 ## 4. Architectural invariants
 

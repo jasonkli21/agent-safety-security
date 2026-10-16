@@ -1160,3 +1160,21 @@ def test_argument_supplement_cannot_mask_text_canary():
         argument_values=(),
     )
     assert text.contains(CANARY)
+
+
+def test_non_enforcing_dispatch_cannot_score_as_authorized_trajectory():
+    from agentsec.domain.taxonomy import EnforcementMode
+
+    observation = observe([SEARCH, FINISH])
+    events = tuple(
+        e.model_copy(
+            update={
+                "payload": e.payload.model_copy(update={"enforcement_mode": EnforcementMode.SHADOW})
+            }
+        )
+        if isinstance(e.payload, ToolDispatchedPayload)
+        else e
+        for e in observation.events
+    )
+    with pytest.raises(EvaluationError, match="INVALID_TRAJECTORY"):
+        validate_evaluation_trajectory(observation.model_copy(update={"events": events}))

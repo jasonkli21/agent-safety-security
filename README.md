@@ -2,7 +2,7 @@
 
 A local-first security lifecycle for tool-using AI agents: define explicit authority, test it adversarially, enforce it at runtime, and turn observed failures into regressions.
 
-> **Current status:** Phase 1 local deterministic evaluation is implemented and awaiting independent review. The project provides canonical security types, scripted targets, assertions, JSONL evidence, reports, and CI gates. It does **not** yet protect a production agent.
+> **Current status:** Phase 2 MCP runtime gateway is implemented and awaiting independent review. It enforces a conservative native contract subset, exact approvals and session budgets, with canonical evidence. Phase 0/1 validation and deterministic evaluation remain available. See the [runtime guide](docs/runtime-mcp.md) and [Phase 2 report](docs/reports/phase-2-implementation-report.md).
 
 ## Product thesis
 
@@ -49,7 +49,7 @@ Phase 0 established one shared language for:
 - evaluation scenarios;
 - strict validation, canonicalization, and schema export.
 
-The Phase 0 foundation is implemented and documented in the [implementation report](docs/reports/phase-0-implementation-report.md). Phase 1 is implemented under the [reviewed plan](docs/plans/phase-1-implementation-plan.md); see the [evaluation guide](docs/evaluation.md) and [implementation report](docs/reports/phase-1-implementation-report.md). Phase 2 requires independent Phase 1 review/fixes and a reviewed Phase 2 plan.
+The Phase 0 foundation is implemented and documented in the [implementation report](docs/reports/phase-0-implementation-report.md). Phase 1 is implemented under the [reviewed plan](docs/plans/phase-1-implementation-plan.md); see the [evaluation guide](docs/evaluation.md) and [implementation report](docs/reports/phase-1-implementation-report.md). Phase 2 follows the [implementation plan](docs/plans/phase-2-implementation-plan.md); Phase 3 requires Phase 2 review/fixes and a reviewed plan.
 
 ## Repository layout
 
@@ -80,7 +80,7 @@ Python 3.12+ is required. From the repository root:
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e ".[dev]"
+python -m pip install -e ".[dev,mcp]"
 agentsec version
 agentsec contract validate examples/contracts/research.yaml
 agentsec scenario validate examples/scenarios/indirect-injection.yaml
@@ -97,10 +97,23 @@ python -m build
 
 Validation is local and requires no API keys. `examples validate` reads `./examples` by default;
 use `--root /path/to/examples` outside this checkout. `eval run` supports text/JSON reports and optional JSONL evidence; see the
-[evaluation guide](docs/evaluation.md). `protect` and `replay` are future phases. See the [contract reference](docs/security-contract.md),
+[evaluation guide](docs/evaluation.md). `agentsec protect mcp` runs the gateway; `replay` remains a future phase. See the [contract reference](docs/security-contract.md),
 [scenario format](docs/scenario-format.md), [evidence model](docs/evidence-model.md),
 [threat model](docs/threat-model.md), and
 [implementation report](docs/reports/phase-0-implementation-report.md).
+
+## Protect MCP tools
+
+```bash
+agentsec protect mcp --contract examples/mcp/contract.yaml --config examples/mcp/gateway.yaml --check
+agentsec protect mcp --contract examples/mcp/contract.yaml --config examples/mcp/gateway.yaml --evidence-out /tmp/agentsec-runtime-new.jsonl
+```
+
+Configure the second command as your MCP host's server command. The synthetic tools have no
+external effects. Email simulation requires approval through a separate controlling terminal;
+file-write simulation is denied. Evidence paths must be new. Install the optional `mcp` extra
+for runtime use; validation/evaluation work without it. Full development checks require both
+`dev` and `mcp`. See [runtime setup and coverage](docs/runtime-mcp.md).
 
 ## License
 

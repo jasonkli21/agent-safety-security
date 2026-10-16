@@ -1,0 +1,292 @@
+{
+  "$defs": {
+    "DataLabel": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "SENSITIVE",
+        "SECRET",
+        "PII",
+        "CREDENTIAL",
+        "UNTRUSTED_CONTENT",
+        "USER_PROVIDED",
+        "TOOL_OUTPUT"
+      ],
+      "title": "DataLabel",
+      "type": "string"
+    },
+    "EnforcementMode": {
+      "enum": [
+        "ENFORCE",
+        "SHADOW",
+        "DISABLED"
+      ],
+      "title": "EnforcementMode",
+      "type": "string"
+    },
+    "HttpUpstream": {
+      "additionalProperties": false,
+      "properties": {
+        "transport": {
+          "const": "streamable_http",
+          "title": "Transport",
+          "type": "string"
+        },
+        "url": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Url",
+          "type": "string"
+        }
+      },
+      "required": [
+        "transport",
+        "url"
+      ],
+      "title": "HttpUpstream",
+      "type": "object"
+    },
+    "SecurityCategory": {
+      "enum": [
+        "PROMPT_INJECTION",
+        "GOAL_HIJACKING",
+        "UNAUTHORIZED_TOOL_USE",
+        "EXCESSIVE_AGENCY",
+        "ARGUMENT_VIOLATION",
+        "APPROVAL_BYPASS",
+        "SECRET_EXFILTRATION",
+        "PII_EXPOSURE",
+        "MEMORY_POISONING",
+        "TOOL_POISONING",
+        "SUPPLY_CHAIN_CHANGE",
+        "RESOURCE_EXHAUSTION",
+        "DELEGATION_ESCALATION",
+        "POLICY_BYPASS",
+        "TRACE_INTEGRITY_FAILURE"
+      ],
+      "title": "SecurityCategory",
+      "type": "string"
+    },
+    "SideEffectClass": {
+      "enum": [
+        "NONE",
+        "READ",
+        "INTERNAL_WRITE",
+        "EXTERNAL_WRITE",
+        "DESTRUCTIVE",
+        "CODE_EXECUTION",
+        "IDENTITY_PRIVILEGE",
+        "FINANCIAL",
+        "INFRASTRUCTURE"
+      ],
+      "title": "SideEffectClass",
+      "type": "string"
+    },
+    "StdioUpstream": {
+      "additionalProperties": false,
+      "properties": {
+        "args": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Args",
+          "type": "array"
+        },
+        "command": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Command",
+          "type": "string"
+        },
+        "cwd": {
+          "anyOf": [
+            {
+              "maxLength": 8192,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Cwd"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Env",
+          "type": "object"
+        },
+        "transport": {
+          "const": "stdio",
+          "title": "Transport",
+          "type": "string"
+        }
+      },
+      "required": [
+        "transport",
+        "command"
+      ],
+      "title": "StdioUpstream",
+      "type": "object"
+    },
+    "ToolBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+          "title": "Capability",
+          "type": "string"
+        },
+        "data_access_labels": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DataLabel"
+          },
+          "title": "Data Access Labels",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "destructive": {
+          "default": false,
+          "title": "Destructive",
+          "type": "boolean"
+        },
+        "expected_description_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Description Hash"
+        },
+        "expected_schema_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Schema Hash"
+        },
+        "resource_argument_path": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 8192,
+                "minLength": 1,
+                "type": "string"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource Argument Path"
+        },
+        "risk_tags": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/SecurityCategory"
+          },
+          "title": "Risk Tags",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "side_effect_class": {
+          "$ref": "#/$defs/SideEffectClass"
+        },
+        "upstream_name": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Upstream Name",
+          "type": "string"
+        }
+      },
+      "required": [
+        "upstream_name",
+        "capability",
+        "side_effect_class"
+      ],
+      "title": "ToolBinding",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "gateway_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Gateway Id",
+      "type": "string"
+    },
+    "mode": {
+      "$ref": "#/$defs/EnforcementMode",
+      "default": "ENFORCE"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "server_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Server Id",
+      "type": "string"
+    },
+    "tool_bindings": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/ToolBinding"
+      },
+      "title": "Tool Bindings",
+      "type": "array"
+    },
+    "upstream": {
+      "discriminator": {
+        "mapping": {
+          "stdio": "#/$defs/StdioUpstream",
+          "streamable_http": "#/$defs/HttpUpstream"
+        },
+        "propertyName": "transport"
+      },
+      "oneOf": [
+        {
+          "$ref": "#/$defs/StdioUpstream"
+        },
+        {
+          "$ref": "#/$defs/HttpUpstream"
+        }
+      ],
+      "title": "Upstream"
+    }
+  },
+  "required": [
+    "schema_version",
+    "gateway_id",
+    "server_id",
+    "upstream"
+  ],
+  "title": "McpGatewayConfig",
+  "type": "object"
+}

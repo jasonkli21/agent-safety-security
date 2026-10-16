@@ -11,3 +11,5 @@ changes, verification, deviations, remaining limitations, and next-phase readine
 
 - `phase-1-implementation-report.md` — local evaluation implementation, validation, and review gate.
 - `phase-1-review-fixes-report.md` — independent Phase 1 review corrections and verification.
+
+- [Phase 2 MCP runtime implementation](phase-2-implementation-report.md)

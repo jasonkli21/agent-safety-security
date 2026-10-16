@@ -1,0 +1,21 @@
+schema_version: "0.1"
+gateway_id: demo-gateway
+server_id: synthetic-tools
+mode: ENFORCE
+upstream:
+  transport: stdio
+  command: .venv/bin/python
+  args: [examples/mcp/upstream_server.py]
+  env: {}
+tool_bindings:
+  - upstream_name: search
+    capability: web.search
+    side_effect_class: READ
+  - upstream_name: send_email
+    capability: email.send
+    side_effect_class: EXTERNAL_WRITE
+    resource_argument_path: [recipient]
+  - upstream_name: write_file
+    capability: filesystem.write
+    side_effect_class: INTERNAL_WRITE
+    resource_argument_path: [path]

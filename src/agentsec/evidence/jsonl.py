@@ -20,9 +20,9 @@ class EvidenceError(Exception):
 class JsonlEventSink:
     """Create/truncate once; append events in order within this open stream."""
 
-    def __init__(self, path: Path) -> None:
+    def __init__(self, path: Path, *, exclusive: bool = False) -> None:
         try:
-            self._stream: TextIO = path.open("w", encoding="utf-8")
+            self._stream: TextIO = path.open("x" if exclusive else "w", encoding="utf-8")
         except OSError as exc:
             raise EvidenceError("EVIDENCE_WRITE_FAILURE") from exc
 

@@ -1072,6 +1072,14 @@ Complete tool arguments and text surfaces remain ephemeral; JSONL stores canonic
 
 ## 13. Runtime Enforcement Architecture
 
+Phase 2 implements this boundary. See [runtime MCP](runtime-mcp.md) for exact supported
+semantics, coverage refusal, discovery snapshots, approval/budget state ownership, response
+validation, modes and failure behavior. The SDK remains confined to `adapters/mcp`; policy and
+runtime use canonical domain models. Dispatch evidence includes an explicit enforcement mode
+so shadow forwarding retains its true decision. Phase 1 evaluation rejects non-enforcing
+trajectories; it does not infer authorization from shadow dispatch.
+
+
 ### 13.1 Request flow
 
 ```text
