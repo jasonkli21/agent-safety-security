@@ -1154,8 +1154,60 @@
           "title": "Kind",
           "type": "string"
         },
+        "policy_input_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Policy Input Digest"
+        },
+        "redacted_fields": {
+          "default": [],
+          "items": {
+            "enum": [
+              "resource",
+              "task_scope"
+            ],
+            "type": "string"
+          },
+          "title": "Redacted Fields",
+          "type": "array",
+          "uniqueItems": true
+        },
         "request": {
           "$ref": "#/$defs/PolicyRequest"
+        },
+        "resource_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource Digest"
+        },
+        "task_scope_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Task Scope Digest"
         }
       },
       "required": [

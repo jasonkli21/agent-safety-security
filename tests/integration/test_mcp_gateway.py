@@ -14,9 +14,11 @@ from typer.testing import CliRunner
 pytest.importorskip("mcp")
 from mcp import Client, types
 from mcp.client.stdio import StdioServerParameters, stdio_client
+from mcp.server.context import ServerRequestContext
 from mcp.server.lowlevel import Server
 
 from agentsec.adapters.mcp.config import McpGatewayConfig
+from agentsec.adapters.mcp.coverage import configured_resource_coverage_gaps
 from agentsec.adapters.mcp.discovery import discover
 from agentsec.adapters.mcp.server import create_server
 from agentsec.adapters.mcp.upstream import process_parameters
@@ -54,9 +56,11 @@ class Broker:
     def __init__(self, outcome=ApprovalOutcome.APPROVE, when=NOW):
         self.outcome, self.when = outcome, when
         self.requests = []
+        self.presentations = []
 
-    async def decide(self, request):
+    async def decide(self, request, presentation):
         self.requests.append(request)
+        self.presentations.append(presentation)
         return ApprovalDecision(
             schema_version="0.1",
             approval_id=request.approval_id,
@@ -257,6 +261,155 @@ def test_discovery_snapshot_binding_and_pins():
 
 
 @pytest.mark.parametrize("mode", ["ENFORCE", "SHADOW"])
+def test_resource_policy_requires_discovered_extractor(mode):
+    async def scenario():
+        attempts = []
+        sink = InMemoryEventSink()
+        selected_contract = contract(
+            tools={
+                "rules": [
+                    {
+                        "rule_id": "broad-write",
+                        "capability": "filesystem.write",
+                        "decision": "ALLOW",
+                    },
+                    {
+                        "rule_id": "protected-path",
+                        "capability": "filesystem.write",
+                        "resource": "/protected",
+                        "decision": "DENY",
+                    },
+                ]
+            }
+        )
+        config_data = configuration(mode).model_dump(mode="json")
+        write_binding = next(
+            binding
+            for binding in config_data["tool_bindings"]
+            if binding["upstream_name"] == "write_file"
+        )
+        write_binding.pop("resource_argument_path")
+        selected_config = validate_data(McpGatewayConfig, config_data)
+        runtime = RuntimeGateway(
+            selected_contract,
+            EnforcementMode(mode),
+            RuntimeEvents(sink, lambda: NOW, required=mode == "ENFORCE"),
+            Broker(),
+        )
+        async with Client(synthetic(attempts), mode="legacy") as upstream:
+            if mode == "ENFORCE":
+                with pytest.raises(RuntimeFailure, match="UNSUPPORTED_RESOURCE_COVERAGE"):
+                    await create_server(upstream, selected_config, runtime)
+                assert not attempts
+            else:
+                server, gaps = await create_server(upstream, selected_config, runtime)
+                expected = "resource_extractor:filesystem.write:write_file"
+                assert expected in gaps
+                assert any(
+                    event.payload.redacted_summary == "COVERAGE_GAP:" + expected
+                    for event in sink.events
+                    if event.event_type == EventType.SECURITY_SIGNAL
+                )
+                async with Client(server, mode="legacy") as host:
+                    result = await host.call_tool(
+                        "write_file", {"path": "/protected", "content": "secret"}
+                    )
+                assert not result.is_error and len(attempts) == 1
+                decision = next(
+                    event.payload.decision
+                    for event in sink.events
+                    if event.event_type == EventType.POLICY_EVALUATED
+                )
+                assert decision.outcome == PolicyOutcome.ERROR
+                assert decision.human_reason == "UNSUPPORTED_RESOURCE_COVERAGE"
+
+    asyncio.run(scenario())
+
+
+def test_resource_exception_requires_explicit_exact_semantics():
+    selected_contract = contract(
+        tools={
+            "rules": [
+                {
+                    "rule_id": "broad-write",
+                    "capability": "filesystem.write",
+                    "decision": "ALLOW",
+                },
+                {
+                    "rule_id": "protected-path",
+                    "capability": "filesystem.write",
+                    "resource": "/protected",
+                    "decision": "DENY",
+                },
+            ]
+        }
+    )
+    config_data = configuration().model_dump(mode="json")
+    write_binding = next(
+        binding
+        for binding in config_data["tool_bindings"]
+        if binding["upstream_name"] == "write_file"
+    )
+    write_binding["resource_argument_path"] = ["path"]
+    selected_config = validate_data(McpGatewayConfig, config_data)
+    expected = "resource_semantics:filesystem.write:write_file:opaque_exact_required"
+    assert configured_resource_coverage_gaps(selected_contract, selected_config.tool_bindings) == (
+        expected,
+    )
+
+    write_binding["resource_semantics"] = "opaque_exact"
+    exact_config = validate_data(McpGatewayConfig, config_data)
+    assert not configured_resource_coverage_gaps(selected_contract, exact_config.tool_bindings)
+
+    allowlist_contract = contract(
+        tools={
+            "rules": [
+                {
+                    "rule_id": "safe-path",
+                    "capability": "filesystem.write",
+                    "resource": "/safe",
+                    "decision": "ALLOW",
+                }
+            ]
+        }
+    )
+    write_binding.pop("resource_semantics")
+    allowlist_config = validate_data(McpGatewayConfig, config_data)
+    assert not configured_resource_coverage_gaps(allowlist_contract, allowlist_config.tool_bindings)
+
+
+def test_reused_mcp_request_identity_never_dispatches_twice():
+    async def scenario():
+        attempts = []
+        sink = InMemoryEventSink()
+        runtime = RuntimeGateway(
+            contract(),
+            EnforcementMode.ENFORCE,
+            RuntimeEvents(sink, lambda: NOW),
+            Broker(),
+        )
+        async with Client(synthetic(attempts), mode="legacy") as upstream:
+            server, _ = await create_server(upstream, configuration(), runtime)
+            handler = server._request_handlers["tools/call"].handler
+            context = ServerRequestContext(
+                session=None,
+                lifespan_context=None,
+                protocol_version="2025-11-25",
+                method="tools/call",
+                request_id=42,
+            )
+            params = types.CallToolRequestParams(name="search", arguments={"query": "once"})
+            first = await handler(context, params)
+            duplicate = await handler(context, params)
+        assert not first.is_error
+        assert duplicate.is_error
+        assert duplicate.content[0].text == "DUPLICATE_REQUEST_ID"
+        assert len(attempts) == 1
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("mode", ["ENFORCE", "SHADOW"])
 def test_unbound_never_implicitly_granted(mode):
     async def operation(host, runtime, sink, attempts, gaps):
         assert bool((await host.list_tools()).tools) == (mode == "SHADOW")
@@ -424,8 +577,9 @@ def test_shadow_budget_and_approval_requirements_forward_without_broker():
 
 def test_changed_arguments_require_new_approval():
     class ReplayingBroker(Broker):
-        async def decide(self, request):
+        async def decide(self, request, presentation):
             self.requests.append(request)
+            self.presentations.append(presentation)
             return ApprovalDecision(
                 schema_version="0.1",
                 approval_id=self.requests[0].approval_id,
@@ -445,8 +599,13 @@ def test_changed_arguments_require_new_approval():
         assert len(attempts) == 1
         assert len(broker.requests) == 2
         assert broker.requests[0].action_digest != broker.requests[1].action_digest
+        assert "demo@example.invalid" in broker.presentations[0]
+        assert "first secret" not in broker.presentations[0]
+        assert broker.requests[0].action_digest in broker.presentations[0]
+        assert "demo@example.invalid" not in broker.requests[0].summary
         assert "first secret" not in canonical_json(sink.events)
         assert "changed secret" not in canonical_json(sink.events)
+        assert "demo@example.invalid" not in canonical_json(sink.events)
 
     asyncio.run(with_gateway(operation, broker=broker, loaded_contract=contract(budgets={})))
 

@@ -5,7 +5,6 @@ from datetime import UTC, datetime
 from uuid import uuid4
 
 from agentsec.domain.events import EventPayload, SecurityEvent
-from agentsec.evidence.jsonl import EvidenceError
 from agentsec.evidence.ports import EventSink
 from agentsec.runtime.models import RuntimeFailure
 
@@ -41,8 +40,12 @@ class RuntimeEvents:
         self.sequence += 1
         try:
             self.sink.append(event)
-        except (EvidenceError, OSError) as exc:
+        except Exception as exc:
             self.failed = True
-            self.on_failure()
+            try:
+                self.on_failure()
+            except Exception:
+                # Failure notification is best-effort and cannot mask recorder poisoning.
+                pass
             if self.required:
                 raise RuntimeFailure("EVIDENCE_WRITE_FAILURE") from exc

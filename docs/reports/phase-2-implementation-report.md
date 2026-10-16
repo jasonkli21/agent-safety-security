@@ -2,8 +2,9 @@
 
 ## Summary and commit identity
 
-Implemented the Phase 2 MCP enforcement boundary, preserving the Phase 1 review fixes.
-Implementation is ready for independent review; it is not a general data-flow security system.
+Implemented the Phase 2 MCP enforcement boundary, preserving the Phase 1 review fixes, and
+addressed the six findings in the independent Phase 2 review. The remediation is ready for a
+follow-up independent review; it is not a general data-flow security system.
 
 - Baseline HEAD: `0213c1407d233b15666fe1f3300b933a5b04e558`
   (`fix: address phase 1 review findings`), branch `main`.
@@ -12,6 +13,9 @@ Implementation is ready for independent review; it is not a general data-flow se
 - Final HEAD: the single `feat: implement phase 2 MCP runtime gateway` commit containing this
   report, directly atop the baseline. Its exact SHA is in the completion response; embedding
   that commit's own content-addressed SHA here would be self-referential.
+- Follow-up: all independent-review fixes, focused regressions, generated schema changes,
+  documentation and this report update are in one commit directly atop the reviewed Phase 2
+  HEAD. The exact SHA is provided in the completion response.
 - The supplied untracked Phase 2 plan is included in this commit. The unrelated untracked
   `PHASE-0-SOL-MEDIUM-PROMPT.md` is preserved untouched and excluded.
 
@@ -28,14 +32,17 @@ those semantics; the obsolete protect-command-absence parameter is retired. Phas
 
 - `policy/native.py`: protocol-independent exact-rule policy engine.
 - `policy/coverage.py`: conservative unsupported-semantics analysis.
+- `adapters/mcp/coverage.py`: binding/discovery-aware resource extraction and exact-semantics
+  coverage, kept outside the protocol-independent policy core.
 - `runtime/`: typed results/errors, budget and approval ledgers, terminal broker, ordered
   event recorder and async gateway orchestration. No MCP imports occur here or in policy/domain.
 - `adapters/mcp/`: strict versioned operational config, immutable serialized discovery
   snapshot, argument/resource normalization, official SDK connections/typed dispatch, and ingress.
 - `cli/protect.py`: `agentsec protect mcp`, static `--check`, optional exclusive JSONL output,
   stderr-only operational diagnostics and optional-dependency errors.
-- `domain/events.py`: explicit dispatch enforcement mode and conditional decision references;
-  `eval/trajectory.py` rejects non-enforcing dispatches while preserving enforcing causality.
+- `domain/events.py`: explicit dispatch enforcement mode, conditional decision references,
+  explicit redaction metadata, field digests and full policy-input fingerprints;
+  `eval/trajectory.py` validates the redaction representation and rejects non-enforcing dispatches.
 - `evidence/jsonl.py`: additive exclusive-create option; original Phase 1 truncation default
   is unchanged. Phase 2 cannot overwrite existing evidence or protected inputs.
 - Exporter and two generated schema files: new MCP config and updated security event.
@@ -44,16 +51,38 @@ those semantics; the obsolete protect-command-absence parameter is retired. Phas
 - README, AGENTS, focused security/evidence/evaluation docs, architecture/runtime guide,
   report index, CI extra installation, and source packaging for the example server.
 
+## Independent review findings addressed
+
+| Finding | Resolution |
+| --- | --- |
+| P2-R01 | MCP composition coverage requires an extractor for every discovered tool covered by resource-specific policy or task resource scope. ENFORCE refuses startup; SHADOW reports the exact gap and records a policy ERROR for affected calls. |
+| P2-R02 | A stricter resource DENY/REQUIRE_APPROVAL beneath general ALLOW requires `resource_semantics: opaque_exact`. Default-deny exact allowlists remain supported without a generic canonicalizer. |
+| P2-R03 | `TOOL_REQUESTED` carries `redacted_fields`, resource/task digests and `policy_input_digest`; trajectory validation preserves the request-to-decision link. |
+| P2-R04 | `RuntimeEvents.emit()` poisons on every ordinary sink `Exception`; a failure-callback exception cannot replace the evidence failure. |
+| P2-R05 | `RuntimeGateway.call()` requires an explicit `bound` argument. |
+| P2-R06 | TTY approvals show the human tool name, capability, bounded resource, configured display paths, hidden-argument warning and exact digest. Persisted summaries remain privacy-minimized. |
+
+The plan's retry requirement was narrowed to session request-ID reuse, cancellation evidence and
+budget counting. Repeated MCP request IDs are rejected; new-ID retries remain new authorization
+attempts. No review finding was rejected or deferred.
+
 ## Enforcement semantics
 
-ENFORCE only dispatches bound discovered tools with valid complete input arguments and a
-supported native policy decision. Exact capabilities and opaque resource strings match rules;
+ENFORCE only dispatches explicitly bound discovered tools with valid complete input arguments
+and a supported native policy decision. Exact capabilities and resource strings match rules;
 DENY > REQUIRE_APPROVAL > ALLOW > DEFAULT_DENY. All matching rule IDs are retained, and reason
 codes are deterministic. A task's capabilities/resources are ceilings. Principal, full agent,
 environment, task-scope and delegation consistency are checked. These are local configured
 identity checks, not host authentication. Unbound tools are hidden and rejected at call time;
 unknown names, duplicate discovery names, stale bindings and configured metadata pin mismatches
 cannot silently gain authority. Exceptions/malformed policy decisions yield ERROR and no dispatch.
+
+Resource-specific policy and task resource scopes require an extractor for every discovered
+tool with the capability. ENFORCE refuses startup if extraction is unavailable. A resource
+DENY/REQUIRE_APPROVAL below general ALLOW also requires `resource_semantics: opaque_exact`, an
+operator assertion; no generic path or URL canonicalizer is claimed. SHADOW emits exact gaps and
+records ERROR for calls with uncovered resource inputs or semantics instead of treating
+`resource=None` as observed absence.
 
 Input and declared successful structured output use Draft 2020-12. Invalid input produces a
 signal and safe MCP error before PDP/dispatch. Resource extraction uses exact object-key paths
@@ -85,7 +114,9 @@ Cancellation, malformed/denied/expired/replayed approval, missing TTY or timeout
 Pending grants are invalidated on every exit path.
 
 The POSIX `/dev/tty` broker serializes terminal prompts, clears stale terminal input, displays
-a digest/tool/capability summary, and accepts only `approve`. It never consumes protocol stdin
+the human tool name, capability, bounded resource, explicitly configured display paths and
+exact digest, with a warning for hidden arguments; it accepts only `approve`. The presentation
+is ephemeral and separate from the persisted approval summary. It never consumes protocol stdin
 or writes protocol stdout. Local-terminal identity is operational, not cryptographically verified.
 Tests use injected brokers and exercise unavailable terminal behavior without interactive input.
 
@@ -106,18 +137,20 @@ DISABLED makes no policy decision and has null decision/approval references. Non
 dispatches are rejected by Phase 1 trajectory evaluation, preserving its authorization contract.
 ENFORCE/SHADOW require a decision ID in both Pydantic validation and exported JSON Schema.
 
-Schema version remains `0.1` for this minimal pre-1.0 extension. Older strict consumers need
-updated schemas for the new optional mode field; existing serialized fixtures still validate.
-No other Phase 0/1 public schema shape changed. The config is a new versioned `0.1` artifact.
-All generated schemas came from the exporter.
+Schema version remains `0.1` for these additive pre-1.0 changes. Older strict consumers need
+updated schemas for the optional dispatch mode and request redaction/fingerprint fields; existing
+fixtures were migrated and still validate. The config is a new versioned `0.1` artifact. All
+generated schemas came from the exporter.
 
 Request, decision, approval, dispatch and return remain separate. Runtime evidence removes
-resource, argument summaries and task-scope details; full values remain ephemeral for policy
-and action binding. It records response hashes, not raw responses. Configured IDs are trusted
-metadata. An evidence failure poisons ENFORCE and blocks future privileged dispatch, while a
-post-dispatch failure cannot erase an effect. SHADOW reports failure and continues without
-claiming complete capture. Dispatch records are attempted invocation evidence, not delivery
-receipts. Local writes are not transactional with external effects and may leave partial files.
+resource, argument summaries and task-scope details; it explicitly marks redacted fields and
+records field digests plus a `policy_input_digest` over the full request evaluated by policy.
+Full values remain ephemeral for policy and action binding. It records response hashes, not raw
+responses. Configured IDs are trusted metadata. Any ordinary sink `Exception` poisons ENFORCE;
+failure callbacks cannot obscure that state. A post-dispatch failure cannot erase an effect.
+SHADOW reports failure and continues without claiming complete capture. Dispatch records are
+attempted invocation evidence, not delivery receipts. Local writes are not transactional with
+external effects and may leave partial files.
 
 ## Security/privacy assumptions
 
@@ -149,19 +182,31 @@ an exclusive new JSONL file is requested. Digests reveal equality and do not enc
 - Budget exhaustion is an explicit PEP rejection/signal after the native policy decision;
   the engine's ALLOW is not rewritten to claim it evaluated session state.
 - Omit task-scope/resource evidence fields entirely rather than trusting arbitrary raw values
-  or argument keys as safe summaries. Integration testing caught and corrected the task-scope
-  resource leak before final verification.
+  or argument keys as safe summaries. The follow-up review fix adds explicit redaction metadata,
+  component digests and a policy-input fingerprint without persisting those raw fields.
 - DISABLED nullable decision identity and an explicit dispatch mode are the smallest truthful
   representation; the evaluator conservatively rejects non-enforcing trajectories.
 - Added exclusive-create evidence output to avoid truncation/collision hazards. Phase 1 export
   behavior remains unchanged. SDK and upstream diagnostics are suppressed by default because
   their exceptions can contain raw payloads.
+- Added binding-aware resource coverage after discovery. Raw exact matching is trusted below a
+  broader ALLOW only when the operator declares `opaque_exact`; default-deny resource allowlists
+  remain available without a generic canonicalizer.
+- The core runtime now requires explicit `bound` proof. Sink append catches every ordinary
+  `Exception`, poisons the recorder, and safely ignores failure-callback exceptions.
+- Approval TTY presentation receives configured display fields separately from persisted event
+  summaries. MCP request IDs are rejected when reused in the same session; host retries with a
+  new ID still require new authorization, budget and approval.
+- The Phase 2 plan now scopes retry guarantees to request identity and unknown-effect evidence;
+  it does not claim exactly-once external effects or distributed idempotency.
 - No refresh, cross-session approval cache, distributed idempotency, HTTP ingress, general
   plugin system, provenance engine, compiler or Phase 3 placeholders were added.
 
 ## Verification
 
-All commands below ran from the repository root in the existing Python 3.12.13 environment.
+The first table records verification of the original Phase 2 implementation commit. The
+follow-up fixes were verified separately below. Commands ran from the repository root in the
+existing Python 3.12.13 environment.
 SDK integration dependencies were installed once using uv with an explicit temporary cache.
 Core/default tests block socket connections; no credentials or model/network calls are used.
 
@@ -195,15 +240,40 @@ strict config and environment handling, dependency/static CLI behavior and stdio
 The smoke test relays SDK-parsed stdout and asserts no parse errors while a real SDK host
 lists/calls the gateway and reads canonical evidence. No SDK framing was reimplemented.
 
+## Independent review remediation verification
+
+Exact commands run for this follow-up commit:
+
+| Exact command | Result |
+| --- | --- |
+| `.venv/bin/ruff check .` | PASS |
+| `.venv/bin/ruff format --check .` | PASS, 96 files |
+| `.venv/bin/mypy src` | PASS, 58 source files |
+| `.venv/bin/pytest tests/integration/test_mcp_gateway.py tests/unit/test_runtime_state.py tests/unit/test_runtime_policy.py -q` | PASS, 69 focused tests |
+| `.venv/bin/pytest -q` | PASS, 451 tests |
+| `.venv/bin/agentsec examples validate` | PASS, 3 contracts and 3 scenarios |
+| `.venv/bin/agentsec eval examples` | PASS, all 6 expected outcomes match |
+| `.venv/bin/agentsec schema export --out schemas/generated` | PASS, generated schemas refreshed |
+| `.venv/bin/agentsec protect mcp --contract examples/mcp/contract.yaml --config examples/mcp/gateway.yaml --check` | PASS, ENFORCE static coverage check |
+| `.venv/bin/python -m build --no-isolation` | PASS, sdist and wheel |
+| `git diff --check` | PASS |
+
+Focused regressions cover missing extraction in ENFORCE and SHADOW, strict resource semantics
+under a broad grant, safe default-deny allowlists, explicit policy-input redaction/digests,
+arbitrary sink exceptions, missing core binding proof, approval presentation privacy, cancellation
+after dispatcher entry, and repeated MCP request IDs.
+
 ## Known limitations and Phase 3 readiness
 
-- Independent Phase 2 review is pending; there is no production security certification.
+- A follow-up independent review of these remediations is still needed; there is no production
+  security certification.
 - HTTP upstream is wired through the SDK but not covered by a live HTTP acceptance server;
   acceptance coverage is credential-free SDK memory plus real stdio subprocesses.
 - Only tool calls cross this boundary. Resources, prompts, model calls and non-MCP actions
   are not proxied/enforced. No host authentication, sandbox, content classifier or taint flow.
-- Local state resets on restart; logical host retries are new requests. No automatic upstream
-  retries occur. Ambiguous cancellation/transport errors cannot prove an external effect absent.
+- Local state resets on restart; a repeated MCP request ID is rejected for the session lifetime,
+  while a logical host retry with a new ID is a new attempt. No automatic upstream retries occur.
+  Ambiguous cancellation/transport errors cannot prove an external effect absent.
 - Session snapshots bind metadata but cannot force an upstream executable to behave honestly.
 - Local terminal approval is POSIX-specific and identifies the local controlling-terminal user.
 - Synchronous evidence is not tamper-resistant or transactionally coupled to dispatch. Crashes
@@ -212,5 +282,5 @@ lists/calls the gateway and reads canonical evidence. No SDK framing was reimple
 - Raw action/resource context is intentionally unavailable from minimized JSONL alone.
 
 Phase 3 can build on shared canonical actions and the tested native boundary after independent
-Phase 2 review/fixes and a reviewed Phase 3 plan. No compiler or policy-derived scenario work
+Phase 2 follow-up review and a reviewed Phase 3 plan. No compiler or policy-derived scenario work
 was pulled into this implementation.

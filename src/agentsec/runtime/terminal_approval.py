@@ -15,7 +15,7 @@ class TerminalApprovalBroker:
     def __init__(self) -> None:
         self._lock = asyncio.Lock()
 
-    async def decide(self, request: ApprovalRequest) -> ApprovalDecision:
+    async def decide(self, request: ApprovalRequest, presentation: str) -> ApprovalDecision:
         async with self._lock:
             loop = asyncio.get_running_loop()
             try:
@@ -28,7 +28,7 @@ class TerminalApprovalBroker:
                 remaining = (request.expires_at - datetime.now(UTC)).total_seconds()
                 if remaining <= 0:
                     raise RuntimeFailure("APPROVAL_TIMEOUT")
-                prompt = f"\n{request.summary}\nType approve or deny: ".encode()
+                prompt = f"\n{presentation}\nType approve or deny: ".encode()
                 termios.tcflush(fd, termios.TCIFLUSH)
                 os.write(fd, prompt)
                 answer: asyncio.Future[bytes] = loop.create_future()

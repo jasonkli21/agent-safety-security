@@ -37,16 +37,26 @@ tool invisible and uncallable in ENFORCE. Stale bindings, duplicate names and fa
 pins refuse ENFORCE startup. SHADOW reports unbound/stale/pin gaps and forwards discovered
 unbound tools with a synthetic `mcp.unbound` capability and explicit DENY decision.
 
-The native policy supports exact capability and optional exact opaque resource strings.
-Precedence is DENY > REQUIRE_APPROVAL > ALLOW > DEFAULT_DENY; matched IDs include all matching
-rules. Task requested capabilities and per-capability resource sets are additional ceilings.
-No path, URL, email, wildcard or Unicode equivalence is inferred. Identity, agent, environment,
-task and delegation consistency checks fail closed; they do not authenticate the MCP host.
+The native policy supports exact capability and optional exact resource strings. Precedence is
+DENY > REQUIRE_APPROVAL > ALLOW > DEFAULT_DENY; matched IDs include all matching rules. Task
+requested capabilities and per-capability resource sets are additional ceilings. No path, URL,
+email, wildcard or Unicode equivalence is inferred. A resource-specific rule or task resource
+scope requires every discovered binding for that capability to provide `resource_argument_path`;
+ENFORCE refuses startup if extraction is unavailable. SHADOW returns and signals the exact
+coverage gaps, and records `ERROR` instead of evaluating a call whose required resource input
+is unavailable or whose resource semantics are uncovered. A broader ALLOW with a stricter resource-specific DENY or REQUIRE_APPROVAL also
+requires the binding to declare `resource_semantics: opaque_exact`, an operator assertion that
+the upstream treats that identifier exactly as supplied. Resource-specific ALLOW rules under
+default deny remain safe when an alias mismatch only denies the request. No generic path, URL,
+email, or Unicode canonicalizer is applied. Identity, agent, environment, task and delegation
+consistency checks fail closed; they do not authenticate the MCP host.
 
 Configured data rules, prose invariants, acts-on-behalf-of identity, model-call, cost and
 agent-delegation budgets are unsupported. Even configured zero budgets count as active.
 ENFORCE refuses these contracts; SHADOW lists gaps and evaluates only the supported subset.
-Existing general contracts remain unchanged; the runtime example deliberately uses the subset.
+`--check` checks configured binding coverage without connecting; serving startup repeats the
+resource check against the discovered immutable tool descriptors. Existing general contracts
+remain unchanged; the runtime example deliberately uses the subset.
 
 ## Discovery and schemas
 
@@ -66,16 +76,21 @@ rejections rather than simulated policy decisions.
 The adapter uses SDK typed requests with a legacy-compatible upstream session. It bypasses
 the SDK high-level automatic retries, metadata refresh and output validation so the runtime
 owns exact dispatch and response inspection. Each accepted invocation attempts upstream once.
-A host retry is a new action requiring fresh authorization, budget and approval. There is no
-durable distributed idempotency guarantee or automatic retry after ambiguous transport errors.
+The gateway rejects a repeated JSON-RPC request ID for the lifetime of its MCP session and keeps
+only those IDs in memory. A host retry under a new ID is a new authorization, budget and approval
+attempt. There is no durable distributed idempotency guarantee or automatic retry after
+ambiguous transport errors.
 
 ## Approvals and budgets
 
 ENFORCE approval requests expire after the contract timeout. The local POSIX `/dev/tty` broker
-serializes prompts on a separate terminal, clears stale input, displays only the immutable action
-digest/tool/capability, and accepts the exact word `approve`; all other input denies. It never
-reads protocol stdin or writes protocol stdout. No terminal, timeout, broker failure, malformed
-result, cancellation, changed binding or expired/reused approval prevents dispatch. The terminal
+serializes prompts on a separate terminal, clears stale input, displays the human tool name,
+capability, bounded resource, explicitly configured `approval_display_paths`, and exact action
+digest, then accepts the exact word `approve`; all other input denies. Other arguments are
+identified as hidden. The presentation is ephemeral and separate from the persisted approval
+summary, which contains no raw resource or argument values. The broker never reads protocol
+stdin or writes protocol stdout. No terminal, timeout, broker failure, malformed result,
+cancellation, changed binding or expired/reused approval prevents dispatch. The terminal
 principal is an operational local identity, not an authenticated remote approver.
 
 Complete arguments, resource, principal, agent/environment/task, capability/tool identity,
@@ -107,7 +122,10 @@ decision, including DENY/ERROR; DISABLED has no policy decision ID. Phase 1's ev
 non-enforcing dispatch trajectories rather than scoring them as authorized execution.
 
 Default evidence omits complete arguments, argument keys, responses, resource and task-scope
-values. Hashes disclose equality and can be guessed; they are not encryption. Configured
+values. `TOOL_REQUESTED` explicitly lists redacted policy-input fields and includes per-field
+digests plus a `policy_input_digest` over the full request evaluated by the policy engine; the
+decision remains linked through its request ID. Hashes disclose equality and can be guessed;
+they are not encryption. Configured
 identity/capability/rule IDs are trusted metadata and must not contain secrets. SDK and upstream
 stderr diagnostics are suppressed by the CLI to avoid raw-wire exception leaks; safe errors
 remain available. Contracts/configuration/evidence and upstream executables must be protected

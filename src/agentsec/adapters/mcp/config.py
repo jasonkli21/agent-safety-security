@@ -61,6 +61,8 @@ class ToolBinding(SecurityModel):
     data_access_labels: frozenset[DataLabel] = frozenset()
     risk_tags: frozenset[SecurityCategory] = frozenset()
     resource_argument_path: tuple[NonEmpty, ...] | None = None
+    resource_semantics: Literal["opaque_exact"] | None = None
+    approval_display_paths: tuple[tuple[NonEmpty, ...], ...] = ()
     expected_schema_hash: Digest | None = None
     expected_description_hash: Digest | None = None
 
@@ -68,6 +70,12 @@ class ToolBinding(SecurityModel):
     def consistent(self) -> Self:
         if self.resource_argument_path == ():
             raise ValueError("Resource path must contain a key")
+        if self.resource_semantics is not None and self.resource_argument_path is None:
+            raise ValueError("Resource semantics require a resource argument path")
+        if any(not path for path in self.approval_display_paths):
+            raise ValueError("Approval display paths must contain a key")
+        if len(set(self.approval_display_paths)) != len(self.approval_display_paths):
+            raise ValueError("Duplicate approval display path")
         if self.side_effect_class == SideEffectClass.DESTRUCTIVE and not self.destructive:
             raise ValueError("Destructive class requires flag")
         if self.destructive and self.side_effect_class not in {

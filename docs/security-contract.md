@@ -131,5 +131,9 @@ provenance propagation, enforcement, and actual approval workflows belong to lat
 
 The native runtime engine now implements the documented exact rule precedence, task ceilings,
 identity consistency, exact approval redemption, and supported session budgets. Unsupported
-active semantics refuse ENFORCE startup. Phase 1's scripted evaluation remains independent;
-it does not implicitly execute contract rules. See [runtime coverage](runtime-mcp.md).
+active semantics refuse ENFORCE startup. MCP resource-dependent semantics additionally require
+binding-aware coverage after discovery: required resource inputs must have an extraction path,
+and a stricter resource exception below a broader ALLOW requires an explicit `opaque_exact`
+operator assertion. This does not add a generic resource canonicalizer. Phase 1's scripted
+evaluation remains independent; it does not implicitly execute contract rules. See
+[runtime coverage](runtime-mcp.md).

@@ -11,7 +11,7 @@ from agentsec.runtime.models import RuntimeFailure
 
 
 class ApprovalBroker(Protocol):
-    async def decide(self, request: ApprovalRequest) -> ApprovalDecision: ...
+    async def decide(self, request: ApprovalRequest, presentation: str) -> ApprovalDecision: ...
 
 
 class ApprovalLedger:

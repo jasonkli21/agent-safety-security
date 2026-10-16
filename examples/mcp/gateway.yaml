@@ -15,6 +15,8 @@ tool_bindings:
     capability: email.send
     side_effect_class: EXTERNAL_WRITE
     resource_argument_path: [recipient]
+    resource_semantics: opaque_exact
+    approval_display_paths: [[recipient]]
   - upstream_name: write_file
     capability: filesystem.write
     side_effect_class: INTERNAL_WRITE

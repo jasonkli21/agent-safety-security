@@ -45,6 +45,26 @@ class ToolRequestedPayload(SecurityModel):
     kind: Literal[EventType.TOOL_REQUESTED]
     request: PolicyRequest
     action_digest: Digest
+    policy_input_digest: Digest | None = None
+    redacted_fields: frozenset[Literal["resource", "task_scope"]] = frozenset()
+    resource_digest: Digest | None = None
+    task_scope_digest: Digest | None = None
+
+    @model_validator(mode="after")
+    def truthful_redaction(self) -> Self:
+        if self.redacted_fields and self.policy_input_digest is None:
+            raise PydanticCustomError(
+                "INVALID_SCHEMA", "Redacted policy inputs must carry a full-input digest"
+            )
+        if ("resource" in self.redacted_fields) != (self.resource_digest is not None):
+            raise PydanticCustomError(
+                "INVALID_SCHEMA", "Resource redaction must carry its field digest"
+            )
+        if ("task_scope" in self.redacted_fields) != (self.task_scope_digest is not None):
+            raise PydanticCustomError(
+                "INVALID_SCHEMA", "Task-scope redaction must carry its field digest"
+            )
+        return self
 
 
 class PolicyEvaluatedPayload(SecurityModel):

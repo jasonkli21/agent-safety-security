@@ -10,7 +10,7 @@ envelope type. Both Python validation and exported JSON Schema reject mismatches
 | Event / payload | Evidence represented; limits |
 | --- | --- |
 | RUN_STARTED | Contract ID, effective policy hash, optional scenario; does not authenticate a run. |
-| TOOL_REQUESTED | Structured PolicyRequest and exact-action digest; intent, not permission. Argument summary can be redacted/absent. |
+| TOOL_REQUESTED | Privacy-minimized PolicyRequest, exact-action digest, full policy-input digest, and explicit redacted-field metadata with per-field digests; intent, not permission. |
 | POLICY_EVALUATED | PolicyDecision including outcome, reason codes and policy identity; not dispatch. |
 | APPROVAL_REQUESTED | ApprovalRequest with request ID, action digest and expiry; no approval granted. |
 | APPROVAL_DECIDED | ApprovalDecision with approver, outcome and one-shot scope; does not prove authentication or execution. |
@@ -77,5 +77,11 @@ ENFORCE and SHADOW require a decision ID. Schema version remains `0.1` for this 
 pre-1.0 extension; older strict consumers need the regenerated event schema to read new fields.
 Phase 1 trajectory evaluation rejects non-ENFORCE dispatches, preserving its authorization checks.
 Runtime request evidence omits resources/task scope and argument summaries; the ephemeral full
-request still drives policy and the complete NormalizedAction drives exact approvals.
+request still drives policy and the complete NormalizedAction drives exact approvals. When
+resource or task scope is omitted, `redacted_fields` distinguishes that from factual absence,
+field digests preserve equality linkage, and `policy_input_digest` commits to the complete
+request used for the decision. The decision references the same request ID, so trajectory
+validation preserves the request-to-decision link without treating redacted `None` as the policy
+input. In SHADOW, a call with an uncovered required resource input records a policy ERROR rather
+than treating `resource=None` as an observed absence.
 See [MCP runtime](runtime-mcp.md) for counter, response, failure and privacy semantics.

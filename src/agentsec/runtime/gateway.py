@@ -4,6 +4,7 @@ import asyncio
 from collections.abc import Awaitable, Callable
 from copy import deepcopy
 from datetime import timedelta
+from typing import Literal
 from uuid import uuid4
 
 from jsonschema import Draft202012Validator
@@ -25,7 +26,7 @@ from agentsec.domain.events import (
     ToolReturnedPayload,
 )
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
-from agentsec.domain.serialization import content_digest
+from agentsec.domain.serialization import canonical_json, content_digest
 from agentsec.domain.taxonomy import (
     EnforcementMode,
     EventType,
@@ -42,6 +43,43 @@ from agentsec.runtime.approvals import ApprovalBroker, ApprovalLedger
 from agentsec.runtime.budgets import BudgetLedger
 from agentsec.runtime.events import RuntimeEvents
 from agentsec.runtime.models import RuntimeFailure, ToolResponse
+
+
+def _approval_presentation(
+    tool_name: str,
+    capability: str,
+    resource: str | None,
+    arguments: dict[str, JsonValue],
+    display_paths: tuple[tuple[str, ...], ...],
+    digest: str,
+) -> str:
+    def display(value: JsonValue) -> str:
+        if not isinstance(value, (str, bool, int, float)) and value is not None:
+            return "[hidden non-scalar value]"
+        rendered = canonical_json(value)
+        return rendered if len(rendered) <= 160 else rendered[:157] + "..."
+
+    lines = [
+        "Review this action. The digest binds the complete action.",
+        f"Tool: {tool_name}",
+        f"Capability: {capability}",
+        f"Resource: {display(resource) if resource is not None else '[not configured]'}",
+        f"Action digest: {digest}",
+    ]
+    for path in display_paths:
+        current: JsonValue = arguments
+        for key in path:
+            if not isinstance(current, dict) or key not in current:
+                current = None
+                break
+            current = current[key]
+        label = ".".join(path)
+        rendered_label = canonical_json(label)
+        if len(rendered_label) > 96:
+            rendered_label = rendered_label[:93] + "..."
+        lines.append(f"Configured field {rendered_label}: {display(current)}")
+    lines.append("Other arguments are hidden; check the configured fields before approving.")
+    return "\n".join(lines)
 
 
 class RuntimeGateway:
@@ -73,6 +111,11 @@ class RuntimeGateway:
         if coverage_gaps(contract):
             self.signal(SecurityCategory.POLICY_BYPASS, "UNSUPPORTED_POLICY_SEMANTICS")
 
+    @property
+    def contract(self) -> AgentSecurityContract:
+        """Return a defensive copy for adapter-level, read-only coverage checks."""
+        return self._contract.model_copy(deep=True)
+
     def signal(self, category: SecurityCategory, code: str) -> None:
         self.events.emit(
             SecuritySignalPayload(
@@ -94,7 +137,9 @@ class RuntimeGateway:
         resource: str | None,
         dispatch: Callable[[dict[str, JsonValue]], Awaitable[ToolResponse]],
         *,
-        bound: bool = True,
+        bound: bool,
+        approval_display_paths: tuple[tuple[str, ...], ...] = (),
+        resource_coverage_gap: bool = False,
     ) -> ToolResponse:
         if self._closed:
             raise RuntimeFailure("SESSION_CLOSED")
@@ -137,18 +182,44 @@ class RuntimeGateway:
             environment=contract.environment.mode,
             requested_at=self.events.clock(),
         )
+        redacted_fields: frozenset[Literal["resource", "task_scope"]] = frozenset()
+        if request.resource is not None:
+            redacted_fields |= frozenset({"resource"})
+        if request.task_scope is not None:
+            redacted_fields |= frozenset({"task_scope"})
         evidence_request = request.model_copy(update={"resource": None, "task_scope": None})
         self.events.emit(
             ToolRequestedPayload(
-                kind=EventType.TOOL_REQUESTED, request=evidence_request, action_digest=digest
+                kind=EventType.TOOL_REQUESTED,
+                request=evidence_request,
+                action_digest=digest,
+                policy_input_digest=content_digest(request),
+                redacted_fields=redacted_fields,
+                resource_digest=(content_digest(request.resource) if request.resource else None),
+                task_scope_digest=(
+                    content_digest(request.task_scope) if request.task_scope is not None else None
+                ),
             )
         )
         decision: PolicyDecision | None = None
         if self.mode != EnforcementMode.DISABLED:
             try:
-                decision = PolicyDecision.model_validate_json(
-                    self.policy.decide(request, contract).model_dump_json()
-                )
+                if resource_coverage_gap:
+                    decision = PolicyDecision(
+                        schema_version="0.1",
+                        decision_id=str(uuid4()),
+                        request_id=request.request_id,
+                        outcome=PolicyOutcome.ERROR,
+                        reason_codes=frozenset({ReasonCode.INVALID_REQUEST}),
+                        human_reason="UNSUPPORTED_RESOURCE_COVERAGE",
+                        contract_id=contract.metadata.contract_id,
+                        effective_policy_hash=effective_policy_hash(contract),
+                        decided_at=self.events.clock(),
+                    )
+                else:
+                    decision = PolicyDecision.model_validate_json(
+                        self.policy.decide(request, contract).model_dump_json()
+                    )
                 if (
                     decision.request_id != request.request_id
                     or decision.contract_id != contract.metadata.contract_id
@@ -200,7 +271,9 @@ class RuntimeGateway:
                     approval_id=str(uuid4()),
                     policy_request_id=request.request_id,
                     action_digest=digest,
-                    summary=f"Exact action {digest}; tool {tool.tool_id}; capability {capability}",
+                    summary=(
+                        f"Approval required for {tool.name} ({capability}); exact action {digest}"
+                    ),
                     reason_codes=decision.reason_codes,
                     created_at=now,
                     expires_at=now + timedelta(seconds=contract.approvals.default_timeout_seconds),
@@ -211,7 +284,17 @@ class RuntimeGateway:
                 )
                 try:
                     result = await asyncio.wait_for(
-                        self.broker.decide(approval),
+                        self.broker.decide(
+                            approval,
+                            _approval_presentation(
+                                tool.name,
+                                capability,
+                                resource,
+                                arguments,
+                                approval_display_paths,
+                                digest,
+                            ),
+                        ),
                         timeout=contract.approvals.default_timeout_seconds,
                     )
                     self.approvals.record(result)

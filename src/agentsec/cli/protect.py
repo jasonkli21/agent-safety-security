@@ -8,6 +8,7 @@ from typing import Annotated
 import typer
 
 from agentsec.adapters.mcp.config import McpGatewayConfig
+from agentsec.adapters.mcp.coverage import configured_resource_coverage_gaps
 from agentsec.contracts.errors import ArtifactValidationError
 from agentsec.contracts.loader import load_artifact, load_contract
 from agentsec.contracts.models import AgentSecurityContract
@@ -63,11 +64,17 @@ def protect_mcp(
     try:
         loaded_contract = load_contract(contract)
         loaded_config = load_artifact(config, McpGatewayConfig)
-        gaps = coverage_gaps(loaded_contract)
-        if loaded_config.mode == EnforcementMode.ENFORCE and gaps:
+        contract_gaps = coverage_gaps(loaded_contract)
+        resource_gaps = configured_resource_coverage_gaps(
+            loaded_contract, loaded_config.tool_bindings
+        )
+        gaps = (*contract_gaps, *resource_gaps)
+        if loaded_config.mode == EnforcementMode.ENFORCE and contract_gaps:
             raise RuntimeFailure("UNSUPPORTED_POLICY_SEMANTICS")
         for gap in gaps:
             typer.echo(f"COVERAGE_GAP: {gap}", err=True)
+        if loaded_config.mode == EnforcementMode.ENFORCE and resource_gaps:
+            raise RuntimeFailure("UNSUPPORTED_RESOURCE_COVERAGE")
         typer.echo(f"agentsec MCP mode: {loaded_config.mode}", err=True)
         if check:
             return

@@ -55,6 +55,12 @@ def validate_evaluation_trajectory(observation: EvaluationObservation) -> None:
             terminal = True
         elif isinstance(p, ToolRequestedPayload):
             require(p.request.request_id not in requests)
+            if p.redacted_fields:
+                require(p.policy_input_digest is not None)
+            if "task_scope" in p.redacted_fields:
+                require(p.request.task_scope is None and p.task_scope_digest is not None)
+            if "resource" in p.redacted_fields and p.request.resource is None:
+                require(p.resource_digest is not None)
             requests[p.request.request_id] = p
         elif isinstance(p, PolicyEvaluatedPayload):
             d = p.decision

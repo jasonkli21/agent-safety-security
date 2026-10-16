@@ -167,6 +167,8 @@ In `ENFORCE`:
 
 - unsupported **active** security semantics must cause startup refusal;
 - the gateway must not silently ignore a configured rule/budget/invariant and still present itself as enforcing the contract.
+- MCP resource-dependent policy must pass binding-aware coverage after discovery: every applicable bound tool must extract the resource.
+- A broad ALLOW with a stricter resource-specific DENY or REQUIRE_APPROVAL requires an explicit `opaque_exact` binding declaration. This asserts that the upstream interprets the identifier exactly as supplied; Phase 2 does not guess domain canonicalization.
 
 In `SHADOW`:
 
@@ -214,6 +216,9 @@ Rules:
 - duplicate/ambiguous tool names or bindings are rejected;
 - a binding may contain only operational classification needed by Phase 2; do not duplicate allow/deny/approval decisions from the contract;
 - use a simple key-path representation for `resource_argument` rather than introducing JSONPath/JMESPath.
+- resource-specific policy and task resource scopes require an extraction path on every applicable binding;
+- `resource_semantics: opaque_exact` is an operator assertion used when a stricter resource exception sits below a broad ALLOW;
+- `approval_display_paths` select bounded argument values for an ephemeral human approval presentation and do not affect policy or action-digest inputs.
 
 ## 4.4 Discovered metadata is mutable security input
 
@@ -391,6 +396,10 @@ Supported rule semantics:
 - an optional exact resource selector;
 - a rule with `resource = null` applies to that capability generally;
 - a resource-specific rule applies only to an exactly normalized resource value;
+- resource-specific ALLOW under default deny may fail closed on an alias mismatch;
+- a resource-specific DENY or REQUIRE_APPROVAL below general ALLOW is covered only with `opaque_exact` resource semantics;
+- no generic filesystem, URL, email, case-folding, or Unicode normalizer is added;
+- `SHADOW` records an ERROR with an explicit coverage reason when a call's required resource input or semantics is unavailable, then may forward it as shadow-only;
 - if multiple rules match, apply documented decision precedence:
 
 ```text
@@ -440,8 +449,9 @@ For every `tools/call`:
 5. build complete `NormalizedAction` using **full validated arguments**;
 6. compute `action_digest`;
 7. build privacy-minimized `PolicyRequest.arguments_summary`;
-8. emit `TOOL_REQUESTED`;
-9. evaluate policy.
+8. compute a `policy_input_digest` over the full request before redaction, plus field digests and redaction metadata for omitted resource/task-scope values;
+9. emit `TOOL_REQUESTED` with the privacy-minimized representation;
+10. evaluate policy using the full in-memory request.
 
 ### 8.1 Argument summary
 
@@ -551,7 +561,8 @@ Requirements:
 - never read approval input from the MCP protocol stdin;
 - use a controlling terminal/TTY when available;
 - write human-facing approval text to the TTY/stderr path only;
-- show a redacted immutable action summary, not raw secret-bearing arguments by default;
+- show the human tool name, capability, bounded resource, explicitly configured display fields, hidden-argument warning, and exact action digest;
+- keep that presentation ephemeral on the controlling TTY; persisted approval summaries must not include raw resource or argument values;
 - support approve/deny with explicit input;
 - enforce timeout/expiry;
 - if no usable TTY exists, approval is unavailable and `ENFORCE` fails closed for that action;
@@ -708,6 +719,8 @@ Define explicit behavior before implementation.
 Recommended:
 
 - in `ENFORCE`, if evidence is configured as required and the sink cannot record security-critical lifecycle events, fail closed for new privileged dispatches;
+- normalize every ordinary `Exception` from `EventSink.append` into the poisoned recorder state, without catching `BaseException`;
+- treat the failure callback as best-effort so it cannot obscure the poisoned state;
 - avoid retroactively claiming an action did not dispatch if the sink failed after the upstream call began;
 - surface partial-evidence state clearly;
 - in `SHADOW`, record/report the sink failure but do not convert policy semantics into enforcement;
@@ -730,7 +743,11 @@ Requirements:
 - cancellation must unwind reservations and not leave approvals reusable;
 - event sequencing must remain deterministic per run even when calls are concurrent;
 - no lock should be held across interactive approval or upstream network I/O unless required for atomic state mutation;
-- protect against double-dispatch if a client retries a request after cancellation/error.
+- the gateway itself never automatically retries an authorized upstream dispatch;
+- when the SDK supplies a stable MCP request identity, a repeated identity within the session must not cause a second dispatch;
+- the session guard retains request IDs only, and rejects identity reuse whether the first attempt completed, failed, or was cancelled;
+- cancellation after dispatcher entry consumes budget and records unknown-effect evidence; cancellation before entry releases the reservation;
+- a host retry with a new request identity is a new authorization/approval/budget attempt. Phase 2 does not claim exactly-once external effects or distributed idempotency.
 
 Phase 2 does not need a generic distributed concurrency framework. Keep synchronization local and explicit.
 
@@ -815,6 +832,8 @@ Cover:
 - unsupported data rule/invariant/model-cost/delegation budgets;
 - `ENFORCE` refusal;
 - `SHADOW` gap reporting;
+- missing MCP resource extraction and unsafe broad-ALLOW/resource-exception semantics;
+- exact resource ALLOW under default deny remains covered without canonicalization;
 - no accidental “fully enforced” status when unsupported semantics exist.
 
 ### 18.3 Unit tests — runtime state
@@ -828,6 +847,9 @@ Cover:
 - approval expiry;
 - one-shot redemption;
 - cancellation releases reservation and invalidates pending approval.
+- cancellation after dispatcher entry records unknown effect and consumes the budget;
+- ordinary sink exceptions poison ENFORCE and block later dispatches;
+- the core gateway call requires explicit binding proof.
 
 ### 18.4 Adapter tests
 
@@ -1033,6 +1055,7 @@ Phase 2 is complete only when all of the following are true.
 ### 20.5 Evidence
 
 - runtime emits truthful canonical request/decision/approval/dispatch/return evidence;
+- redacted policy inputs are distinguished from absent values and linked by a full-input digest;
 - shadow forwarding is distinguishable from an enforcing allow;
 - raw arguments/responses are not persisted by default;
 - evidence failures do not accidentally make enforcement fail open.

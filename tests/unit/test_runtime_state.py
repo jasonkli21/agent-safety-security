@@ -9,9 +9,17 @@ from test_runtime_policy import NOW, contract_with
 
 from agentsec.contracts.models import Budgets
 from agentsec.domain.approvals import ApprovalDecision, ApprovalRequest
-from agentsec.domain.taxonomy import ApprovalOutcome, EnforcementMode, EventType, SideEffectClass
+from agentsec.domain.serialization import content_digest
+from agentsec.domain.taxonomy import (
+    ApprovalOutcome,
+    EnforcementMode,
+    EventType,
+    PolicyOutcome,
+    SideEffectClass,
+)
 from agentsec.domain.tools import ToolDescriptor
 from agentsec.evidence.memory import InMemoryEventSink
+from agentsec.policy.native import NativePolicyEngine
 from agentsec.runtime.approvals import ApprovalLedger
 from agentsec.runtime.budgets import BudgetLedger
 from agentsec.runtime.events import RuntimeEvents
@@ -35,7 +43,7 @@ def tool(side=SideEffectClass.READ, destructive=False):
 
 
 class Broker:
-    async def decide(self, request):
+    async def decide(self, request, presentation):
         return ApprovalDecision(
             schema_version="0.1",
             approval_id=request.approval_id,
@@ -115,7 +123,7 @@ def test_approval_exact_expiring_one_shot(violation):
     ledger = ApprovalLedger(lambda: now[0])
     request = approval()
     ledger.create(request)
-    decision = asyncio.run(Broker().decide(request))
+    decision = asyncio.run(Broker().decide(request, "safe presentation"))
     if violation == "denied":
         decision = decision.model_copy(update={"outcome": ApprovalOutcome.DENY})
     if violation == "future":
@@ -142,7 +150,7 @@ def test_cancellation_releases_reservation_and_invalidates_approval():
         entered = asyncio.Event()
 
         class PendingBroker:
-            async def decide(self, request):
+            async def decide(self, request, presentation):
                 self.request = request
                 entered.set()
                 await asyncio.Event().wait()
@@ -169,7 +177,7 @@ def test_cancellation_releases_reservation_and_invalidates_approval():
             dispatched.append(args)
             return ToolResponse(body={}, success=True)
 
-        task = asyncio.create_task(gateway.call(tool(), {}, None, forward))
+        task = asyncio.create_task(gateway.call(tool(), {}, None, forward, bound=True))
         await entered.wait()
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
@@ -178,7 +186,7 @@ def test_cancellation_releases_reservation_and_invalidates_approval():
         with pytest.raises(RuntimeFailure):
             gateway.approvals.redeem(broker.request.approval_id, broker.request.action_digest)
         gateway.broker = Broker()
-        await gateway.call(tool(), {}, None, forward)
+        await gateway.call(tool(), {}, None, forward, bound=True)
         assert len(dispatched) == 1
 
     asyncio.run(scenario())
@@ -194,9 +202,9 @@ def test_attempt_consumes_budget_even_if_upstream_errors():
             raise ValueError("secret upstream diagnostic")
 
         with pytest.raises(RuntimeFailure, match="UPSTREAM_FAILURE"):
-            await gateway.call(tool(), {}, None, forward)
+            await gateway.call(tool(), {}, None, forward, bound=True)
         with pytest.raises(RuntimeFailure, match="BUDGET_EXCEEDED"):
-            await gateway.call(tool(), {}, None, forward)
+            await gateway.call(tool(), {}, None, forward, bound=True)
         assert len(attempts) == 1
         assert [
             e.payload.success for e in sink.events if e.event_type == EventType.TOOL_RETURNED
@@ -219,7 +227,7 @@ def test_policy_and_evidence_fail_closed():
 
         gateway, _ = runtime(policy=BrokenPolicy())
         with pytest.raises(RuntimeFailure, match="POLICY_ENGINE_ERROR"):
-            await gateway.call(tool(), {}, None, forward)
+            await gateway.call(tool(), {}, None, forward, bound=True)
         gateway, _ = runtime()
 
         class BrokenSink:
@@ -228,8 +236,127 @@ def test_policy_and_evidence_fail_closed():
 
         gateway.events.sink = BrokenSink()
         with pytest.raises(RuntimeFailure, match="EVIDENCE_WRITE_FAILURE"):
-            await gateway.call(tool(), {}, None, forward)
+            await gateway.call(tool(), {}, None, forward, bound=True)
         assert not attempts
+
+    asyncio.run(scenario())
+
+
+def test_runtime_call_requires_explicit_binding_proof():
+    gateway, _sink = runtime()
+
+    async def forward(args):
+        return ToolResponse(body={}, success=True)
+
+    with pytest.raises(TypeError, match="bound"):
+        gateway.call(tool(), {}, None, forward)
+
+
+def test_resource_scoped_evidence_marks_redaction_and_links_policy_input():
+    selected_contract = contract_with(
+        task_scope={
+            "task_id": "private-task",
+            "description": "private task details",
+            "requested_capabilities": ["web.search"],
+            "resource_scopes": {"web.search": ["private-resource"]},
+        },
+        tools={
+            "rules": [
+                {
+                    "rule_id": "allow-search",
+                    "capability": "web.search",
+                    "decision": "ALLOW",
+                }
+            ]
+        },
+    )
+    actual_requests = []
+
+    class CapturingPolicy:
+        def decide(self, request, contract):
+            actual_requests.append(request)
+            return NativePolicyEngine(lambda: NOW).decide(request, contract)
+
+    gateway, sink = runtime(selected_contract, policy=CapturingPolicy())
+
+    async def forward(args):
+        return ToolResponse(body={"ok": True}, success=True)
+
+    asyncio.run(gateway.call(tool(), {}, "private-resource", forward, bound=True))
+    requested = next(
+        event.payload for event in sink.events if event.event_type == EventType.TOOL_REQUESTED
+    )
+    evaluated = next(
+        event.payload.decision
+        for event in sink.events
+        if event.event_type == EventType.POLICY_EVALUATED
+    )
+    actual = actual_requests[0]
+    assert requested.request.resource is None and requested.request.task_scope is None
+    assert requested.redacted_fields == {"resource", "task_scope"}
+    assert requested.resource_digest == content_digest(actual.resource)
+    assert requested.task_scope_digest == content_digest(actual.task_scope)
+    assert requested.policy_input_digest == content_digest(actual)
+    assert evaluated.request_id == requested.request.request_id
+    assert evaluated.outcome == PolicyOutcome.ALLOW
+    serialized = " ".join(event.model_dump_json() for event in sink.events)
+    assert "private-resource" not in serialized
+    assert "private task details" not in serialized
+
+
+def test_unexpected_sink_failure_poisoning_blocks_future_dispatch():
+    gateway, _ = runtime(contract_with(budgets={"max_tool_calls": 3}))
+    attempts = []
+
+    class BrokenReturnSink:
+        def __init__(self):
+            self.events = []
+
+        def append(self, event):
+            if event.event_type == EventType.TOOL_RETURNED:
+                raise RuntimeError("private sink diagnostic")
+            self.events.append(event)
+
+    gateway.events.sink = BrokenReturnSink()
+
+    def broken_notification():
+        raise RuntimeError("notification failure")
+
+    gateway.events.on_failure = broken_notification
+
+    async def forward(args):
+        attempts.append(1)
+        return ToolResponse(body={}, success=True)
+
+    with pytest.raises(RuntimeFailure, match="EVIDENCE_WRITE_FAILURE"):
+        asyncio.run(gateway.call(tool(), {}, None, forward, bound=True))
+    assert gateway.events.failed
+    with pytest.raises(RuntimeFailure, match="EVIDENCE_WRITE_FAILURE"):
+        asyncio.run(gateway.call(tool(), {}, None, forward, bound=True))
+    assert len(attempts) == 1
+
+
+def test_cancellation_after_dispatch_entry_consumes_budget_and_marks_unknown_effect():
+    async def scenario():
+        gateway, sink = runtime(contract_with(budgets={"max_tool_calls": 1}))
+        entered = asyncio.Event()
+
+        async def forward(args):
+            entered.set()
+            await asyncio.Event().wait()
+
+        task = asyncio.create_task(gateway.call(tool(), {}, None, forward, bound=True))
+        await entered.wait()
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        assert any(
+            event.payload.redacted_summary == "DISPATCH_CANCELLED_EFFECT_UNKNOWN"
+            for event in sink.events
+            if event.event_type == EventType.SECURITY_SIGNAL
+        )
+        with pytest.raises(RuntimeFailure, match="BUDGET_EXCEEDED"):
+            await gateway.call(tool(), {}, None, forward, bound=True)
 
     asyncio.run(scenario())
 
@@ -258,7 +385,7 @@ def test_evidence_failure_at_dispatch_refunds_and_poison_blocks_future_calls():
 
         for _ in range(2):
             with pytest.raises(RuntimeFailure, match="EVIDENCE_WRITE_FAILURE"):
-                await gateway.call(tool(), {}, None, forward)
+                await gateway.call(tool(), {}, None, forward, bound=True)
         assert not attempts
         # Refunded counters and released reservation; the poisoned recorder still refuses calls.
         token, _ = gateway.budgets.reserve(tool())
@@ -285,7 +412,7 @@ def test_evidence_failure_after_dispatch_does_not_erase_attempt():
             return ToolResponse(body={}, success=True)
 
         with pytest.raises(RuntimeFailure, match="EVIDENCE_WRITE_FAILURE"):
-            await gateway.call(tool(), {}, None, forward)
+            await gateway.call(tool(), {}, None, forward, bound=True)
         assert len(attempts) == 1
         assert any(e.event_type == EventType.TOOL_DISPATCHED for e in sink.events)
         with pytest.raises(RuntimeFailure, match="BUDGET_EXCEEDED"):
@@ -304,4 +431,4 @@ def test_terminal_unavailable_does_not_touch_protocol_streams(monkeypatch):
 
     monkeypatch.setattr(os, "open", unavailable)
     with pytest.raises(RuntimeFailure, match="APPROVAL_UNAVAILABLE"):
-        asyncio.run(TerminalApprovalBroker().decide(approval()))
+        asyncio.run(TerminalApprovalBroker().decide(approval(), "safe presentation"))

@@ -190,13 +190,25 @@ class FixtureTarget:
                     task_scope=scenario.task.task_scope,
                     capability=step.capability,
                     tool_id=tool.tool_id,
-                    resource=redact_canaries(step.resource, scenario),
+                    resource=step.resource,
                     environment=contract.agent.environment,
                     requested_at=context.clock(),
                 )
+                redacted_resource = redact_canaries(step.resource, scenario)
+                evidence_request = request.model_copy(update={"resource": redacted_resource})
+                resource_was_redacted = redacted_resource != step.resource
                 event = emit(
                     ToolRequestedPayload(
-                        kind=EventType.TOOL_REQUESTED, request=request, action_digest=digest
+                        kind=EventType.TOOL_REQUESTED,
+                        request=evidence_request,
+                        action_digest=digest,
+                        policy_input_digest=content_digest(request),
+                        redacted_fields=(
+                            frozenset({"resource"}) if resource_was_redacted else frozenset()
+                        ),
+                        resource_digest=(
+                            content_digest(step.resource) if resource_was_redacted else None
+                        ),
                     )
                 )
                 # Capture decoded strings so JSON escaping cannot hide canaries.

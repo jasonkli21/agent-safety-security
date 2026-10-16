@@ -43,7 +43,11 @@
           "redacted": true
         }
       },
-      "action_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+      "action_digest": "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "policy_input_digest": "sha256:41e532541a4f20727696629682885cc0685201e8d26f8fc39269f9b84578315f",
+      "redacted_fields": [],
+      "resource_digest": null,
+      "task_scope_digest": null
     }
   },
   {
