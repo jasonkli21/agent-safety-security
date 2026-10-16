@@ -133,3 +133,11 @@ rules compose by any-deny-wins without inter-label predicates, single-label part
 the exact per-label restriction semantics. It reports data tightening/relaxation, explanation
 changes and authored set changes. This is finite exact set-policy comparison, not general formal
 equivalence or content analysis. Nothing activates a policy automatically.
+
+## Phase 5 offline lifecycle
+
+See [replay and incidents](replay-incidents.md) for strict evidence bundles, exact versus legacy
+source plan binding, offline substituted security replay, semantic trace diff, evidence-backed
+classification, safe assertion promotion and the local/CI regression gate. Historical evidence
+remains immutable; missing or redacted material is never reconstructed. This does not extend
+model/context coverage or authorize any live execution.

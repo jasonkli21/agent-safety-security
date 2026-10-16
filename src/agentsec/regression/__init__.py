@@ -1,0 +1,1 @@
+"""Local deterministic regression gate."""

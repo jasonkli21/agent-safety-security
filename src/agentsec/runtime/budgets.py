@@ -12,7 +12,13 @@ from agentsec.runtime.models import RuntimeFailure
 
 
 class BudgetLedger:
-    def __init__(self, limits: Budgets, clock: Callable[[], float] = monotonic) -> None:
+    def __init__(
+        self,
+        limits: Budgets,
+        clock: Callable[[], float] = monotonic,
+        id_factory: Callable[[], str] = lambda: str(uuid4()),
+    ) -> None:
+        self.id_factory = id_factory
         self.limits = limits
         self.clock = clock
         self.started = clock()
@@ -50,7 +56,7 @@ class BudgetLedger:
                 if enforce:
                     raise
                 exceeded = True
-            token = str(uuid4())
+            token = self.id_factory()
             self._pending[token] = delta
             return token, exceeded
 

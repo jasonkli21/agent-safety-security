@@ -12,8 +12,13 @@ from agentsec.domain.taxonomy import PolicyOutcome, ReasonCode, RuleDecision
 
 
 class NativePolicyEngine:
-    def __init__(self, clock: Callable[[], datetime] = lambda: datetime.now(UTC)) -> None:
+    def __init__(
+        self,
+        clock: Callable[[], datetime] = lambda: datetime.now(UTC),
+        id_factory: Callable[[], str] = lambda: str(uuid4()),
+    ) -> None:
         self.clock = clock
+        self.id_factory = id_factory
 
     def decide(
         self, request: PolicyRequest, contract: CompiledSecurityPlan | AgentSecurityContract
@@ -90,7 +95,7 @@ class NativePolicyEngine:
                 outcome, reason = PolicyOutcome.ERROR, ReasonCode.DATA_FLOW_CONTEXT_MISSING
         return PolicyDecision(
             schema_version="0.1",
-            decision_id=str(uuid4()),
+            decision_id=self.id_factory(),
             request_id=request.request_id,
             outcome=outcome,
             matched_rule_ids=matched,

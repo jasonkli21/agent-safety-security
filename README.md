@@ -97,7 +97,7 @@ python -m build
 
 Validation is local and requires no API keys. `examples validate` reads `./examples` by default;
 use `--root /path/to/examples` outside this checkout. `eval run` supports text/JSON reports and optional JSONL evidence; see the
-[evaluation guide](docs/evaluation.md). `agentsec protect mcp` runs the gateway; `replay` remains a future phase. See the [contract reference](docs/security-contract.md),
+[evaluation guide](docs/evaluation.md). `agentsec protect mcp` runs the gateway; `agentsec replay` supports offline security replay (see the [guide](docs/replay-incidents.md)). See the [contract reference](docs/security-contract.md),
 [scenario format](docs/scenario-format.md), [evidence model](docs/evidence-model.md),
 [threat model](docs/threat-model.md), and
 [implementation report](docs/reports/phase-0-implementation-report.md).
@@ -137,4 +137,17 @@ Phase 4 adds [tracked provenance and data-flow restrictions](docs/provenance-dat
 including labeled tool-output → external-sink and untrusted-output → memory-tool protection.
 Use `examples/mcp/flow-contract.yaml` with `examples/mcp/flow-gateway.yaml` and the existing
 synthetic server. This tracks released tool outputs conservatively; it does not classify arbitrary
-user/model text or provide complete DLP. Phase 4 awaits fresh independent review.
+user/model text or provide complete DLP. The Phase 4 review fixes are included in the baseline. Phase 5 awaits independent review.
+
+## Incident replay and regression
+
+```bash
+agentsec replay run --bundle examples/replay/bundle.json --contract examples/replay/current-contract.json
+agentsec regression validate --root examples/regressions
+agentsec regression run --root examples/regressions
+```
+
+Replay uses structured source evidence and deterministic substitutes without calling live tools.
+The public regression corpus reports one ACTIVE pass and one DRAFT requiring review. See
+[the workflow and fidelity limits](docs/replay-incidents.md) and
+[the Phase 5 implementation report](docs/reports/phase-5-implementation-report.md).

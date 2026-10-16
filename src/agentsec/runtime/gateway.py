@@ -117,6 +117,7 @@ class RuntimeGateway:
                 kind=EventType.RUN_STARTED,
                 contract_id=self._plan.contract_id,
                 effective_policy_hash=self._plan.effective_policy_hash,
+                plan_identity=self._plan.identity,
             )
         )
         if coverage_gaps(self._plan):

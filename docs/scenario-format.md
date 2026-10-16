@@ -75,3 +75,11 @@ scenario now includes a synthetic email response to exercise approved dispatch. 
 `examples/eval-fixtures/` scripts produce canonical evidence for all three scenarios.
 Run `agentsec eval examples` for the expected-pass/expected-fail six-case CI matrix.
 Missing evidence yields INCONCLUSIVE; malformed causal evidence yields ERROR.
+
+## Phase 5 offline lifecycle
+
+See [replay and incidents](replay-incidents.md) for strict evidence bundles, exact versus legacy
+source plan binding, offline substituted security replay, semantic trace diff, evidence-backed
+classification, safe assertion promotion and the local/CI regression gate. Historical evidence
+remains immutable; missing or redacted material is never reconstructed. This does not extend
+model/context coverage or authorize any live execution.

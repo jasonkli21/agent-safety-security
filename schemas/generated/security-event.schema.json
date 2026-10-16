@@ -519,6 +519,40 @@
       "type": "string"
     },
     "JsonValue": {},
+    "PlanIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "compiled_plan_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Compiled Plan Digest",
+          "type": "string"
+        },
+        "compiler_version": {
+          "title": "Compiler Version",
+          "type": "string"
+        },
+        "contract_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Contract Id",
+          "type": "string"
+        },
+        "effective_policy_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Effective Policy Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "contract_id",
+        "compiler_version",
+        "effective_policy_hash",
+        "compiled_plan_digest"
+      ],
+      "title": "PlanIdentity",
+      "type": "object"
+    },
     "PolicyDecision": {
       "additionalProperties": false,
       "properties": {
@@ -893,6 +927,17 @@
           "const": "RUN_STARTED",
           "title": "Kind",
           "type": "string"
+        },
+        "plan_identity": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PlanIdentity"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "scenario_id": {
           "anyOf": [

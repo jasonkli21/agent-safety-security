@@ -1,0 +1,1 @@
+{"categories":["UNAUTHORIZED_TOOL_USE"],"classification_basis":[{"assertion_index":0,"category":"UNAUTHORIZED_TOOL_USE","event_refs":["event-7"],"finding_refs":[],"rule":"ASSERTION_FAILURE"}],"incident_id":"incident-346a695930eaca7ccef734c1","schema_version":"0.1","source_bundle_digest":"sha256:5ffcb3ddec1d7148794db65168071225a33113d613aa9ff521d6fbbf2dbc00a4"}

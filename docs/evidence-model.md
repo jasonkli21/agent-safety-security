@@ -9,7 +9,7 @@ envelope type. Both Python validation and exported JSON Schema reject mismatches
 
 | Event / payload | Evidence represented; limits |
 | --- | --- |
-| RUN_STARTED | Contract ID, effective policy hash, optional scenario; does not authenticate a run. |
+| RUN_STARTED | Contract ID, effective policy hash, optional scenario and compiled plan identity; does not authenticate a run. |
 | TOOL_REQUESTED | Privacy-minimized PolicyRequest, exact-action digest, full policy-input digest, and explicit redacted-field metadata with per-field digests; intent, not permission. |
 | POLICY_EVALUATED | PolicyDecision including outcome, reason codes and policy identity; not dispatch. |
 | APPROVAL_REQUESTED | ApprovalRequest with request ID, action digest and expiry; no approval granted. |
@@ -29,7 +29,7 @@ the stages. See the tested [approval run](../tests/fixtures/events/approval-run.
 and [denied run](../tests/fixtures/events/denied-run.json). An effect observation can follow a
 return. An external side effect may occur without a response, so the model does not assert the
 converse. The synchronous `EventSink.append(SecurityEvent)` protocol now has copy-safe in-memory
-and canonical JSONL implementations in Phase 1. There is no signature chain or replay system.
+and canonical JSONL implementations in Phase 1. There is no signature chain; Phase 5 adds integrity-checked offline replay (see below).
 
 ## Ordering and integrity
 
@@ -105,3 +105,11 @@ returned artifact parents and inherited labels. Exposure must match a prior retu
 dispatch; duplicate exposure for a dispatch is rejected.
 Request evidence retains content-free provenance refs and sink category; the full input/action
 digests include them. Schema remains 0.1; strict older consumers need regenerated schemas.
+
+## Phase 5 offline lifecycle
+
+See [replay and incidents](replay-incidents.md) for strict evidence bundles, exact versus legacy
+source plan binding, offline substituted security replay, semantic trace diff, evidence-backed
+classification, safe assertion promotion and the local/CI regression gate. Historical evidence
+remains immutable; missing or redacted material is never reconstructed. This does not extend
+model/context coverage or authorize any live execution.

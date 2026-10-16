@@ -19,5 +19,6 @@ jobs:
       - run: mypy src
       - run: agentsec examples validate
       - run: agentsec eval examples
+      - run: agentsec regression run --root examples/regressions
       - run: pytest
       - run: python -m build

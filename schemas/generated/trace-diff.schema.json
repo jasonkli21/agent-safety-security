@@ -1,0 +1,106 @@
+{
+  "$defs": {
+    "TraceDifference": {
+      "additionalProperties": false,
+      "properties": {
+        "index": {
+          "title": "Index",
+          "type": "integer"
+        },
+        "replay": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TraceFact"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "source": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TraceFact"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "required": [
+        "index"
+      ],
+      "title": "TraceDifference",
+      "type": "object"
+    },
+    "TraceFact": {
+      "additionalProperties": false,
+      "properties": {
+        "canonical_payload": {
+          "title": "Canonical Payload",
+          "type": "string"
+        },
+        "kind": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "canonical_payload"
+      ],
+      "title": "TraceFact",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "differences": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TraceDifference"
+      },
+      "title": "Differences",
+      "type": "array"
+    },
+    "limitations": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "UNCHANGED",
+        "CHANGED",
+        "INCOMPLETE"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "status"
+  ],
+  "title": "TraceDiff",
+  "type": "object"
+}

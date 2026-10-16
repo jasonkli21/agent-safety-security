@@ -125,3 +125,11 @@ finite exact labels/capabilities/destinations, missing destination and collision
 It separates data tightening/relaxation, exact explanations and authored set changes from ordinary
 authority changes. See [provenance/data flow](provenance-data-flow.md) for the full comparison and
 trusted-input boundary. No generic security percentage or formal equivalence is claimed.
+
+## Phase 5 offline lifecycle
+
+See [replay and incidents](replay-incidents.md) for strict evidence bundles, exact versus legacy
+source plan binding, offline substituted security replay, semantic trace diff, evidence-backed
+classification, safe assertion promotion and the local/CI regression gate. Historical evidence
+remains immutable; missing or redacted material is never reconstructed. This does not extend
+model/context coverage or authorize any live execution.

@@ -20,6 +20,7 @@ htmlcov/
 
 # Local security/test outputs
 *.jsonl
+!examples/replay/source.jsonl
 *.sqlite
 *.sqlite3
 .env

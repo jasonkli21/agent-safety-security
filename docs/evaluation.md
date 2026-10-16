@@ -214,3 +214,11 @@ explicit observations rather than a production provenance adapter. The trajector
 checks DATA_EXPOSED against the prior returned artifact and rejects duplicate/dangling exposure.
 Generated flow expectations come from an independent set oracle; unavailable base-permitted
 witnesses are NOT_RUN. Actual source release/concurrency is verified by local MCP/runtime tests.
+
+## Phase 5 offline lifecycle
+
+See [replay and incidents](replay-incidents.md) for strict evidence bundles, exact versus legacy
+source plan binding, offline substituted security replay, semantic trace diff, evidence-backed
+classification, safe assertion promotion and the local/CI regression gate. Historical evidence
+remains immutable; missing or redacted material is never reconstructed. This does not extend
+model/context coverage or authorize any live execution.

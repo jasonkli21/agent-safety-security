@@ -173,3 +173,11 @@ See [tracked provenance/data flow](provenance-data-flow.md) for full semantics, 
 compatibility and limits. Protection covers tracked released MCP data, not arbitrary user/model
 text. The graph is session-local and grows with observed responses; configured budgets can bound
 session dispatches. Source classification and upstream execution semantics remain operator trust.
+
+## Phase 5 offline lifecycle
+
+See [replay and incidents](replay-incidents.md) for strict evidence bundles, exact versus legacy
+source plan binding, offline substituted security replay, semantic trace diff, evidence-backed
+classification, safe assertion promotion and the local/CI regression gate. Historical evidence
+remains immutable; missing or redacted material is never reconstructed. This does not extend
+model/context coverage or authorize any live execution.

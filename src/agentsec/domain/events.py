@@ -5,6 +5,7 @@ from typing import Annotated, Literal, Self
 from pydantic import ConfigDict, Field, model_validator
 from pydantic_core import PydanticCustomError
 
+from agentsec.compiler.models import PlanIdentity
 from agentsec.contracts.errors import ErrorCode, fail
 from agentsec.domain.approvals import ApprovalDecision, ApprovalRequest
 from agentsec.domain.base import (
@@ -34,6 +35,7 @@ class RunStartedPayload(SecurityModel):
     contract_id: Identifier
     effective_policy_hash: Digest
     scenario_id: Identifier | None = None
+    plan_identity: PlanIdentity | None = None
 
 
 class RunFinishedPayload(SecurityModel):

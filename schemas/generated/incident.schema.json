@@ -1,0 +1,125 @@
+{
+  "$defs": {
+    "ClassificationBasis": {
+      "additionalProperties": false,
+      "properties": {
+        "assertion_index": {
+          "anyOf": [
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Assertion Index"
+        },
+        "category": {
+          "$ref": "#/$defs/SecurityCategory"
+        },
+        "event_refs": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Event Refs",
+          "type": "array"
+        },
+        "finding_refs": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Finding Refs",
+          "type": "array"
+        },
+        "rule": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Rule",
+          "type": "string"
+        }
+      },
+      "required": [
+        "category",
+        "rule"
+      ],
+      "title": "ClassificationBasis",
+      "type": "object"
+    },
+    "SecurityCategory": {
+      "enum": [
+        "PROMPT_INJECTION",
+        "GOAL_HIJACKING",
+        "UNAUTHORIZED_TOOL_USE",
+        "EXCESSIVE_AGENCY",
+        "ARGUMENT_VIOLATION",
+        "APPROVAL_BYPASS",
+        "SECRET_EXFILTRATION",
+        "PII_EXPOSURE",
+        "MEMORY_POISONING",
+        "TOOL_POISONING",
+        "SUPPLY_CHAIN_CHANGE",
+        "RESOURCE_EXHAUSTION",
+        "DELEGATION_ESCALATION",
+        "POLICY_BYPASS",
+        "TRACE_INTEGRITY_FAILURE"
+      ],
+      "title": "SecurityCategory",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "categories": {
+      "items": {
+        "$ref": "#/$defs/SecurityCategory"
+      },
+      "title": "Categories",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "classification_basis": {
+      "items": {
+        "$ref": "#/$defs/ClassificationBasis"
+      },
+      "title": "Classification Basis",
+      "type": "array"
+    },
+    "incident_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Incident Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_bundle_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Source Bundle Digest",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "incident_id",
+    "source_bundle_digest",
+    "categories",
+    "classification_basis"
+  ],
+  "title": "Incident",
+  "type": "object"
+}

@@ -51,13 +51,17 @@ class JsonlEventSink:
         self.close()
 
 
-def read_jsonl(path: Path) -> tuple[SecurityEvent, ...]:
+def read_jsonl(path: Path, *, max_bytes: int | None = None) -> tuple[SecurityEvent, ...]:
     events = []
     line_number = 0
+    total_bytes = 0
     try:
         with path.open("rb") as stream:
             while raw := stream.readline(MAX_BYTES + 1):
                 line_number += 1
+                total_bytes += len(raw)
+                if max_bytes is not None and total_bytes > max_bytes:
+                    raise EvidenceError("SOURCE_EVIDENCE_TOO_LARGE", line_number)
                 line = raw.decode("utf-8")
                 events.append(validate_data(SecurityEvent, parse_document(line, format="json")))
     except (OSError, UnicodeError, ArtifactValidationError) as exc:

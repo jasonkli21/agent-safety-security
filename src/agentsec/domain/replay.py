@@ -1,0 +1,158 @@
+"""Strict artifacts for content-minimized security replay, never model reproduction."""
+
+from enum import StrEnum
+from typing import Literal, Self
+
+from pydantic import field_validator, model_validator
+
+from agentsec.compiler.models import CompiledSecurityPlan, PlanIdentity
+from agentsec.contracts.models import AgentSecurityContract
+from agentsec.domain.base import Digest, Identifier, SecurityModel, VersionedModel
+from agentsec.domain.events import SecurityEvent
+from agentsec.domain.findings import Finding
+from agentsec.domain.scenarios import Assertion
+from agentsec.domain.serialization import content_digest
+from agentsec.domain.taxonomy import SecurityCategory
+from agentsec.domain.tools import ToolDescriptor
+from agentsec.eval.models import AssertionResult
+
+
+class ReplayError(ValueError):
+    def __init__(self, code: str) -> None:
+        self.code = code
+        super().__init__(code)
+
+
+class SourceBinding(StrEnum):
+    EXACT = "EXACT"
+    LEGACY_INFERRED = "LEGACY_INFERRED"
+
+
+class Fidelity(StrEnum):
+    POLICY = "POLICY"
+    SECURITY_RUNTIME = "SECURITY_RUNTIME"
+    BLOCKED = "BLOCKED"
+
+
+class ReplayAssessment(SecurityModel):
+    fidelity: Fidelity
+    source_binding: SourceBinding
+    blockers: frozenset[Identifier] = frozenset()
+    limitations: frozenset[Identifier] = frozenset()
+
+
+class ReplayProgram(VersionedModel):
+    """Ordered requests and metadata-only substitute lifecycles, no executable tools."""
+
+    events: tuple[SecurityEvent, ...]
+    tools: tuple[ToolDescriptor, ...] = ()
+    expectations: tuple[Assertion, ...] = ()
+    findings: tuple[Finding, ...] = ()
+
+    @field_validator("tools")
+    @classmethod
+    def canonical_tools(cls, value: tuple[ToolDescriptor, ...]) -> tuple[ToolDescriptor, ...]:
+        if len({t.tool_id for t in value}) != len(value):
+            raise ReplayError("DUPLICATE_TOOL_ID")
+        return tuple(sorted(value, key=lambda t: t.tool_id))
+
+    @field_validator("findings")
+    @classmethod
+    def canonical_findings(cls, value: tuple[Finding, ...]) -> tuple[Finding, ...]:
+        if len({f.finding_id for f in value}) != len(value):
+            raise ReplayError("DUPLICATE_FINDING_ID")
+        return tuple(sorted(value, key=lambda f: f.finding_id))
+
+
+class ReplayBundle(VersionedModel):
+    source_run_id: Identifier
+    source_trace_id: Identifier
+    source_evidence_digest: Digest
+    source_contract: AgentSecurityContract
+    source_plan: CompiledSecurityPlan
+    program: ReplayProgram
+    assessment: ReplayAssessment
+    bundle_digest: Digest
+
+    @model_validator(mode="after")
+    def integrity(self) -> Self:
+        if content_digest(self.program.events) != self.source_evidence_digest:
+            raise ReplayError("SOURCE_EVIDENCE_DIGEST_MISMATCH")
+        if content_digest(self.model_dump(exclude={"bundle_digest"}, round_trip=True)) != (
+            self.bundle_digest
+        ):
+            raise ReplayError("BUNDLE_DIGEST_MISMATCH")
+        return self
+
+
+class TraceFact(SecurityModel):
+    # JSON is the intentional public projection of already typed event payloads.
+    kind: Identifier
+    canonical_payload: str
+
+
+class TraceDifference(SecurityModel):
+    index: int
+    source: TraceFact | None = None
+    replay: TraceFact | None = None
+
+
+class TraceDiff(VersionedModel):
+    status: Literal["UNCHANGED", "CHANGED", "INCOMPLETE"]
+    differences: tuple[TraceDifference, ...] = ()
+    limitations: frozenset[Identifier] = frozenset()
+
+
+class ReplayResult(VersionedModel):
+    replay_id: Identifier
+    source_bundle_digest: Digest
+    source_identity: PlanIdentity
+    current_identity: PlanIdentity
+    assessment: ReplayAssessment
+    events: tuple[SecurityEvent, ...]
+    diff: TraceDiff
+    assertions: tuple[AssertionResult, ...] = ()
+    findings: tuple[Finding, ...] = ()
+    substituted_dispatch_ids: tuple[Identifier, ...] = ()
+    # Verifier facts in source evidence are never emitted as replayed external effects.
+    external_effects_performed: Literal[False] = False
+
+
+class ClassificationBasis(SecurityModel):
+    category: SecurityCategory
+    rule: Identifier
+    event_refs: tuple[Identifier, ...] = ()
+    finding_refs: tuple[Identifier, ...] = ()
+    assertion_index: int | None = None
+
+
+class Incident(VersionedModel):
+    incident_id: Identifier
+    source_bundle_digest: Digest
+    categories: frozenset[SecurityCategory]
+    classification_basis: tuple[ClassificationBasis, ...]
+
+
+class RegressionState(StrEnum):
+    ACTIVE = "ACTIVE"
+    DRAFT = "DRAFT"
+
+
+class RegressionCase(VersionedModel):
+    regression_id: Identifier
+    source_incident_id: Identifier
+    source_bundle_digest: Digest
+    source_evidence_digest: Digest
+    state: RegressionState
+    reason: Identifier
+    plan: CompiledSecurityPlan | None = None
+    program: ReplayProgram | None = None
+    current_plan: CompiledSecurityPlan | None = None
+
+    @model_validator(mode="after")
+    def active_inputs(self) -> Self:
+        if self.state == RegressionState.ACTIVE and (
+            self.plan is None or self.program is None or not self.program.expectations
+        ):
+            raise ReplayError("INVALID_ACTIVE_REGRESSION")
+        return self

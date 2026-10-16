@@ -2,7 +2,7 @@
 
 **Document:** `docs/architecture.md`  
 **Status:** Phased architecture baseline
-**Scope:** Long-term architecture with implementation guidance through Phases 0–4; last reviewed 2026-10-16
+**Scope:** Long-term architecture with implementation guidance through Phases 0–5; last reviewed 2026-10-16
 **Primary implementation language:** Python 3.12+ initially  
 **Primary deployment model:** Local-first / self-hosted; optional managed control plane later  
 **Initial runtime integration:** MCP  
@@ -1780,4 +1780,14 @@ configuration remains bound by discovery proof. Approvals bind destination and c
 context. No semantic byte matching, label lattice, declassification, initial user/model context
 tracking or model-internal provenance is claimed. See [provenance/data flow](provenance-data-flow.md)
 for normative composition, concurrency, exposure and coverage limits. Replay/incident workflows
-remain Phase 5; no persistence or new protocol dependency enters the provenance core.
+are described in the Phase 5 section below; no persistence or new protocol dependency enters the provenance core.
+
+## Phase 5 offline security lifecycle
+
+Replay validates a canonical JSON bundle and reuses native compiled policy, runtime approval/
+budget ledgers, and protocol-independent provenance over an ordered content-free event program.
+It has no live dispatch port. Source/current plan identities, replay identity, fidelity/blockers
+and source-versus-replay semantic facts remain distinct. Runtime start evidence additively binds
+its exact plan; older producers stay explicitly legacy. Promotion preserves original commitments
+and explicit safe assertions in minimized derived regression material, optionally capturing a
+separately supplied candidate plan. It never modifies policy. See [replay/incidents](replay-incidents.md).
