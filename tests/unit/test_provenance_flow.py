@@ -19,7 +19,7 @@ from agentsec.contracts.models import AgentSecurityContract
 from agentsec.domain.approvals import NormalizedAction, action_digest
 from agentsec.domain.events import DataExposedPayload, ToolReturnedPayload
 from agentsec.domain.policy import PolicyRequest
-from agentsec.domain.provenance import DataOrigin
+from agentsec.domain.provenance import DataArtifactRef, DataOrigin
 from agentsec.domain.serialization import content_digest
 from agentsec.domain.taxonomy import (
     DataLabel,
@@ -403,7 +403,7 @@ def test_dispatch_exception_creates_no_artifact_or_exposure():
             await r.call(tool(), {}, None, dispatch, bound=True)
         assert not r.provenance.snapshot()
         returned = [e.payload for e in sink.events if isinstance(e.payload, ToolReturnedPayload)]
-        assert len(returned) == 1 and not returned[0].artifacts
+        assert not returned
         assert not any(isinstance(e.payload, DataExposedPayload) for e in sink.events)
 
     asyncio.run(scenario())
@@ -444,7 +444,13 @@ def test_exposure_trajectory_requires_exact_prior_return(corruption):
     events = list(observation.events)
     index = next(i for i, e in enumerate(events) if isinstance(e.payload, ToolReturnedPayload))
     returned = events[index].payload
-    artifact = synthetic_artifacts(frozenset({DataLabel.TOOL_OUTPUT}))[0]
+    artifact = DataArtifactRef(
+        schema_version="0.1",
+        artifact_id="trajectory-source",
+        labels=frozenset({DataLabel.TOOL_OUTPUT}),
+        origin=DataOrigin(origin_type="synthetic", trust_class=TrustClass.TOOL_OUTPUT),
+        created_at=NOW,
+    )
     events[index] = events[index].model_copy(
         update={"payload": returned.model_copy(update={"artifacts": (artifact,)})}
     )
@@ -476,6 +482,272 @@ def test_exposure_trajectory_requires_exact_prior_return(corruption):
         validate_evaluation_trajectory(observation)
 
 
+def test_flow_eval_case_proves_return_exposure_then_sink_snapshot():
+    from agentsec.domain.events import DataExposedPayload, ToolRequestedPayload
+    from agentsec.eval.contract_cases import ContractTarget, case_scenario
+    from agentsec.eval.ports import EvaluationContext
+    from agentsec.eval.trajectory import EvaluationError, validate_evaluation_trajectory
+
+    c = contract({"rule_id": "flow", "label": "SECRET", "denied_destinations": ["external"]})
+    plan = compile_contract(c)
+    probe = next(
+        p
+        for p in generate_probes(plan)
+        if p.obligation_kind == "denied_destination" and p.expected == PolicyOutcome.DENY
+    )
+    context = EvaluationContext(run_id="flow-run", trace_id="flow-trace")
+    observation = ContractTarget(plan, probe).run(
+        contract=c, scenario=case_scenario(plan, probe), context=context
+    )
+    requests = [
+        e.payload for e in observation.events if isinstance(e.payload, ToolRequestedPayload)
+    ]
+    assert len(requests) == 2
+    assert not requests[0].request.data_artifact_refs
+    assert len(requests[1].request.data_artifact_refs) == 1
+    assert any(isinstance(e.payload, DataExposedPayload) for e in observation.events)
+    validate_evaluation_trajectory(observation)
+
+    events = list(observation.events)
+    sink_event_index = next(
+        i
+        for i, event in enumerate(events)
+        if isinstance(event.payload, ToolRequestedPayload)
+        and event.payload.request.request_id == requests[1].request.request_id
+    )
+    sink_payload = events[sink_event_index].payload
+    forged_request = sink_payload.request.model_copy(update={"data_artifact_refs": ()})
+    events[sink_event_index] = events[sink_event_index].model_copy(
+        update={"payload": sink_payload.model_copy(update={"request": forged_request})}
+    )
+    corrupted = observation.model_copy(update={"events": tuple(events)})
+    with pytest.raises(EvaluationError, match="INVALID_TRAJECTORY"):
+        validate_evaluation_trajectory(corrupted)
+
+    events = list(observation.events)
+    first_request_index = next(
+        i for i, event in enumerate(events) if isinstance(event.payload, ToolRequestedPayload)
+    )
+    first_request_event = events[first_request_index]
+    first_request_payload = first_request_event.payload
+    fabricated = synthetic_artifacts(frozenset({DataLabel.SECRET}))
+    fake_request = first_request_payload.request.model_copy(
+        update={"data_artifact_refs": fabricated}
+    )
+    events[first_request_index] = first_request_event.model_copy(
+        update={"payload": first_request_payload.model_copy(update={"request": fake_request})}
+    )
+    corrupted = observation.model_copy(update={"events": tuple(events)})
+    with pytest.raises(EvaluationError, match="INVALID_TRAJECTORY"):
+        validate_evaluation_trajectory(corrupted)
+
+
+def test_trajectory_rejects_mismatched_return_lineage_and_dropped_labels():
+    from agentsec.eval.contract_cases import ContractTarget, case_scenario
+    from agentsec.eval.ports import EvaluationContext
+    from agentsec.eval.trajectory import EvaluationError, validate_evaluation_trajectory
+
+    c = contract({"rule_id": "flow", "label": "SECRET", "denied_destinations": ["external"]})
+    plan = compile_contract(c)
+    probe = next(
+        p
+        for p in generate_probes(plan)
+        if p.obligation_kind == "preserve" and p.expected == PolicyOutcome.ALLOW
+    )
+    observation = ContractTarget(plan, probe).run(
+        contract=c,
+        scenario=case_scenario(plan, probe),
+        context=EvaluationContext(run_id="lineage-run", trace_id="lineage-trace"),
+    )
+    events = list(observation.events)
+    returned_index = next(
+        i for i, event in enumerate(events) if isinstance(event.payload, ToolReturnedPayload)
+    )
+    returned_event = events[returned_index]
+    returned = returned_event.payload
+    malformed = returned.artifacts[0].model_copy(
+        update={"parent_artifact_ids": frozenset({"never-exposed"})}
+    )
+    events[returned_index] = returned_event.model_copy(
+        update={"payload": returned.model_copy(update={"artifacts": (malformed,)})}
+    )
+    with pytest.raises(EvaluationError, match="INVALID_TRAJECTORY"):
+        validate_evaluation_trajectory(observation.model_copy(update={"events": tuple(events)}))
+
+
+def test_trajectory_frontier_siblings_and_label_monotonicity():
+    from agentsec.domain.events import (
+        DataExposedPayload,
+        PolicyEvaluatedPayload,
+        ToolDispatchedPayload,
+        ToolRequestedPayload,
+    )
+    from agentsec.eval.contract_cases import ContractTarget, case_scenario
+    from agentsec.eval.ports import EvaluationContext
+    from agentsec.eval.trajectory import EvaluationError, validate_evaluation_trajectory
+
+    c = contract({"rule_id": "flow", "label": "SECRET", "denied_destinations": ["external"]})
+    plan = compile_contract(c)
+    probe = next(
+        p
+        for p in generate_probes(plan)
+        if p.obligation_kind == "preserve" and p.expected == PolicyOutcome.ALLOW
+    )
+    observation = ContractTarget(plan, probe).run(
+        contract=c,
+        scenario=case_scenario(plan, probe),
+        context=EvaluationContext(run_id="siblings-run", trace_id="siblings-trace"),
+    )
+    events = list(observation.events)
+    root = next(
+        event.payload.artifacts[0]
+        for event in events
+        if isinstance(event.payload, ToolReturnedPayload) and event.payload.artifacts
+    )
+    sink_request_index = next(
+        i
+        for i, event in enumerate(events)
+        if isinstance(event.payload, ToolRequestedPayload)
+        and event.payload.request.tool_id == "conformance-tool"
+    )
+    sink_request_event = events[sink_request_index]
+    original_request = sink_request_event.payload
+    original_decision = next(
+        event.payload
+        for event in events[sink_request_index + 1 :]
+        if isinstance(event.payload, PolicyEvaluatedPayload)
+    )
+    original_dispatch = next(
+        event.payload
+        for event in events[sink_request_index + 1 :]
+        if isinstance(event.payload, ToolDispatchedPayload)
+    )
+    original_return = next(
+        event.payload
+        for event in events[sink_request_index + 1 :]
+        if isinstance(event.payload, ToolReturnedPayload)
+    )
+    branch_events = []
+    branch_returns = []
+    children = []
+    for suffix in ("branch-a", "branch-b"):
+        request_id = f"{suffix}-request"
+        decision_id = f"{suffix}-decision"
+        dispatch_id = f"{suffix}-dispatch"
+        digest = content_digest((original_request.action_digest, suffix))
+        request = original_request.request.model_copy(
+            update={"request_id": request_id, "data_artifact_refs": (root,)}
+        )
+        requested = original_request.model_copy(
+            update={"request": request, "action_digest": digest}
+        )
+        decision = original_decision.decision.model_copy(
+            update={"request_id": request_id, "decision_id": decision_id}
+        )
+        evaluated = original_decision.model_copy(update={"decision": decision})
+        dispatch = original_dispatch.model_copy(
+            update={
+                "request_id": request_id,
+                "decision_id": decision_id,
+                "dispatch_id": dispatch_id,
+                "action_digest": digest,
+            }
+        )
+        child = DataArtifactRef(
+            schema_version="0.1",
+            artifact_id=f"{suffix}-artifact",
+            labels=root.labels,
+            origin=root.origin,
+            parent_artifact_ids=frozenset({root.artifact_id}),
+            created_at=NOW,
+        )
+        returned = original_return.model_copy(
+            update={
+                "request_id": request_id,
+                "dispatch_id": dispatch_id,
+                "artifacts": (child,),
+            }
+        )
+        exposed = DataExposedPayload(
+            kind=EventType.DATA_EXPOSED,
+            request_id=request_id,
+            dispatch_id=dispatch_id,
+            tool_id=dispatch.tool_id,
+            artifact=child,
+        )
+        children.append(child)
+        branch_events.extend(
+            [
+                (f"{suffix}-request-event", requested),
+                (f"{suffix}-decision-event", evaluated),
+                (f"{suffix}-dispatch-event", dispatch),
+            ]
+        )
+        branch_returns.extend(
+            [
+                (f"{suffix}-return-event", returned),
+                (f"{suffix}-exposure-event", exposed),
+            ]
+        )
+    branch_events.extend(branch_returns)
+
+    final_request = original_request.request.model_copy(
+        update={"data_artifact_refs": tuple(sorted(children, key=lambda ref: ref.artifact_id))}
+    )
+    events[sink_request_index] = sink_request_event.model_copy(
+        update={"payload": original_request.model_copy(update={"request": final_request})}
+    )
+    prefix = events[:sink_request_index]
+    suffix_events = events[sink_request_index:]
+    added = [
+        observation.events[0].model_copy(
+            update={
+                "event_id": event_id,
+                "sequence": len(prefix) + index,
+                "event_type": payload.kind,
+                "payload": payload,
+            }
+        )
+        for index, (event_id, payload) in enumerate(branch_events)
+    ]
+    complete_events = tuple(
+        event.model_copy(update={"sequence": i})
+        for i, event in enumerate(prefix + added + suffix_events)
+    )
+    coverage = observation.coverage.model_copy(update={"tool_arguments_complete": False})
+    validate_evaluation_trajectory(
+        observation.model_copy(update={"events": complete_events, "coverage": coverage})
+    )
+
+    # A successful sink response must retain labels from its exposed request snapshot.
+    sink_return_index = max(
+        i
+        for i, event in enumerate(observation.events)
+        if isinstance(event.payload, ToolReturnedPayload)
+    )
+    sink_return_event = observation.events[sink_return_index]
+    sink_return = sink_return_event.payload
+    exposed = next(
+        event.payload.artifact
+        for event in observation.events
+        if isinstance(event.payload, DataExposedPayload)
+    )
+    child = DataArtifactRef(
+        schema_version="0.1",
+        artifact_id="bad-child",
+        labels=frozenset({DataLabel.TOOL_OUTPUT}),
+        origin=DataOrigin(origin_type="synthetic", trust_class=TrustClass.TOOL_OUTPUT),
+        parent_artifact_ids=frozenset({exposed.artifact_id}),
+        created_at=NOW,
+    )
+    events = list(observation.events)
+    events[sink_return_index] = sink_return_event.model_copy(
+        update={"payload": sink_return.model_copy(update={"artifacts": (child,)})}
+    )
+    with pytest.raises(EvaluationError, match="INVALID_TRAJECTORY"):
+        validate_evaluation_trajectory(observation.model_copy(update={"events": tuple(events)}))
+
+
 def test_diff_synthetic_grant_rule_id_cannot_hide_data_explanation():
     old = compile_contract(contract())
     new = compile_contract(contract({"rule_id": "diff-base", "label": "SECRET"}))
@@ -485,4 +757,41 @@ def test_diff_synthetic_grant_rule_id_cannot_hide_data_explanation():
         c.old_outcome == c.new_outcome
         for c in changes
         if c.kind == "data_policy_explanation_change"
+    )
+
+
+def test_authored_data_diff_paths_use_rule_ids():
+    before = compile_contract(
+        contract(
+            {
+                "rule_id": "secret-egress",
+                "label": "SECRET",
+                "denied_destinations": ["external"],
+            }
+        )
+    )
+    after = compile_contract(
+        contract(
+            {
+                "rule_id": "secret-egress",
+                "label": "SECRET",
+                "denied_destinations": ["external", "partner"],
+            }
+        )
+    )
+    changes = semantic_diff(before, after).changes
+    authored = [change for change in changes if change.kind.startswith("data_denied_")]
+    assert authored and {change.source_ref for change in authored} == {"data.rules/secret-egress"}
+    added = compile_contract(
+        contract({"rule_id": "pii-egress", "label": "PII", "denied_destinations": ["external"]})
+    )
+    additions = semantic_diff(compile_contract(contract()), added).changes
+    assert any(
+        change.kind == "data_rule_added" and change.source_ref == "data.rules/pii-egress"
+        for change in additions
+    )
+    removals = semantic_diff(added, compile_contract(contract())).changes
+    assert any(
+        change.kind == "data_rule_removed" and change.source_ref == "data.rules/pii-egress"
+        for change in removals
     )

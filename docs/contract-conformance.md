@@ -59,8 +59,9 @@ shadowed rules; extra reasons and missing provenance fail. Scope-excluded/defaul
 have no matched rules.
 
 Each coverage row separates compiled intent, runtime support, adapter requirement/proof,
-generated probe IDs, generated evaluation IDs and execution status. Without `--run`, execution
-is NOT_RUN. Budget/timeout atoms are runtime-supported but have no generated policy cases;
+source/sink classification completeness, source/sink runtime reachability, generated probe IDs,
+generated evaluation IDs and execution status. Runtime reachability is a topology witness, not
+evidence that the MCP path was executed. Without `--run`, execution is NOT_RUN. Budget/timeout atoms are runtime-supported but have no generated policy cases;
 stateful behavior remains verified by the runtime tests. Grouped identity and task-scope atoms
 also have no generated IDs and stay NOT_RUN: valid requests do not establish mismatch enforcement.
 The finite partition still exercises task capability/resource exclusions, but does not claim full
@@ -107,13 +108,17 @@ Data atoms compile into runtime-supported adapter-required rules. Independent se
 obligations use base ALLOW/REQUIRE_APPROVAL witnesses and verify exact reasons/matched IDs for
 each configured capability/destination restriction, missing context, inherited source labels,
 and multiple-label any-deny-wins. An unreachable axis becomes NOT_RUN with an explicit reason;
-ordinary denial cannot pass it vacuously. Synthetic refs are derived with the provenance service.
-The Phase 1 bridge uses this trusted preconstructed context; separate MCP/runtime tests verify
-actual guarded exposure and concurrent trajectories. Generated checks make no model-robustness,
+ordinary denial cannot pass it vacuously. Direct probes may use trusted synthetic refs. The Phase 1
+bridge emits a labeled source return and DATA_EXPOSED event before the later sink request.
+Trajectory validation reconstructs request-time frontiers and verifies returned lineage and label
+inheritance; separate MCP/runtime tests verify actual guarded exposure and concurrent trajectories.
+Generated checks make no model-robustness,
 classifier or complete context-capture claim.
 
 Coverage separates required provenance, source/sink classification requirements and proof
-statuses, generated obligation/eval IDs, execution status, and the tracked-data adapter boundary.
+statuses, source/sink runtime reachability, generated obligation/eval IDs, execution status, and
+the tracked-data adapter boundary. `adapter_status=COVERED` means classification and required
+reachability are complete; it does not mean a real runtime flow was exercised.
 Absent discovery remains UNPROVEN. Changed source/sink binding fields invalidate snapshot proof.
 Pure data-policy diff invokes the native evaluator with an equal synthetic base grant across
 finite exact labels/capabilities/destinations, missing destination and collision-free OTHERs.

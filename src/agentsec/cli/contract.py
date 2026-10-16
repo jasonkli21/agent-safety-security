@@ -58,8 +58,10 @@ def display(report: BaseModel, format: Format) -> None:
                 f"{atom.source_ref}: compiled={atom.compiled} "
                 f"runtime_supported={atom.runtime_supported} "
                 f"adapter={atom.adapter_status} "
-                f"source={atom.source_classification_status} "
-                f"sink={atom.sink_classification_status} "
+                f"source_classification={atom.source_classification_status} "
+                f"sink_classification={atom.sink_classification_status} "
+                f"source_reachability={atom.source_runtime_status} "
+                f"sink_reachability={atom.sink_runtime_status} "
                 f"probes={len(atom.probe_ids)}/{atom.probe_status} "
                 f"eval_cases={len(atom.eval_case_ids)}/{atom.eval_status}"
             )

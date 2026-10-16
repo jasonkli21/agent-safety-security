@@ -96,8 +96,12 @@ same artifact only after the response guard permits release. ENFORCE records thi
 under the provenance frontier lock before committing exposure/returning; a write failure prevents
 release and poisons subsequent calls. Withheld responses remain returned but unexposed.
 Tool error bodies that are released are also exposed; transport exceptions create no artifact.
+Because a transport exception confirms no upstream response, it emits no `TOOL_RETURNED` event;
+the dispatch event remains the last confirmed lifecycle fact.
 SHADOW forwards and tracks actual output while preserving deny/error evidence and signals.
-DISABLED exposure makes no enforcement claim. Phase 1 trajectory validation requires exposure
-to match a prior returned artifact/dispatch and rejects duplicate exposure for that dispatch.
+DISABLED exposure makes no enforcement claim. Phase 1 trajectory validation reconstructs the
+exposed frontier, requires request provenance to match the snapshot at request time, and validates
+returned artifact parents and inherited labels. Exposure must match a prior returned artifact/
+dispatch; duplicate exposure for a dispatch is rejected.
 Request evidence retains content-free provenance refs and sink category; the full input/action
 digests include them. Schema remains 0.1; strict older consumers need regenerated schemas.

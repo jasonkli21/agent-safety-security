@@ -150,7 +150,7 @@ def semantic_adapter_proof(
         if not atom.adapter_required:
             continue
         if atom.source_ref.startswith("data.rules/"):
-            # All released tools may be sources and all later calls receive ambient context.
+            # Classification completeness and exact per-rule runtime witnesses are separate.
             if registry:
                 rule = next(
                     r for r in plan.data_rules if atom.source_ref == f"data.rules/{r.rule_id}"
@@ -172,10 +172,26 @@ def semantic_adapter_proof(
                     )
                     for b in bindings
                 )
+                source_reachable = any(
+                    b is not None
+                    and (
+                        rule.label in {DataLabel.TOOL_OUTPUT, DataLabel.UNTRUSTED_CONTENT}
+                        or rule.label in (b.output_data_labels or ())
+                    )
+                    for b in bindings
+                )
+                sink_reachable = not (rule.allowed_destinations or rule.denied_destinations) or any(
+                    b is not None
+                    and b.data_sink_destination
+                    in (rule.allowed_destinations | rule.denied_destinations)
+                    for b in bindings
+                )
                 proof[atom.atom_id] = AdapterAtomProof(
                     atom_id=atom.atom_id,
                     covered=source_ok
                     and sink_ok
+                    and source_reachable
+                    and sink_reachable
                     and all(
                         entry.binding is not None
                         and entry.binding.capability in entry.descriptor.capabilities
@@ -183,6 +199,8 @@ def semantic_adapter_proof(
                     ),
                     source_classification_covered=source_ok,
                     sink_classification_covered=sink_ok,
+                    source_runtime_reachable=source_reachable,
+                    sink_runtime_reachable=sink_reachable,
                 )
             continue
         if atom.source_ref == "task_scope":

@@ -68,8 +68,9 @@ New binding fields are deliberately distinct from existing `data_access_labels` 
 
 All returned bodies, including upstream tool errors, receive `TOOL_OUTPUT` and
 `UNTRUSTED_CONTENT`, explicit output labels, and inherited request labels. A transport exception
-without returned content creates no artifact. `TOOL_RETURNED.artifacts` records factual returned
-artifacts before output validation. An ENFORCE-rejected response never updates exposed context.
+without returned content creates neither an artifact nor a `TOOL_RETURNED` event; dispatch remains
+the last confirmed lifecycle fact. `TOOL_RETURNED.artifacts` records factual returned artifacts
+before output validation. An ENFORCE-rejected response never updates exposed context.
 
 For a response committed to release, the engine holds its frontier lock, emits typed
 `DATA_EXPOSED` evidence, and then commits the frontier before runtime returns. There is no await
@@ -88,6 +89,14 @@ ENFORCE startup; SHADOW records gaps and affected calls get explicit context ERR
 `data_source_classification:NAME` / `data_sink_destination:NAME` details. No-rule configurations
 remain compatible. Discovery proof binds exact plan and serialized bindings; changing source
 labels or sink category invalidates old proof. Proof is trusted metadata, not attestation.
+Coverage reports classification completeness separately from per-rule runtime reachability:
+`source_runtime_status` requires an actual bound source with the exact explicit label (or any
+bound source for automatic output labels), while `sink_runtime_status` requires a bound sink in an
+exact destination named by that rule. Thus reviewed empty labels can be classification `COVERED`
+while a SECRET rule's source reachability is `UNREACHABLE`. `adapter_status=COVERED` requires both
+complete classifications and required reachability. This establishes a possible adapter witness,
+not that a real runtime flow was executed; generated synthetic policy probes remain a separate
+proof dimension.
 
 ## Verification and examples
 
@@ -108,12 +117,14 @@ intentional; real integrations must conservatively classify all relevant sources
 
 Generated conformance has independent set-based expectations, exact reasons/rule IDs, and
 base-permitted witnesses for each capability/destination axis. Unreachable obligations are
-explicit NOT_RUN with a reason. Synthetic refs derive from labeled source refs through the
-provenance service; generated Phase 1 cases exercise trusted preconstructed context and
-policy/evidence behavior, not real MCP exposure. Separate local MCP tests establish actual
-source release, cross-call blocking, response rejection and shadow behavior; concurrency tests
-exercise runtime frontier causality. Coverage reports separate source/sink proof, required
-provenance, generated obligations and execution; they state the unobserved-context boundary.
+explicit NOT_RUN with a reason. Direct policy probes may use synthetic refs. Generated Phase 1
+flow cases instead emit a source request, returned labeled artifact and DATA_EXPOSED event before
+the sink request. The trajectory validator reconstructs that exposed frontier, verifies each
+request snapshot and checks returned parent IDs and inherited labels while preserving concurrent
+sibling branches. This proves the synthetic evidence path; separate local MCP tests establish
+actual source release, cross-call blocking, response rejection and shadow behavior. Coverage
+reports keep classification, runtime reachability, generated obligations and execution separate,
+and state the unobserved-context boundary.
 
 Diff compares ordinary authority separately from the data clamp. For data, it gives both plans
 the same synthetic base grant and invokes the native evaluator across the union of labels,

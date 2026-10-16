@@ -107,7 +107,12 @@ def semantic_diff(old: CompiledSecurityPlan, new: CompiledSecurityPlan) -> Seman
     for label in sorted(old_data.keys() | new_data.keys()):
         a, b = old_data.get(label), new_data.get(label)
         if a is None or b is None:
-            change("data_rule_added" if a is None else "data_rule_removed", f"data.rules/{label}")
+            rule = b if a is None else a
+            assert rule is not None
+            change(
+                "data_rule_added" if a is None else "data_rule_removed",
+                f"data.rules/{rule.rule_id}",
+            )
         else:
             for field in (
                 "allowed_capabilities",
@@ -116,7 +121,7 @@ def semantic_diff(old: CompiledSecurityPlan, new: CompiledSecurityPlan) -> Seman
                 "denied_destinations",
             ):
                 if getattr(a, field) != getattr(b, field):
-                    change(f"data_{field}_change", f"data.rules/{label}")
+                    change(f"data_{field}_change", f"data.rules/{b.rule_id}")
     base_rule_id = sentinel(
         {r.rule_id for p in (old, new) for r in p.rules}
         | {r.rule_id for p in (old, new) for r in p.data_rules},

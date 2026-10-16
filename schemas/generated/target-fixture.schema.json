@@ -406,6 +406,14 @@
           "default": null,
           "title": "Resource"
         },
+        "response_artifacts": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/DataArtifactRef"
+          },
+          "title": "Response Artifacts",
+          "type": "array"
+        },
         "tool_id": {
           "maxLength": 128,
           "minLength": 1,

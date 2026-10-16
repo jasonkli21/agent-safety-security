@@ -37,7 +37,7 @@ SHA cannot be embedded in this file without changing it.
   Existing data_access_labels retains its prior meaning. Tool errors that are returned remain
   untrusted output; transport exceptions produce no artifact. SHADOW retains true decisions,
   signals and exposed output; DISABLED has no enforcement decision.
-- Independent, non-vacuous generated flow obligations, trusted-context Phase 1 cases, explicit
+- Independent, non-vacuous generated flow obligations, source-return/exposure Phase 1 cases, explicit
   non-derivable NOT_RUN, dimensioned coverage and finite exact data-policy diff independent of
   ordinary tool-authority changes. Data changes no longer appear as unsupported intent.
 - Synthetic source→external and untrusted→memory example pair, updated focused docs, repository
@@ -98,13 +98,12 @@ trusted request producers, as it already assumes trusted principal/capability me
   UNSUPPORTED_RESOURCE_COVERAGE for all binding-input gaps. Exact gap names distinguish
   data_source_classification and data_sink_destination; affected SHADOW calls use
   DATA_FLOW_CONTEXT_MISSING / UNSUPPORTED_DATA_COVERAGE. No divergent coverage subsystem exists.
-- Generated Phase 1 cases inject trusted synthetic derived refs into the existing fixture/action/
-  evidence path. They verify the data-policy clamp and exact explanation, not a synthetic MCP
-  transport/exposure lifecycle. Real local SDK source→sink tests and runtime concurrency tests
-  establish exposure/propagation separately. The provenance service constructs source/derived
-  refs, while expected decisions use independent declarative label/set obligations. Missing
-  base-permitted axis witnesses are explicitly NOT_RUN, never vacuous PASS. This keeps the
-  Phase 1 bridge small and avoids a second provenance implementation/event producer.
+- Direct policy probes inject trusted synthetic derived refs to verify the policy clamp and exact
+  explanation. Generated Phase 1 flow cases instead emit a labeled source return and exposure
+  before making the sink request. The trajectory validator reconstructs the exposed frontier and
+  verifies request snapshots, returned parents, inherited labels and sibling-branch compaction.
+  Expected decisions remain independent declarative label/set obligations. Missing base-permitted
+  axis witnesses are explicitly NOT_RUN, never vacuous PASS.
 - Data diff gives both compiled plans an identical synthetic base grant and removes task scope
   only for the pure clamp comparison; real authority/scope differences still use the original
   native partition. Synthetic grant ID and OTHER values avoid collisions with either plan.
@@ -175,6 +174,41 @@ Reviewed the prompt's failure-mode list against the implementation and focused t
 
 No substantive self-review issue remains unresolved in this implementation. These checks are
 self-review, not independent approval.
+
+## Independent review fixes
+
+The follow-up review identified four issues and this report records their fixes:
+
+- Adapter proof now separates reviewed source/sink classification from per-rule source/sink
+  runtime reachability. `adapter_status=COVERED` requires both classification completeness and
+  any required exact topology witnesses; it does not claim that the runtime flow was exercised.
+- Evaluation trajectory validation reconstructs the exposed artifact frontier, checks every
+  request snapshot, validates returned artifact parents and inherited labels, and preserves
+  concurrent sibling branches. Generated Phase 1 flow cases now include source return/exposure
+  before the sink request.
+- Dispatcher exceptions no longer emit `TOOL_RETURNED`; dispatch is the last factual lifecycle
+  event when the upstream returns no response.
+- Authored data-rule diff paths use `data.rules/{rule_id}`.
+
+### Review-fix verification
+
+| Exact command | Result |
+| --- | --- |
+| `.venv/bin/ruff check .` | PASS |
+| `.venv/bin/ruff format --check .` | PASS, 114 files formatted |
+| `.venv/bin/mypy src` | PASS, 68 source files |
+| `.venv/bin/pytest -q tests/unit/test_provenance_flow.py tests/unit/test_runtime_state.py tests/integration/test_mcp_gateway.py` | PASS, 109 tests |
+| `.venv/bin/pytest -q` | PASS, 553 tests |
+| `.venv/bin/agentsec schema export --out schemas/generated` | PASS; generated schemas refreshed from source models |
+| `.venv/bin/agentsec examples validate && .venv/bin/agentsec eval examples` | PASS; 3 contracts, 3 scenarios, all expected outcomes matched |
+| `.venv/bin/agentsec protect mcp --contract examples/mcp/flow-contract.yaml --config examples/mcp/flow-gateway.yaml --check` | PASS, ENFORCE |
+| `.venv/bin/agentsec contract test examples/mcp/flow-contract.yaml --format json` | PASS; direct probes and Phase 1 cases matched |
+| `.venv/bin/python -m build --no-isolation` | PASS; sdist and wheel (existing optional examples JSON glob warning) |
+| `git diff --check` | PASS |
+
+The full suite includes regressions for classification versus source/sink reachability, generated
+source-return/exposure causality, forged/omitted request provenance, returned parent mismatch,
+inherited-label loss, no-return transport failures and rule-ID diff paths. No Phase 5 scope was added.
 
 ## Known limitations and readiness
 

@@ -13,6 +13,7 @@ from agentsec.domain.events import (
     ToolReturnedPayload,
     validate_event_sequence,
 )
+from agentsec.domain.provenance import DataArtifactRef
 from agentsec.domain.taxonomy import ApprovalOutcome, EnforcementMode, EventType, PolicyOutcome
 from agentsec.eval.observations import EvaluationObservation, TextSurface
 
@@ -42,9 +43,14 @@ def validate_evaluation_trajectory(observation: EvaluationObservation) -> None:
     dispatches: dict[str, ToolDispatchedPayload] = {}
     returns: dict[str, ToolReturnedPayload] = {}
     exposures: set[str] = set()
+    exposed_artifact_ids: set[str] = set()
+    returned_artifacts: dict[str, DataArtifactRef] = {}
+    exposed_frontier: dict[str, DataArtifactRef] = {}
+    request_artifact_snapshots: dict[str, tuple[DataArtifactRef, ...]] = {}
     redeemed: set[str] = set()
     start: RunStartedPayload | None = None
     terminal = False
+    provenance_complete = observation.coverage.event_stream_complete
     for index, event in enumerate(events):
         require(event.run_id == observation.run_id and event.trace_id == observation.trace_id)
         require(not terminal)
@@ -57,6 +63,10 @@ def validate_evaluation_trajectory(observation: EvaluationObservation) -> None:
             terminal = True
         elif isinstance(p, ToolRequestedPayload):
             require(p.request.request_id not in requests)
+            snapshot = tuple(exposed_frontier[k] for k in sorted(exposed_frontier))
+            if provenance_complete:
+                require(p.request.data_artifact_refs == snapshot)
+            request_artifact_snapshots[p.request.request_id] = snapshot
             if p.redacted_fields:
                 require(p.policy_input_digest is not None)
             if "task_scope" in p.redacted_fields:
@@ -123,13 +133,31 @@ def validate_evaluation_trajectory(observation: EvaluationObservation) -> None:
             require(p.request_id == dispatch.request_id)
             if isinstance(p, ToolReturnedPayload):
                 require(p.tool_id == dispatch.tool_id and p.dispatch_id not in returns)
+                snapshot = request_artifact_snapshots[p.request_id]
+                parent_ids = frozenset(a.artifact_id for a in snapshot)
+                parent_labels = frozenset(label for a in snapshot for label in a.labels)
+                for artifact in p.artifacts:
+                    require(artifact.artifact_id not in returned_artifacts)
+                    if provenance_complete:
+                        require(artifact.parent_artifact_ids == parent_ids)
+                        require(parent_labels <= artifact.labels)
+                    returned_artifacts[artifact.artifact_id] = artifact
                 returns[p.dispatch_id] = p
         elif isinstance(p, DataExposedPayload):
             require(p.dispatch_id in returns and p.dispatch_id not in exposures)
             returned = returns[p.dispatch_id]
             require(p.request_id == returned.request_id and p.tool_id == returned.tool_id)
             require(p.artifact in returned.artifacts)
+            registered_artifact = returned_artifacts.get(p.artifact.artifact_id)
+            require(
+                registered_artifact == p.artifact
+                and p.artifact.artifact_id not in exposed_artifact_ids
+            )
+            for parent_id in p.artifact.parent_artifact_ids:
+                exposed_frontier.pop(parent_id, None)
+            exposed_frontier[p.artifact.artifact_id] = p.artifact
             exposures.add(p.dispatch_id)
+            exposed_artifact_ids.add(p.artifact.artifact_id)
     if observation.coverage.event_stream_complete:
         require(start is not None and terminal)
     source_ids = [t.source_id for t in observation.text_observations]

@@ -206,9 +206,7 @@ def test_attempt_consumes_budget_even_if_upstream_errors():
         with pytest.raises(RuntimeFailure, match="BUDGET_EXCEEDED"):
             await gateway.call(tool(), {}, None, forward, bound=True)
         assert len(attempts) == 1
-        assert [
-            e.payload.success for e in sink.events if e.event_type == EventType.TOOL_RETURNED
-        ] == [False]
+        assert not [e for e in sink.events if e.event_type == EventType.TOOL_RETURNED]
 
     asyncio.run(scenario())
 

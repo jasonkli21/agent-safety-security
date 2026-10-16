@@ -165,7 +165,8 @@ every active binding. Preflight/discovery refuse ENFORCE with missing classifica
 records gaps/affected-call context ERROR and forwards; DISABLED records no policy result.
 
 Runtime creates returned artifacts before validation, writes DATA_EXPOSED before release and
-commits exposure atomically, preserving concurrent branches. ENFORCE response rejection or
+commits exposure atomically, preserving concurrent branches. A transport exception emits no
+TOOL_RETURNED because the upstream did not return a response. ENFORCE response rejection or
 critical exposure-record failure does not taint context. Approval and policy-input digests bind
 provenance/destination. Data source/sink proof uses the exact existing plan/discovery identity.
 See [tracked provenance/data flow](provenance-data-flow.md) for full semantics, synthetic examples,

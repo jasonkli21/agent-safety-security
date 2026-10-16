@@ -18,6 +18,7 @@ from agentsec.domain.base import CapabilityId, Identifier, NonEmpty, SecurityMod
 from agentsec.domain.events import (
     ApprovalDecidedPayload,
     ApprovalRequestedPayload,
+    DataExposedPayload,
     EventPayload,
     PolicyEvaluatedPayload,
     RunFinishedPayload,
@@ -61,6 +62,7 @@ class ToolCallStep(SecurityModel):
     resource: NonEmpty | None = None
     data_artifact_refs: tuple[DataArtifactRef, ...] = ()
     data_destination: Identifier | None = None
+    response_artifacts: tuple[DataArtifactRef, ...] = ()
     _canonical_artifacts = field_validator("data_artifact_refs")(canonical_artifacts)
     policy_outcome: PolicyOutcome | None = None
     reason_codes: frozenset[ReasonCode] = frozenset()
@@ -289,9 +291,20 @@ class FixtureTarget:
                             request_id=request.request_id,
                             tool_id=tool.tool_id,
                             success=True,
+                            artifacts=step.response_artifacts,
                             response_hash=content_digest(response),
                         )
                     )
+                    for artifact in step.response_artifacts:
+                        emit(
+                            DataExposedPayload(
+                                kind=EventType.DATA_EXPOSED,
+                                dispatch_id=dispatch_id,
+                                request_id=request.request_id,
+                                tool_id=tool.tool_id,
+                                artifact=artifact,
+                            )
+                        )
                     if step.external_sink_text is not None:
                         texts.append(
                             TextObservation(

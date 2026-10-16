@@ -91,6 +91,12 @@ class AtomCoverage(SemanticAtom):
     sink_classification_status: Literal["NOT_REQUIRED", "UNPROVEN", "COVERED", "UNCOVERED"] = (
         "NOT_REQUIRED"
     )
+    source_runtime_status: Literal["NOT_REQUIRED", "UNPROVEN", "REACHABLE", "UNREACHABLE"] = (
+        "NOT_REQUIRED"
+    )
+    sink_runtime_status: Literal["NOT_REQUIRED", "UNPROVEN", "REACHABLE", "UNREACHABLE"] = (
+        "NOT_REQUIRED"
+    )
     adapter_status: Literal["NOT_REQUIRED", "UNPROVEN", "COVERED", "UNCOVERED"]
     probe_ids: tuple[str, ...]
     eval_case_ids: tuple[str, ...]
@@ -118,6 +124,8 @@ class AdapterAtomProof(SecurityModel):
     covered: bool
     source_classification_covered: bool | None = None
     sink_classification_covered: bool | None = None
+    source_runtime_reachable: bool | None = None
+    sink_runtime_reachable: bool | None = None
 
 
 class AdapterProof(VersionedModel):
@@ -166,6 +174,19 @@ def coverage_report(
                 else "UNCOVERED"
             )
 
+        def runtime_status(
+            required: bool, reachable: bool | None
+        ) -> Literal["NOT_REQUIRED", "UNPROVEN", "REACHABLE", "UNREACHABLE"]:
+            return (
+                "NOT_REQUIRED"
+                if not required
+                else "UNPROVEN"
+                if reachable is None
+                else "REACHABLE"
+                if reachable
+                else "UNREACHABLE"
+            )
+
         rows.append(
             AtomCoverage(
                 **atom.model_dump(),
@@ -195,6 +216,15 @@ def coverage_report(
                     data_rule is not None
                     and bool(data_rule.allowed_destinations or data_rule.denied_destinations),
                     proof.sink_classification_covered if proof else None,
+                ),
+                source_runtime_status=runtime_status(
+                    data_rule is not None,
+                    proof.source_runtime_reachable if proof else None,
+                ),
+                sink_runtime_status=runtime_status(
+                    data_rule is not None
+                    and bool(data_rule.allowed_destinations or data_rule.denied_destinations),
+                    proof.sink_runtime_reachable if proof else None,
                 ),
                 adapter_status=(
                     "NOT_REQUIRED"

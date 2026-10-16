@@ -26,7 +26,13 @@ from agentsec.cli.main import app
 from agentsec.contracts.loader import load_artifact, load_contract, validate_data
 from agentsec.domain.approvals import ApprovalDecision
 from agentsec.domain.serialization import canonical_json
-from agentsec.domain.taxonomy import ApprovalOutcome, EnforcementMode, EventType, PolicyOutcome
+from agentsec.domain.taxonomy import (
+    ApprovalOutcome,
+    DataLabel,
+    EnforcementMode,
+    EventType,
+    PolicyOutcome,
+)
 from agentsec.evidence.memory import InMemoryEventSink
 from agentsec.runtime.events import RuntimeEvents
 from agentsec.runtime.gateway import RuntimeGateway
@@ -1007,12 +1013,108 @@ def test_phase4_classification_gaps_and_proof_freshness(field, gap):
 
 
 def test_phase4_automatic_labels_need_no_extra_source_declaration():
+    from importlib.util import module_from_spec, spec_from_file_location
+
+    from agentsec.adapters.mcp.coverage import semantic_adapter_proof
+    from agentsec.compiler import compile_contract
+
     c = flow_contract("UNTRUSTED_CONTENT", "memory")
     data = flow_configuration().model_dump(mode="json")
     for binding in data["tool_bindings"]:
         binding["output_data_labels"] = None
     cfg = validate_data(McpGatewayConfig, data)
     assert not configured_resource_coverage_gaps(c, cfg.tool_bindings)
+    spec = spec_from_file_location("flow_example", ROOT / "examples/mcp/upstream_server.py")
+    assert spec and spec.loader
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    registry, _ = discover(module.TOOLS, cfg)
+    proof = semantic_adapter_proof(compile_contract(c), registry)
+    atom = next(a for a in proof.atoms if a.atom_id.startswith("data.rules/"))
+    assert atom.source_runtime_reachable and atom.sink_runtime_reachable and atom.covered
+
+
+def test_phase4_coverage_separates_classification_from_rule_reachability():
+    from dataclasses import replace
+    from importlib.util import module_from_spec, spec_from_file_location
+
+    from agentsec.adapters.mcp.coverage import discovery_snapshot_digest, semantic_adapter_proof
+    from agentsec.compiler import compile_contract
+    from agentsec.compiler.reporting import coverage_report
+
+    contract = flow_contract("SECRET", "external")
+    plan = compile_contract(contract)
+    spec = spec_from_file_location("flow_example", ROOT / "examples/mcp/upstream_server.py")
+    assert spec and spec.loader
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    registry, _ = discover(module.TOOLS, flow_configuration())
+    source_id = "data.rules/flow"
+
+    no_secret_registry = {
+        name: replace(
+            entry,
+            binding=entry.binding.model_copy(update={"output_data_labels": frozenset()}),
+        )
+        for name, entry in registry.items()
+    }
+    proof = semantic_adapter_proof(plan, no_secret_registry)
+    row = next(
+        item
+        for item in coverage_report(
+            plan,
+            adapter_proof=proof,
+            discovery_snapshot_digest=discovery_snapshot_digest(no_secret_registry),
+        ).atoms
+        if item.atom_id == source_id
+    )
+    assert row.source_classification_status == "COVERED"
+    assert row.source_runtime_status == "UNREACHABLE"
+    assert row.sink_runtime_status == "REACHABLE"
+    assert row.adapter_status == "UNCOVERED"
+
+    source_registry = {
+        **no_secret_registry,
+        "search": replace(
+            no_secret_registry["search"],
+            binding=no_secret_registry["search"].binding.model_copy(
+                update={"output_data_labels": frozenset({DataLabel.SECRET})}
+            ),
+        ),
+    }
+    internal_registry = {
+        name: replace(
+            entry,
+            binding=entry.binding.model_copy(update={"data_sink_destination": "internal"}),
+        )
+        for name, entry in source_registry.items()
+    }
+    proof = semantic_adapter_proof(plan, internal_registry)
+    row = next(
+        item
+        for item in coverage_report(
+            plan,
+            adapter_proof=proof,
+            discovery_snapshot_digest=discovery_snapshot_digest(internal_registry),
+        ).atoms
+        if item.atom_id == source_id
+    )
+    assert row.source_runtime_status == "REACHABLE"
+    assert row.sink_runtime_status == "UNREACHABLE"
+    assert row.adapter_status == "UNCOVERED"
+
+    reachable_registry = {
+        **internal_registry,
+        "send_email": replace(
+            internal_registry["send_email"],
+            binding=internal_registry["send_email"].binding.model_copy(
+                update={"data_sink_destination": "external"}
+            ),
+        ),
+    }
+    proof = semantic_adapter_proof(plan, reachable_registry)
+    row = next(item for item in proof.atoms if item.atom_id == source_id)
+    assert row.source_runtime_reachable and row.sink_runtime_reachable and row.covered
 
 
 def test_phase4_approval_binds_changed_context_for_identical_arguments():

@@ -380,15 +380,6 @@ class RuntimeGateway:
                 )
                 raise
             except Exception as exc:
-                self.events.emit(
-                    ToolReturnedPayload(
-                        kind=EventType.TOOL_RETURNED,
-                        dispatch_id=dispatch_id,
-                        request_id=request.request_id,
-                        tool_id=tool.tool_id,
-                        success=False,
-                    )
-                )
                 raise RuntimeFailure("UPSTREAM_FAILURE") from exc
             artifact = self.provenance.derive(
                 DataOrigin(

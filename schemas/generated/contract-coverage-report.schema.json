@@ -102,6 +102,17 @@
           "title": "Sink Classification Status",
           "type": "string"
         },
+        "sink_runtime_status": {
+          "default": "NOT_REQUIRED",
+          "enum": [
+            "NOT_REQUIRED",
+            "UNPROVEN",
+            "REACHABLE",
+            "UNREACHABLE"
+          ],
+          "title": "Sink Runtime Status",
+          "type": "string"
+        },
         "source_classification_required": {
           "default": false,
           "title": "Source Classification Required",
@@ -120,6 +131,17 @@
         },
         "source_ref": {
           "title": "Source Ref",
+          "type": "string"
+        },
+        "source_runtime_status": {
+          "default": "NOT_REQUIRED",
+          "enum": [
+            "NOT_REQUIRED",
+            "UNPROVEN",
+            "REACHABLE",
+            "UNREACHABLE"
+          ],
+          "title": "Source Runtime Status",
           "type": "string"
         }
       },
