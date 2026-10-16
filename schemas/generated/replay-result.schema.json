@@ -2230,7 +2230,14 @@
       "type": "string"
     },
     "source_identity": {
-      "$ref": "#/$defs/PlanIdentity"
+      "anyOf": [
+        {
+          "$ref": "#/$defs/PlanIdentity"
+        },
+        {
+          "type": "null"
+        }
+      ]
     },
     "substituted_dispatch_ids": {
       "default": [],

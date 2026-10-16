@@ -64,12 +64,16 @@ New native runtime RUN_STARTED events add optional `plan_identity` (contract ID,
 version, effective policy hash, compiled-plan digest). `EXACT` means the supplied source plan
 matches that recorded identity, not a signature or attestation. Legacy events remain readable
 and use `LEGACY_INFERRED`: a later compilation is not proof of historical runtime identity.
+For those results, `source_identity` is null; the compiled bundle source plan is only an
+interpretation of the supplied contract. Legacy non-approval policy replay remains available,
+but approval-dependent replay is blocked with `APPROVAL_SOURCE_PLAN_UNBOUND` and is INCOMPLETE.
 The scripted fixture producer stays legacy because it deliberately does not execute native
 policy. Compiler semantics/version remain `phase4-v1`. Public artifact schema versions remain
 `0.1` under the existing additive pre-1.0 convention; strict older readers need refreshed schemas.
 
-A replay result records source bundle digest, source and current plan identities, separate replay
-identity, deterministic events, substituted dispatch IDs, findings, assertion outcomes and diff.
+A replay result records source bundle digest, the recorded source plan identity when known,
+current plan identity, separate replay identity, deterministic events, substituted dispatch IDs,
+findings, assertion outcomes and diff.
 Source input is never changed. Derived replay envelope and decision IDs are deterministic and
 separate from the source; source request/approval/dispatch/artifact IDs are retained as script
 correlation references, scoped by the new run/trace. Full-action hashes remain historical action
@@ -88,8 +92,14 @@ components. Counter IDs and budget reservation IDs use deterministic factories. 
 covers the entire program; reservations cover outstanding approvals, and each retry dispatch is
 charged. ApprovalLedger preserves exact action commitment, expiry, denial and one-shot redemption.
 A historical approval is usable only under the identical compiled plan and identical request
-context; changed policy or provenance yields `APPROVAL_BINDING_UNAVAILABLE`. Missing approval
-scripts/pending approvals remain explicit. Native policy is the only authority interpretation.
+context, and only when source binding is `EXACT`; changed policy or provenance yields
+`APPROVAL_BINDING_UNAVAILABLE`. Missing approval scripts/pending approvals remain explicit.
+Native policy is the only authority interpretation.
+
+Replay currently does not execute SHADOW or DISABLED source dispatches. Truthful source events in
+those modes are checked for lifecycle causality and produce the `UNSUPPORTED_SOURCE_ENFORCEMENT_MODE`
+blocker, making the comparison INCOMPLETE. Malformed dispatch/return/exposure links still fail as
+`INVALID_TRAJECTORY`; source mode is never rewritten to ENFORCE.
 
 Requests snapshot the replay frontier when requested, independently of when their decisions or
 responses arrive. ProvenanceEngine registers monotonic returned refs and commits only scripted
@@ -124,12 +134,15 @@ Opaque hashes cannot explain whether changed underlying content was purely cosme
 never interprets free-form descriptions as policy. Missing/extra facts and order changes produce
 indexed differences; INCOMPLETE is distinct from UNCHANGED. A change alone has no good/bad rank.
 
-Classification uses canonical signal categories, canonical finding categories/references,
+Classification uses canonical signal categories and their exact severities, canonical finding
+categories/references and their exact severities,
 explicit DATA_FLOW_DENIED/OUTSIDE_TASK_SCOPE/BUDGET_EXCEEDED indicators, and deterministic failures
 of TOOL_NOT_CALLED/MAX_TOOL_CALLS/APPROVAL_REQUIRED assertions. Each basis records a stable rule
 and source event/finding/assertion references. Operator category selection is recorded separately
 as OPERATOR_SUPPLIED. Multiple supported categories remain present. A blocked flow indicator is
 classified as POLICY_BYPASS investigation evidence, not proof of successful exfiltration.
+Reason-code, assertion and operator bases have unknown severity (`null`); incident severity is not
+aggregated and no missing severity is inferred.
 No free-form tool/model text, finding description or signal summary selects a category.
 
 ## Promotion and privacy

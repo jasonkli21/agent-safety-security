@@ -50,15 +50,12 @@ class ApprovalLedger:
         with self._lock:
             request = self._requests.pop(approval_id, None)
             decision = self._decisions.pop(approval_id, None)
-            if (
-                request is None
-                or decision is None
-                or request.action_digest != digest
-                or decision.outcome != ApprovalOutcome.APPROVE
-                or request.expires_at is None
-                or self.clock() >= request.expires_at
-            ):
-                raise RuntimeFailure("APPROVAL_DENIED_OR_EXPIRED")
+            if request is None or decision is None or request.action_digest != digest:
+                raise RuntimeFailure("INVALID_APPROVAL")
+            if decision.outcome == ApprovalOutcome.DENY:
+                raise RuntimeFailure("APPROVAL_DENIED")
+            if request.expires_at is None or self.clock() >= request.expires_at:
+                raise RuntimeFailure("APPROVAL_EXPIRED")
 
     def invalidate(self, approval_id: str) -> None:
         with self._lock:

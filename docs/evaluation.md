@@ -180,8 +180,10 @@ read events to observations. JSONL alone cannot reconstruct ephemeral text or co
 
 Open, append, flush, or close failures produce `EVIDENCE_WRITE_FAILURE` and overall ERROR.
 Partial files are not successful evidence. In-memory context remains available to callers for
-diagnostics. Read failures use `EVIDENCE_READ_FAILURE`. There is no append-across-runs mode,
-SQLite, signature chain, incident replay, or durable tamper resistance.
+diagnostics. Read failures use `EVIDENCE_READ_FAILURE`. This JSONL storage layer does not itself
+provide append-across-runs mode, SQLite, signature chains, incident replay, or durable tamper
+resistance. Phase 5 consumes validated JSONL as input to a separately integrity-checked replay
+bundle; see [replay and incidents](replay-incidents.md).
 
 ## Review gate
 

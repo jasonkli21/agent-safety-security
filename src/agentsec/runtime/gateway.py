@@ -427,7 +427,7 @@ class RuntimeGateway:
         except RuntimeFailure as exc:
             if exc.code == "BUDGET_EXCEEDED":
                 self.signal(SecurityCategory.RESOURCE_EXHAUSTION, exc.code)
-            elif exc.code.startswith("APPROVAL") or exc.code == "INVALID_APPROVAL":
+            elif exc.code == "INVALID_APPROVAL":
                 self.signal(SecurityCategory.APPROVAL_BYPASS, exc.code)
             raise
         finally:

@@ -15,3 +15,6 @@ changes, verification, deviations, remaining limitations, and next-phase readine
 - [Phase 2 MCP runtime implementation](phase-2-implementation-report.md)
 
 - [Phase 3 unified contract implementation](phase-3-implementation-report.md)
+- [Phase 4 implementation and review fixes](phase-4-implementation-report.md)
+- [Phase 5 incident replay implementation](phase-5-implementation-report.md)
+- [Phase 5 independent review fixes](phase-5-review-fixes-report.md)

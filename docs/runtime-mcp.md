@@ -95,7 +95,10 @@ principal is an operational local identity, not an authenticated remote approver
 
 Complete arguments, resource, principal, agent/environment/task, capability/tool identity,
 metadata hashes and effective policy hash bind the action. Evidence summaries do not substitute
-for that digest. Redemption consumes the grant once; cleanup invalidates pending grants.
+for that digest. Redemption consumes the grant once; cleanup invalidates pending grants. A valid
+human denial and an expired grant are ordinary `APPROVAL_DENIED` / `APPROVAL_EXPIRED` outcomes,
+not `APPROVAL_BYPASS` signals. Invalid, reused or mismatched approval state fails as
+`INVALID_APPROVAL` and emits the bypass/integrity signal.
 SHADOW records approval requirements without prompting or manufacturing approval decisions.
 
 Budgets are session-local. Tool attempts, EXTERNAL_WRITE attempts and destructive attempts

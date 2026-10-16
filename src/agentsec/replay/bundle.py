@@ -3,14 +3,19 @@
 from pathlib import Path
 
 from agentsec.compiler import compile_contract
+from agentsec.contracts.errors import ArtifactValidationError
 from agentsec.contracts.loader import MAX_BYTES
 from agentsec.contracts.models import AgentSecurityContract
 from agentsec.domain.events import (
+    DataExposedPayload,
     PolicyEvaluatedPayload,
     RunFinishedPayload,
     RunStartedPayload,
     SecurityEvent,
+    ToolDispatchedPayload,
     ToolRequestedPayload,
+    ToolReturnedPayload,
+    validate_event_sequence,
 )
 from agentsec.domain.findings import Finding
 from agentsec.domain.replay import (
@@ -23,7 +28,7 @@ from agentsec.domain.replay import (
 )
 from agentsec.domain.scenarios import Assertion, OutputNotContainsCanary, ToolCalled, ToolNotCalled
 from agentsec.domain.serialization import canonical_json, content_digest
-from agentsec.domain.taxonomy import EventType
+from agentsec.domain.taxonomy import EnforcementMode, EventType
 from agentsec.domain.tools import ToolDescriptor
 from agentsec.eval.observations import EvaluationObservation, ObservationCoverage
 from agentsec.eval.trajectory import EvaluationError, validate_evaluation_trajectory
@@ -60,6 +65,23 @@ def validate_program(program: ReplayProgram) -> bool:
             ),
             *checked[1:],
         )
+    modes = {
+        event.payload.enforcement_mode
+        for event in events
+        if isinstance(event.payload, ToolDispatchedPayload)
+    }
+    if modes - {EnforcementMode.ENFORCE}:
+        _validate_non_enforcing_source(events)
+        for event in events:
+            p = event.payload
+            if (
+                isinstance(p, ToolRequestedPayload)
+                and not p.redacted_fields
+                and p.policy_input_digest is not None
+                and content_digest(p.request) != p.policy_input_digest
+            ):
+                raise ReplayError("POLICY_INPUT_DIGEST_MISMATCH")
+        return complete
     try:
         validate_evaluation_trajectory(
             EvaluationObservation(
@@ -90,6 +112,78 @@ def validate_program(program: ReplayProgram) -> bool:
     return complete
 
 
+def _validate_non_enforcing_source(events: tuple[SecurityEvent, ...]) -> None:
+    """Validate truthful SHADOW/DISABLED lifecycle links without ENFORCE scoring rules."""
+    try:
+        validate_event_sequence(list(events))
+    except ArtifactValidationError as exc:
+        raise ReplayError("INVALID_TRAJECTORY") from exc
+    requests: dict[str, ToolRequestedPayload] = {}
+    decisions: dict[str, PolicyEvaluatedPayload] = {}
+    decision_requests: set[str] = set()
+    dispatches: dict[str, ToolDispatchedPayload] = {}
+    returns: dict[str, ToolReturnedPayload] = {}
+    exposures: set[str] = set()
+    modes: set[EnforcementMode] = set()
+    start = events[0].payload
+    assert isinstance(start, RunStartedPayload)
+    for event in events:
+        p = event.payload
+        if isinstance(p, ToolRequestedPayload):
+            if p.request.request_id in requests:
+                raise ReplayError("INVALID_TRAJECTORY")
+            requests[p.request.request_id] = p
+        elif isinstance(p, PolicyEvaluatedPayload):
+            if (
+                p.decision.request_id not in requests
+                or p.decision.request_id in decision_requests
+                or p.decision.decision_id in decisions
+                or p.decision.contract_id != start.contract_id
+                or p.decision.effective_policy_hash != start.effective_policy_hash
+            ):
+                raise ReplayError("INVALID_TRAJECTORY")
+            decisions[p.decision.decision_id] = p
+            decision_requests.add(p.decision.request_id)
+        elif isinstance(p, ToolDispatchedPayload):
+            modes.add(p.enforcement_mode)
+            request = requests.get(p.request_id)
+            if request is None or p.dispatch_id in dispatches:
+                raise ReplayError("INVALID_TRAJECTORY")
+            if p.tool_id != request.request.tool_id or p.action_digest != request.action_digest:
+                raise ReplayError("INVALID_TRAJECTORY")
+            if p.enforcement_mode == EnforcementMode.DISABLED:
+                if p.decision_id is not None or p.approval_id is not None:
+                    raise ReplayError("INVALID_TRAJECTORY")
+            else:
+                decision_event = decisions.get(p.decision_id or "")
+                if decision_event is None or decision_event.decision.request_id != p.request_id:
+                    raise ReplayError("INVALID_TRAJECTORY")
+            dispatches[p.dispatch_id] = p
+        elif isinstance(p, ToolReturnedPayload):
+            dispatch = dispatches.get(p.dispatch_id)
+            if (
+                dispatch is None
+                or p.request_id != dispatch.request_id
+                or p.tool_id != dispatch.tool_id
+                or p.dispatch_id in returns
+            ):
+                raise ReplayError("INVALID_TRAJECTORY")
+            returns[p.dispatch_id] = p
+        elif isinstance(p, DataExposedPayload):
+            returned = returns.get(p.dispatch_id)
+            if (
+                returned is None
+                or p.dispatch_id in exposures
+                or p.request_id != returned.request_id
+                or p.tool_id != returned.tool_id
+                or p.artifact not in returned.artifacts
+            ):
+                raise ReplayError("INVALID_TRAJECTORY")
+            exposures.add(p.dispatch_id)
+    if len(modes) > 1:
+        raise ReplayError("INVALID_TRAJECTORY")
+
+
 def assess(program: ReplayProgram, contract: AgentSecurityContract) -> ReplayAssessment:
     complete = validate_program(program)
     plan = compile_contract(contract)
@@ -111,6 +205,12 @@ def assess(program: ReplayProgram, contract: AgentSecurityContract) -> ReplayAss
         limitations.add("INCOMPLETE_SOURCE_STREAM")
     if binding == SourceBinding.LEGACY_INFERRED:
         limitations.add("LEGACY_SOURCE_PLAN")
+    if any(
+        isinstance(e.payload, ToolDispatchedPayload)
+        and e.payload.enforcement_mode != EnforcementMode.ENFORCE
+        for e in program.events
+    ):
+        blockers.add("UNSUPPORTED_SOURCE_ENFORCEMENT_MODE")
     tools = {t.tool_id: t for t in program.tools}
     for event in program.events:
         p = event.payload

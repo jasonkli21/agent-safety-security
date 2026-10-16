@@ -12,7 +12,7 @@ from agentsec.domain.events import SecurityEvent
 from agentsec.domain.findings import Finding
 from agentsec.domain.scenarios import Assertion
 from agentsec.domain.serialization import content_digest
-from agentsec.domain.taxonomy import SecurityCategory
+from agentsec.domain.taxonomy import SecurityCategory, Severity
 from agentsec.domain.tools import ToolDescriptor
 from agentsec.eval.models import AssertionResult
 
@@ -106,7 +106,9 @@ class TraceDiff(VersionedModel):
 class ReplayResult(VersionedModel):
     replay_id: Identifier
     source_bundle_digest: Digest
-    source_identity: PlanIdentity
+    # None means the source did not record a compiled-plan identity. The bundle's
+    # freshly compiled source_plan is an interpretation, not historical proof.
+    source_identity: PlanIdentity | None
     current_identity: PlanIdentity
     assessment: ReplayAssessment
     events: tuple[SecurityEvent, ...]
@@ -121,6 +123,7 @@ class ReplayResult(VersionedModel):
 class ClassificationBasis(SecurityModel):
     category: SecurityCategory
     rule: Identifier
+    severity: Severity | None = None
     event_refs: tuple[Identifier, ...] = ()
     finding_refs: tuple[Identifier, ...] = ()
     assertion_index: int | None = None

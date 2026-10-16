@@ -1788,6 +1788,7 @@ Replay validates a canonical JSON bundle and reuses native compiled policy, runt
 budget ledgers, and protocol-independent provenance over an ordered content-free event program.
 It has no live dispatch port. Source/current plan identities, replay identity, fidelity/blockers
 and source-versus-replay semantic facts remain distinct. Runtime start evidence additively binds
-its exact plan; older producers stay explicitly legacy. Promotion preserves original commitments
+its exact plan; older producers stay explicitly legacy and expose no recorded source identity.
+Historical approval reuse requires exact source-plan binding. Promotion preserves original commitments
 and explicit safe assertions in minimized derived regression material, optionally capturing a
 separately supplied candidate plan. It never modifies policy. See [replay/incidents](replay-incidents.md).

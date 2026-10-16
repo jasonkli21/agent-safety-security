@@ -18,7 +18,10 @@ def classify(bundle: ReplayBundle, operator: SecurityCategory | None = None) -> 
         if isinstance(p, SecuritySignalPayload):
             basis.append(
                 ClassificationBasis(
-                    category=p.category, rule="CANONICAL_SIGNAL", event_refs=(event.event_id,)
+                    category=p.category,
+                    rule="CANONICAL_SIGNAL",
+                    severity=p.severity,
+                    event_refs=(event.event_id,),
                 )
             )
         elif isinstance(p, PolicyEvaluatedPayload):
@@ -40,6 +43,7 @@ def classify(bundle: ReplayBundle, operator: SecurityCategory | None = None) -> 
             ClassificationBasis(
                 category=finding.category,
                 rule="CANONICAL_FINDING",
+                severity=finding.severity,
                 event_refs=tuple(sorted(finding.event_refs)),
                 finding_refs=(finding.finding_id,),
             )
@@ -69,7 +73,17 @@ def classify(bundle: ReplayBundle, operator: SecurityCategory | None = None) -> 
                 )
     if operator is not None:
         basis.append(ClassificationBasis(category=operator, rule="OPERATOR_SUPPLIED"))
-    ordered = tuple(sorted(basis, key=lambda b: (b.category.value, b.rule, b.event_refs)))
+    ordered = tuple(
+        sorted(
+            basis,
+            key=lambda b: (
+                b.category.value,
+                b.rule,
+                b.event_refs,
+                -1 if b.severity is None else int(b.severity),
+            ),
+        )
+    )
     return Incident(
         schema_version="0.1",
         incident_id="incident-" + content_digest((bundle.bundle_digest, ordered))[7:31],

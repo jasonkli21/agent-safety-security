@@ -36,6 +36,7 @@ from agentsec.domain.replay import (
     ReplayError,
     ReplayProgram,
     ReplayResult,
+    SourceBinding,
 )
 from agentsec.domain.serialization import content_digest
 from agentsec.domain.taxonomy import (
@@ -257,6 +258,9 @@ def run_program(
                     if isinstance(e.payload, ToolRequestedPayload)
                     and e.payload.request.request_id == rid
                 )
+                if assessment.source_binding != SourceBinding.EXACT:
+                    blockers.add("APPROVAL_SOURCE_PLAN_UNBOUND")
+                    continue
                 if current.identity != source_plan.identity or requests[rid] != original:
                     blockers.add("APPROVAL_BINDING_UNAVAILABLE")
                     continue
@@ -365,7 +369,7 @@ def run_program(
         schema_version="0.1",
         replay_id="replay-" + content_digest((source_digest, current.identity))[7:31],
         source_bundle_digest=source_digest,
-        source_identity=source_plan.identity,
+        source_identity=source_plan.identity if start.plan_identity is not None else None,
         current_identity=current.identity,
         assessment=result_assessment,
         events=tuple(events),

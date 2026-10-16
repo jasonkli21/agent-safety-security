@@ -21,6 +21,7 @@ from agentsec.domain.events import (
     ToolRequestedPayload,
     ToolReturnedPayload,
 )
+from agentsec.domain.findings import Finding
 from agentsec.domain.replay import (
     Fidelity,
     RegressionState,
@@ -36,6 +37,7 @@ from agentsec.domain.taxonomy import (
     EnforcementMode,
     EventType,
     SecurityCategory,
+    Severity,
 )
 from agentsec.evidence.jsonl import JsonlEventSink
 from agentsec.evidence.memory import InMemoryEventSink
@@ -50,12 +52,19 @@ from agentsec.runtime.gateway import RuntimeGateway
 from agentsec.runtime.models import RuntimeFailure, ToolResponse
 
 
-def source(c=None, *, count=1, broker=None, labels=frozenset(), transport=False, withheld=False):
+def source(
+    c=None,
+    *,
+    count=1,
+    broker=None,
+    labels=frozenset(),
+    transport=False,
+    withheld=False,
+    mode=EnforcementMode.ENFORCE,
+):
     c = c or contract()
     sink = InMemoryEventSink()
-    gateway = RuntimeGateway(
-        c, EnforcementMode.ENFORCE, RuntimeEvents(sink, lambda: NOW), broker or Broker()
-    )
+    gateway = RuntimeGateway(c, mode, RuntimeEvents(sink, lambda: NOW), broker or Broker())
 
     async def response(_):
         if transport:
@@ -86,9 +95,11 @@ def source(c=None, *, count=1, broker=None, labels=frozenset(), transport=False,
     return c, tuple(sink.events), descriptor
 
 
-def bundle(c=None, **kwargs):
+def bundle(c=None, *, findings=(), expectations=(), **kwargs):
     c, events, descriptor = source(c, **kwargs)
-    return create_bundle(events, c, tools=(descriptor,))
+    return create_bundle(
+        events, c, tools=(descriptor,), findings=findings, expectations=expectations
+    )
 
 
 def test_exact_identity_and_stable_offline_replay(monkeypatch):
@@ -179,8 +190,71 @@ def test_legacy_binding_and_incomplete_prefix():
     assert b.assessment.source_binding == SourceBinding.LEGACY_INFERRED
     assert "LEGACY_SOURCE_PLAN" in b.assessment.limitations
     assert replay(b).diff.status == "UNCHANGED"
+    assert replay(b).source_identity is None
     prefix = create_bundle(legacy[:-1], c, tools=(t,))
     assert replay(prefix).diff.status == "INCOMPLETE"
+
+
+def test_legacy_approval_cannot_redeem_and_exact_identity_is_reported_truthfully():
+    c, events, descriptor = source(contract(base="REQUIRE_APPROVAL"))
+    legacy = (
+        events[0].model_copy(
+            update={"payload": events[0].payload.model_copy(update={"plan_identity": None})}
+        ),
+        *events[1:],
+    )
+    b = create_bundle(legacy, c, tools=(descriptor,))
+    result = replay(b)
+    assert not result.substituted_dispatch_ids
+    assert "APPROVAL_SOURCE_PLAN_UNBOUND" in result.assessment.blockers
+    assert result.diff.status == "INCOMPLETE"
+    assert result.source_identity is None
+
+
+def test_unsupported_source_modes_are_typed_and_malformed_links_still_fail():
+    for mode in (EnforcementMode.SHADOW, EnforcementMode.DISABLED):
+        c, events, descriptor = source(contract(base="DENY"), mode=mode)
+        b = create_bundle(events, c, tools=(descriptor,))
+        assert "UNSUPPORTED_SOURCE_ENFORCEMENT_MODE" in b.assessment.blockers
+        assert replay(b).diff.status == "INCOMPLETE"
+        dispatch_index = next(
+            i for i, event in enumerate(events) if isinstance(event.payload, ToolDispatchedPayload)
+        )
+        payload = events[dispatch_index].payload.model_copy(update={"request_id": "foreign"})
+        with pytest.raises(ReplayError, match="INVALID_TRAJECTORY"):
+            create_bundle(
+                (
+                    *events[:dispatch_index],
+                    events[dispatch_index].model_copy(update={"payload": payload}),
+                    *events[dispatch_index + 1 :],
+                ),
+                c,
+                tools=(descriptor,),
+            )
+
+
+def test_incident_classification_preserves_known_and_unknown_severity():
+    finding = Finding(
+        schema_version="0.1",
+        finding_id="finding-high",
+        category=SecurityCategory.PROMPT_INJECTION,
+        severity=Severity.HIGH,
+        title="synthetic",
+        description="synthetic",
+    )
+    b = bundle(
+        findings=(finding,),
+        expectations=(ToolNotCalled(type="TOOL_NOT_CALLED", tool_id="send"),),
+    )
+    incident = classify(b, operator=SecurityCategory.POLICY_BYPASS)
+    assert incident == classify(b, operator=SecurityCategory.POLICY_BYPASS)
+    finding_basis = next(basis for basis in incident.classification_basis if basis.finding_refs)
+    assert finding_basis.severity == Severity.HIGH
+    assert all(
+        basis.severity is None
+        for basis in incident.classification_basis
+        if basis.rule in {"ASSERTION_FAILURE", "OPERATOR_SUPPLIED"}
+    )
 
 
 def test_material_redaction_never_guessed():
@@ -226,10 +300,31 @@ def test_approval_script_and_changed_policy_binding(outcome):
     r = replay(b)
     assert not r.diff.differences
     assert len(r.substituted_dispatch_ids) == int(outcome == ApprovalOutcome.APPROVE)
+    if outcome == ApprovalOutcome.APPROVE:
+        assert r.source_identity == b.source_plan.identity
+    if outcome == ApprovalOutcome.DENY:
+        assert SecurityCategory.APPROVAL_BYPASS not in classify(b).categories
     changed = contract(base="REQUIRE_APPROVAL", budgets={"max_tool_calls": 2})
     r = replay(b, changed)
     assert "APPROVAL_BINDING_UNAVAILABLE" in r.assessment.blockers
     assert not r.substituted_dispatch_ids
+
+
+def test_invalid_runtime_approval_is_still_classified_as_bypass():
+    class InvalidBroker(Broker):
+        async def decide(self, request, presentation):
+            decision = await super().decide(request, presentation)
+            return decision.model_copy(update={"approval_id": "foreign-approval"})
+
+    b = bundle(contract(base="REQUIRE_APPROVAL"), broker=InvalidBroker())
+    incident = classify(b)
+    assert SecurityCategory.APPROVAL_BYPASS in incident.categories
+    bypass = next(
+        basis
+        for basis in incident.classification_basis
+        if basis.category == SecurityCategory.APPROVAL_BYPASS
+    )
+    assert bypass.severity == Severity.HIGH
 
 
 def test_approval_forged_action_rejected_before_replay():

@@ -141,7 +141,14 @@ def test_approval_exact_expiring_one_shot(violation):
         ledger.redeem(request.approval_id, digest)
     elif violation == "invalidated":
         ledger.invalidate(request.approval_id)
-    with pytest.raises(RuntimeFailure, match="APPROVAL_DENIED_OR_EXPIRED"):
+    expected = {
+        "denied": "APPROVAL_DENIED",
+        "expired": "APPROVAL_EXPIRED",
+        "digest": "INVALID_APPROVAL",
+        "reused": "INVALID_APPROVAL",
+        "invalidated": "INVALID_APPROVAL",
+    }.get(violation, "INVALID_APPROVAL")
+    with pytest.raises(RuntimeFailure, match=expected):
         ledger.redeem(request.approval_id, digest)
 
 
