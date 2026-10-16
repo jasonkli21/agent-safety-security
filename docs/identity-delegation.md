@@ -27,6 +27,9 @@ hash. No runtime credential/delegation fact changes `effective_policy_hash`.
 
 ## Direct delegation and scope
 
+Every `phase6-v1` native policy decision requires a non-null trusted `AuthorityContext`; a
+matching caller-supplied principal is not identity proof. Missing authority returns
+`AUTHORITY_REQUIRED` for direct principals and `DELEGATION_REQUIRED` when OBO is configured.
 For ENFORCE the credential principal must equal `contract.identity.principal`. If OBO is present,
 a direct grant is required with `delegator == acts_on_behalf_of` and `delegate == actor`.
 It must be issued, unexpired and have a finite expiry. Parent chains fail closed. If OBO is

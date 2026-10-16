@@ -190,6 +190,18 @@ def test_no_identity_or_delegation_grants_contract_permission():
     assert decide(scoped, auth).reason_codes == {ReasonCode.INVALID_DELEGATION}
 
 
+def test_direct_phase6_requires_trusted_authority():
+    c = contract(False)
+    assert decide(c, None).outcome == PolicyOutcome.DENY
+    assert decide(c, None).reason_codes == {ReasonCode.AUTHORITY_REQUIRED}
+
+    static_authority = AuthorityContext(
+        schema_version="0.1",
+        credential=StaticIdentityProvider(c.identity.principal).verify(None, NOW),
+    )
+    assert decide(c, static_authority).outcome == PolicyOutcome.ALLOW
+
+
 def test_resource_narrowing_and_data_flow_clamp():
     c = contract()
     auth = context(c, resources={READ: frozenset({"private"})})
@@ -357,6 +369,9 @@ def test_conformance_direct_and_obo():
         assert all(p.status == "PASS" for p in report.probes)
         assert any(p.obligation_kind == "authority_credential_ceiling" for p in report.probes)
     assert any(p.obligation_kind == "authority_missing_delegation" for p in report.probes)
+    direct = run_conformance(compile_contract(contract(False)))
+    assert any(p.obligation_kind == "authority_missing_authority" for p in direct.probes)
+    assert all(p.status == "PASS" for p in direct.probes)
 
 
 @pytest.fixture(scope="module")

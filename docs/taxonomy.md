@@ -9,7 +9,7 @@ are rejected, never mapped to an approximate synonym. The generated
 | --- | --- |
 | Principal | User, agent, or service identity capable of requesting/delegating authority; identity alone conveys no permission. |
 | Agent | Logical protected agent identity and contextual runtime metadata, separate from its principal binding. |
-| Delegation | Explicit principal-to-principal capability/task scope with issue/expiry and optional parent reference. Subset enforcement is deferred. |
+| Delegation | Explicit principal-to-principal capability/task scope with issue/expiry and optional parent reference. Phase 6 enforces direct one-hop subset and freshness rules; parent chains remain unsupported. |
 | Task | Requested user work. TaskScope expresses requested capabilities/resources and grants nothing by itself. |
 | Capability | Protocol-independent action ID such as `email.send`; not a fixed global registry. |
 | Tool | Stable callable identity with separately mutable schema/description, capability set and risk metadata. |
@@ -20,7 +20,7 @@ are rejected, never mapped to an approximate synonym. The generated
 | Security signal | Observed indicator, such as suspicious untrusted content; not independently an authorization grant. |
 | Security event | Typed factual record of one stage of a run; not an interpreted finding. |
 | Finding | Interpreted security result with severity and exact evidence references. |
-| Incident | Investigation/case derived from findings/events; deferred beyond Phase 0. |
+| Incident | Deterministic investigation case derived from replay evidence, findings, and optional operator input. |
 | Data artifact | Content-free ID, provenance origin/parents, labels, optional content digest/time. |
 | Scenario | Reproducible static setup, task, injections and deterministic assertion specification. |
 | Assertion | Expected observable security or utility property, represented but not executed in Phase 0. |
@@ -32,7 +32,7 @@ are rejected, never mapped to an approximate synonym. The generated
 - PrincipalType: `USER`, `AGENT`, `SERVICE` identify the kind of principal, without privilege.
 - PolicyOutcome: `ALLOW`, `DENY`, `REQUIRE_APPROVAL`, `ERROR`. RuleDecision contains the first
   three only: a contract cannot author an engine error as permission.
-- EnforcementMode: `ENFORCE`, `SHADOW`, `DISABLED` are vocabulary only; no enforcement exists.
+- EnforcementMode: `ENFORCE`, `SHADOW`, `DISABLED` select the runtime enforcement behavior and evidence claims.
 - ApprovalOutcome: `APPROVE`, `DENY`; ApprovalScope: `ONE_SHOT` only.
 - Severity: `INFO=0`, `LOW=1`, `MEDIUM=2`, `HIGH=3`, `CRITICAL=4`. Values serialize as integers
   and compare in that order. They describe importance, not numerical confidence.
@@ -98,8 +98,12 @@ EventType values and their exact evidentiary meanings are listed in the
 `POLICY_EVALUATED`, `APPROVAL_REQUESTED`, `APPROVAL_DECIDED`, `TOOL_DISPATCHED`, `TOOL_RETURNED`,
 `SECURITY_SIGNAL`, `RUN_TERMINATED`, `EFFECT_VERIFIED`.
 
-ReasonCode gives deterministic explanations: `EXPLICIT_ALLOW`, `EXPLICIT_DENY`, `DEFAULT_DENY`,
-`APPROVAL_REQUIRED`, `UNKNOWN_CAPABILITY`, `OUTSIDE_TASK_SCOPE`, `BUDGET_EXCEEDED`, `DATA_FLOW_DENIED`,
-`INVALID_REQUEST`, `POLICY_ENGINE_ERROR`. These are result vocabulary, not implemented checks.
+ReasonCode gives deterministic explanations, including Phase 6 authority results
+`AUTHORITY_REQUIRED`, `IDENTITY_MISMATCH`, `DELEGATION_REQUIRED`, `INVALID_DELEGATION`,
+`AUTHORITY_EXPIRED`, and `OUTSIDE_AUTHORITY_SCOPE`, alongside `EXPLICIT_ALLOW`, `EXPLICIT_DENY`,
+`DEFAULT_DENY`, `APPROVAL_REQUIRED`, `UNKNOWN_CAPABILITY`, `OUTSIDE_TASK_SCOPE`,
+`BUDGET_EXCEEDED`, `DATA_FLOW_DENIED`, `DATA_FLOW_CONTEXT_MISSING`, `INVALID_REQUEST`, and
+`POLICY_ENGINE_ERROR`. These codes explain structured policy decisions; they do not turn into
+permissions.
 Validation errors use a separate ErrorCode enum in `contracts/errors.py`; they report invalid
 artifacts rather than authorizing actions.

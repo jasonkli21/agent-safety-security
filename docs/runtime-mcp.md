@@ -3,7 +3,7 @@
 Install Python 3.12+ and the optional official SDK extra:
 
 ```bash
-python -m pip install -e '.[dev,mcp]'
+python -m pip install -e '.[dev,mcp,identity]'
 agentsec protect mcp --contract examples/mcp/contract.yaml --config examples/mcp/gateway.yaml --check
 ```
 
@@ -142,8 +142,10 @@ poisons the session on a sink failure and refuses subsequent dispatch; a post-di
 cannot undo effects. SHADOW reports evidence failure and continues without claiming complete
 capture. Dispatch evidence records an attempted invocation, not delivery, success or verified
 effect. Cancellation after entry records an unknown-effect signal and never retries. Process
-crashes may leave incomplete streams. There is no tamper resistance, sandbox, remote identity
-verification, semantic content detection or hosted approval service.
+crashes may leave incomplete streams. There is no tamper resistance, sandbox, full OAuth/OIDC
+lifecycle, remote discovery/revocation, semantic content detection or hosted approval service.
+The optional Phase 6 provider verifies only operator-pinned signed JWTs offline; static identity
+configuration is trusted local configuration, not remote authentication.
 
 ## Phase 3 compiled startup
 

@@ -172,9 +172,11 @@ concurrency and unobserved-context limitations.
 
 ## Phase 6 executable identity
 
-`acts_on_behalf_of` now requires a protected direct grant from that principal to the authenticated
-actor, matching `identity.principal`. Missing, unrelated, chained, expired or mismatched grants
-fail closed in ENFORCE. Identity/credential/delegation scopes only restrict contract grants.
+Every `phase6-v1` native policy decision requires trusted authority facts, including direct
+principals; caller-selected principal text alone cannot authorize. `acts_on_behalf_of` additionally
+requires a protected direct grant from that principal to the authenticated actor, matching
+`identity.principal`. Missing authority, unrelated, chained, expired or mismatched grants fail
+closed in ENFORCE. Identity/credential/delegation scopes only restrict contract grants.
 NormalizedAction additionally binds `authority_digest`; PolicyRequest carries replay-safe authority.
 No authored fields or document/effective-policy hash projections changed. Current compiler is
 `phase6-v1`; old `phase4-v1` artifacts retain historical meaning. See

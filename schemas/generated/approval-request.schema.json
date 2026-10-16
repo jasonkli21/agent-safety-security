@@ -2,6 +2,7 @@
   "$defs": {
     "ReasonCode": {
       "enum": [
+        "AUTHORITY_REQUIRED",
         "IDENTITY_MISMATCH",
         "DELEGATION_REQUIRED",
         "INVALID_DELEGATION",

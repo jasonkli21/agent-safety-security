@@ -2,7 +2,7 @@
 
 **Document:** `docs/architecture.md`  
 **Status:** Phased architecture baseline
-**Scope:** Long-term architecture with implementation guidance through Phases 0–5; last reviewed 2026-10-16
+**Scope:** Long-term architecture with implementation guidance through Phase 6; last reviewed 2026-10-16
 **Primary implementation language:** Python 3.12+ initially  
 **Primary deployment model:** Local-first / self-hosted; optional managed control plane later  
 **Initial runtime integration:** MCP  
@@ -338,7 +338,8 @@ Long-term invariant:
 effective child authority ⊆ parent delegated authority
 ```
 
-Phase 0 defines the type; enforcement arrives later.
+The contract model defines these relationships. Current runtime enforcement is limited to the
+direct Phase 6 authority semantics described below; broader delegation graphs remain future scope.
 
 ### 6.4 ToolDescriptor
 

@@ -1,4 +1,4 @@
-# Executable contract conformance (Phases 3–4)
+# Executable contract conformance (current compiler: phase6-v1)
 
 One validated contract compiles into an immutable native exact-match plan. Compilation owns
 normalization and the unsupported inventory. Native policy owns execution. The probe oracle
@@ -37,7 +37,8 @@ source contract. The other reports contain IDs, semantic digests, outcomes and s
 argument/response content. The JSON schemas are exported from the public Pydantic definitions.
 Compiled manifests are inspection artifacts, not a trusted activation format. Runtime checks any
 supplied plan against its own compilation, including contract ID and effective policy identity.
-Compiler `phase4-v1` supersedes Phase 3 manifests; regenerate earlier manifests/reports.
+Compiler `phase6-v1` is current and supersedes earlier Phase 3–5 manifests; regenerate earlier
+manifests/reports. Historical replay keeps the exact recorded `phase4-v1` meaning.
 Additive schema 0.1 extensions require updated strict consumers and action digests. Conformance and coverage reports
 require `plan_identity`: contract ID, compiler version, effective policy hash and
 `compiled_plan_digest`. The latter hashes canonical complete compiled content (including compiler
@@ -99,7 +100,8 @@ reported without asserting a universal safety ordering. Unsupported intent chang
 by atom digests and labeled unsupported; their behavior is not simulated. Representative resource
 values are digested; capability names remain visible. This is finite comparison of the native
 subset, not formal equivalence, arbitrary argument analysis, deployment or general data policy.
-Later adapters/identity services remain out of scope. Phase 4 data comparison is described below.
+Full OAuth/OIDC lifecycle services and future protocol adapters remain out of scope. Current
+Phase 6 identity conformance uses trusted synthetic authority facts and is described below.
 
 
 ## Phase 4 flow obligations, proof and diff
@@ -138,9 +140,10 @@ model/context coverage or authorize any live execution.
 ## Phase 6 authority probes
 
 Current compilation emits `phase6-v1`; historical replay retains `phase4-v1`. Trusted synthetic
-authority fixtures exercise direct/OBO behavior, missing or mismatched delegation, expiry,
-credential capability ceilings and delegated capability/resource narrowing. Existing rule,
-approval and data-flow obligations use valid synthetic authority, preserving deny precedence.
+authority fixtures exercise direct/OBO behavior, missing direct authority, missing or mismatched
+delegation, expiry, credential capability ceilings and delegated capability/resource narrowing.
+Existing rule, approval and data-flow obligations use valid synthetic authority, preserving deny
+precedence.
 The authority layer is shared with runtime/replay. These probes authenticate no external workload.
 `identity.authority` is separately covered; grouped identity/task atoms remain unclaimed.
 Authored OBO changes and compiler semantic changes appear explicitly in semantic diff.

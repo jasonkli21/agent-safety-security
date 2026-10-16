@@ -28,6 +28,9 @@ def classify(bundle: ReplayBundle, operator: SecurityCategory | None = None) -> 
             for reason, category in (
                 (ReasonCode.DATA_FLOW_DENIED, SecurityCategory.POLICY_BYPASS),
                 (ReasonCode.OUTSIDE_TASK_SCOPE, SecurityCategory.UNAUTHORIZED_TOOL_USE),
+                (ReasonCode.IDENTITY_MISMATCH, SecurityCategory.DELEGATION_ESCALATION),
+                (ReasonCode.INVALID_DELEGATION, SecurityCategory.DELEGATION_ESCALATION),
+                (ReasonCode.OUTSIDE_AUTHORITY_SCOPE, SecurityCategory.DELEGATION_ESCALATION),
                 (ReasonCode.BUDGET_EXCEEDED, SecurityCategory.RESOURCE_EXHAUSTION),
             ):
                 if reason in p.decision.reason_codes:

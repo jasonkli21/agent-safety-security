@@ -1,4 +1,4 @@
-# Tracked provenance and data-flow security (Phase 4)
+# Tracked provenance and data-flow security (Phase 4 semantics; current compiler phase6-v1)
 
 Phase 4 enforces explicit data labels over content-free provenance supplied by trusted code.
 It tracks released tool outputs conservatively; it does not detect secrets in arbitrary text,
@@ -7,7 +7,8 @@ classification is an operator assertion. An absent label is not evidence of clea
 
 ## Restrictive policy semantics
 
-Compiler `phase4-v1` includes frozen canonical `DataRule` values in the immutable plan. Data
+Historical `phase4-v1` plans include frozen canonical `DataRule` values in the immutable plan.
+Current `phase6-v1` plans retain those data semantics and add identity authority checks. Data
 atoms are compiled/runtime-supported and adapter-required. Effective-policy hashing already
 included authored data rules and its projection is unchanged. Plan identity still binds the
 complete compiled content, compiler version, contract ID and effective-policy hash.
@@ -52,8 +53,12 @@ than a growing copy of all ancestors. Wide concurrency can grow frontier width. 
 persistent graph, cross-session propagation, eviction or general graph database.
 
 Runtime provenance is protected application state. Tool arguments never supply/clear artifact
-IDs, labels, parents or sink category. The core policy API assumes trusted producers of its
-structured request, just as it assumes trusted principal and capability classification.
+IDs, labels, parents or sink category. The core policy API accepts structured requests and
+requires non-null trusted `AuthorityContext` for every `phase6-v1` decision. Matching
+`PolicyRequest.principal` text alone does not prove identity. Static trusted configuration and
+pinned signed-JWT verification are the supported Phase 6 authority sources; historical
+`phase4-v1` replay keeps its prior meaning. Capability and source/sink classification still come
+from trusted producers.
 
 ## MCP boundary and response release
 

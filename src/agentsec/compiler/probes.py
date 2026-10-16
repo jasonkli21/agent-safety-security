@@ -31,9 +31,10 @@ class PolicyProbe:
     obligation_kind: str = "tool_policy"
 
     authority: AuthorityContext | None = None
+    missing_authority: bool = False
 
     def request(self, plan: CompiledSecurityPlan) -> PolicyRequest:
-        authority = self.authority or synthetic_authority(plan)
+        authority = None if self.missing_authority else (self.authority or synthetic_authority(plan))
         grant = authority.delegation if authority else None
         return PolicyRequest(
             schema_version="0.1",
@@ -400,6 +401,11 @@ def generate_authority_probes(plan: CompiledSecurityPlan) -> tuple[PolicyProbe, 
         probes.append(base)
         variants = [
             (
+                "missing_authority",
+                None,
+                ReasonCode.AUTHORITY_REQUIRED,
+            ),
+            (
                 "credential_ceiling",
                 AuthorityContext(
                     schema_version="0.1",
@@ -480,6 +486,7 @@ def generate_authority_probes(plan: CompiledSecurityPlan) -> tuple[PolicyProbe, 
                     reason=expected,
                     matched_rule_ids=frozenset(),
                     authority=context,
+                    missing_authority=kind == "missing_authority",
                     obligation_kind="authority_" + kind,
                 )
             )

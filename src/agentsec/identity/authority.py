@@ -54,7 +54,7 @@ def authority_failure(
     resource: str | None = None,
 ) -> ReasonCode | None:
     if authority is None:
-        return ReasonCode.DELEGATION_REQUIRED if obo else None
+        return ReasonCode.DELEGATION_REQUIRED if obo else ReasonCode.AUTHORITY_REQUIRED
     credential = authority.credential
     if credential.principal != principal:
         return ReasonCode.IDENTITY_MISMATCH

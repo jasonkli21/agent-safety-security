@@ -165,8 +165,9 @@ rules avoid exporting source canaries or guessing a remediation. Structured IDs,
 static destinations, principals and rule metadata are trusted configuration; never put secrets
 in those identity fields. Hashes reveal equality and do not encrypt data.
 
-Phase 5 is ready for independent review after its documented gates pass. Phase 6 remains gated
-on that review/fixes and a reviewed Phase 6 plan.
+This section records the historical Phase 5 readiness state. Phase 6 identity/delegation is now
+implemented; its current semantics and review-fix status are recorded in the focused identity
+documentation and implementation reports.
 
 
 ## Phase 6 verified authority facts

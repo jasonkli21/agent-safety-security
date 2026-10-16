@@ -466,6 +466,79 @@ def test_classification_ambiguity_and_operator_basis():
     )
 
 
+def test_protected_authority_recovery_promotes_to_private_draft():
+    from agentsec.domain.taxonomy import ReasonCode
+    from test_identity_authority import (
+        READ,
+        WRITE,
+        context,
+        contract as identity_contract,
+        gateway,
+    )
+
+    c = identity_contract()
+    authority = context(c, resources={READ: frozenset({"private-A"})})
+    runtime, sink = gateway(c, authority, [NOW])
+    denied_tool = tool().model_copy(
+        update={"tool_id": "write", "capabilities": frozenset({WRITE})}
+    )
+
+    async def dispatch(_):
+        pytest.fail("outside-authority request dispatched")
+
+    async def attempt():
+        from agentsec.runtime.models import RuntimeFailure
+
+        with pytest.raises(RuntimeFailure, match="POLICY_DENIED"):
+            await runtime.call(denied_tool, {}, None, dispatch, bound=True)
+
+    asyncio.run(attempt())
+    runtime.finish()
+    expectations = (ToolNotCalled(type="TOOL_NOT_CALLED", tool_id="write"),)
+    b = create_bundle(
+        tuple(sink.events),
+        c,
+        tools=(tool(), denied_tool),
+        expectations=expectations,
+        authority=authority,
+    )
+    requested = next(
+        e.payload for e in b.program.events if isinstance(e.payload, ToolRequestedPayload)
+    )
+    assert "authority" in requested.redacted_fields
+    assert b.assessment.fidelity == Fidelity.SECURITY_RUNTIME
+    incident = classify(b)
+    assert SecurityCategory.DELEGATION_ESCALATION in incident.categories
+    assert any(
+        basis.rule == "CONTROL_INDICATOR_OUTSIDE_AUTHORITY_SCOPE"
+        for basis in incident.classification_basis
+    )
+    expired_events = []
+    for event in sink.events:
+        if isinstance(event.payload, PolicyEvaluatedPayload):
+            decision = event.payload.decision.model_copy(
+                update={"reason_codes": frozenset({ReasonCode.AUTHORITY_EXPIRED})}
+            )
+            event = event.model_copy(
+                update={"payload": event.payload.model_copy(update={"decision": decision})}
+            )
+        expired_events.append(event)
+    expired_bundle = create_bundle(
+        tuple(expired_events),
+        c,
+        tools=(tool(), denied_tool),
+        expectations=expectations,
+        authority=authority,
+    )
+    assert SecurityCategory.DELEGATION_ESCALATION not in classify(expired_bundle).categories
+    case = promote(b, incident)
+    assert case.state == RegressionState.DRAFT
+    assert case.reason == "PROMOTION_PROTECTED_AUTHORITY_REVIEW"
+    assert authority.delegation.task_scope.resource_scopes[READ] == {"private-A"}
+    assert "private-A" not in canonical_json(case)
+    assert run_case(case) == "DRAFT"
+
+
 def test_promotion_safe_active_draft_stability_and_no_secret_copy():
     c, events, t = source()
     original = canonical_json(c)
