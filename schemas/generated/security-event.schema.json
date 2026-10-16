@@ -343,6 +343,50 @@
       "title": "DataArtifactRef",
       "type": "object"
     },
+    "DataExposedPayload": {
+      "additionalProperties": false,
+      "description": "A guarded response is committed to release into the protected context.",
+      "properties": {
+        "artifact": {
+          "$ref": "#/$defs/DataArtifactRef"
+        },
+        "dispatch_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Dispatch Id",
+          "type": "string"
+        },
+        "kind": {
+          "const": "DATA_EXPOSED",
+          "title": "Kind",
+          "type": "string"
+        },
+        "request_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "tool_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Tool Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "kind",
+        "dispatch_id",
+        "request_id",
+        "tool_id",
+        "artifact"
+      ],
+      "title": "DataExposedPayload",
+      "type": "object"
+    },
     "DataLabel": {
       "enum": [
         "PUBLIC",
@@ -466,6 +510,7 @@
         "APPROVAL_DECIDED",
         "TOOL_DISPATCHED",
         "TOOL_RETURNED",
+        "DATA_EXPOSED",
         "SECURITY_SIGNAL",
         "RUN_TERMINATED",
         "EFFECT_VERIFIED"
@@ -630,6 +675,21 @@
           "title": "Data Artifact Refs",
           "type": "array"
         },
+        "data_destination": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Destination"
+        },
         "delegation_id": {
           "anyOf": [
             {
@@ -780,6 +840,7 @@
         "OUTSIDE_TASK_SCOPE",
         "BUDGET_EXCEEDED",
         "DATA_FLOW_DENIED",
+        "DATA_FLOW_CONTEXT_MISSING",
         "INVALID_REQUEST",
         "POLICY_ENGINE_ERROR"
       ],
@@ -1463,6 +1524,26 @@
       "if": {
         "properties": {
           "event_type": {
+            "const": "DATA_EXPOSED"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "properties": {
+              "kind": {
+                "const": "DATA_EXPOSED"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "event_type": {
             "const": "SECURITY_SIGNAL"
           }
         }
@@ -1561,6 +1642,7 @@
         "mapping": {
           "APPROVAL_DECIDED": "#/$defs/ApprovalDecidedPayload",
           "APPROVAL_REQUESTED": "#/$defs/ApprovalRequestedPayload",
+          "DATA_EXPOSED": "#/$defs/DataExposedPayload",
           "EFFECT_VERIFIED": "#/$defs/EffectVerifiedPayload",
           "POLICY_EVALUATED": "#/$defs/PolicyEvaluatedPayload",
           "RUN_FINISHED": "#/$defs/RunFinishedPayload",
@@ -1597,6 +1679,9 @@
         },
         {
           "$ref": "#/$defs/ToolReturnedPayload"
+        },
+        {
+          "$ref": "#/$defs/DataExposedPayload"
         },
         {
           "$ref": "#/$defs/SecuritySignalPayload"

@@ -61,6 +61,23 @@
         "expected": {
           "$ref": "#/$defs/PolicyOutcome"
         },
+        "not_derivable_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Not Derivable Reason"
+        },
+        "obligation_kind": {
+          "default": "tool_policy",
+          "title": "Obligation Kind",
+          "type": "string"
+        },
         "probe_id": {
           "title": "Probe Id",
           "type": "string"

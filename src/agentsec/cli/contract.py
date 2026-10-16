@@ -33,6 +33,11 @@ def display(report: BaseModel, format: Format) -> None:
                 f"{rule.rule_id}: {rule.capability} {rule.decision.value} "
                 f"resource={canonical_json(rule.resource)}"
             )
+        for data_rule in report.data_rules:
+            typer.echo(
+                f"{data_rule.rule_id}: data label={data_rule.label.value} "
+                f"{canonical_json(data_rule)}"
+            )
         typer.echo(f"Runtime budgets: {canonical_json(report.budgets)}")
         typer.echo(f"Approval timeout: {report.approvals.default_timeout_seconds}s")
         typer.echo(f"Unsupported intent: {', '.join(report.gaps) or 'none configured'}")
@@ -43,7 +48,7 @@ def display(report: BaseModel, format: Format) -> None:
             for row in rows:
                 actual = row.actual.value if row.actual else "unavailable"
                 typer.echo(
-                    f"{label} {row.probe_id}: {row.status} "
+                    f"{label} {row.probe_id} ({row.obligation_kind}): {row.status} "
                     f"expected={row.expected.value} actual={actual}"
                 )
     elif isinstance(report, CoverageReport):
@@ -53,6 +58,8 @@ def display(report: BaseModel, format: Format) -> None:
                 f"{atom.source_ref}: compiled={atom.compiled} "
                 f"runtime_supported={atom.runtime_supported} "
                 f"adapter={atom.adapter_status} "
+                f"source={atom.source_classification_status} "
+                f"sink={atom.sink_classification_status} "
                 f"probes={len(atom.probe_ids)}/{atom.probe_status} "
                 f"eval_cases={len(atom.eval_case_ids)}/{atom.eval_status}"
             )

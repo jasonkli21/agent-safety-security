@@ -1,4 +1,4 @@
-# Executable contract conformance (Phase 3)
+# Executable contract conformance (Phases 3–4)
 
 One validated contract compiles into an immutable native exact-match plan. Compilation owns
 normalization and the unsupported inventory. Native policy owns execution. The probe oracle
@@ -37,8 +37,8 @@ source contract. The other reports contain IDs, semantic digests, outcomes and s
 argument/response content. The JSON schemas are exported from the public Pydantic definitions.
 Compiled manifests are inspection artifacts, not a trusted activation format. Runtime checks any
 supplied plan against its own compilation, including contract ID and effective policy identity.
-Compiler `phase3-v2` supersedes the initial Phase 3 manifest representation; regenerate earlier
-Phase 3 artifacts. Phase 0–2 artifact schemas are unchanged. Conformance and coverage reports
+Compiler `phase4-v1` supersedes Phase 3 manifests; regenerate earlier manifests/reports.
+Additive schema 0.1 extensions require updated strict consumers and action digests. Conformance and coverage reports
 require `plan_identity`: contract ID, compiler version, effective policy hash and
 `compiled_plan_digest`. The latter hashes canonical complete compiled content (including compiler
 identity and unsupported inventory), without a self-referential digest field. It is freshness
@@ -98,4 +98,25 @@ reported without asserting a universal safety ordering. Unsupported intent chang
 by atom digests and labeled unsupported; their behavior is not simulated. Representative resource
 values are digested; capability names remain visible. This is finite comparison of the native
 subset, not formal equivalence, arbitrary argument analysis, deployment or general data policy.
-Phase 4 data/provenance enforcement and all later adapters/identity services remain out of scope.
+Later adapters/identity services remain out of scope. Phase 4 data comparison is described below.
+
+
+## Phase 4 flow obligations, proof and diff
+
+Data atoms compile into runtime-supported adapter-required rules. Independent set-based flow
+obligations use base ALLOW/REQUIRE_APPROVAL witnesses and verify exact reasons/matched IDs for
+each configured capability/destination restriction, missing context, inherited source labels,
+and multiple-label any-deny-wins. An unreachable axis becomes NOT_RUN with an explicit reason;
+ordinary denial cannot pass it vacuously. Synthetic refs are derived with the provenance service.
+The Phase 1 bridge uses this trusted preconstructed context; separate MCP/runtime tests verify
+actual guarded exposure and concurrent trajectories. Generated checks make no model-robustness,
+classifier or complete context-capture claim.
+
+Coverage separates required provenance, source/sink classification requirements and proof
+statuses, generated obligation/eval IDs, execution status, and the tracked-data adapter boundary.
+Absent discovery remains UNPROVEN. Changed source/sink binding fields invalidate snapshot proof.
+Pure data-policy diff invokes the native evaluator with an equal synthetic base grant across
+finite exact labels/capabilities/destinations, missing destination and collision-free OTHERs.
+It separates data tightening/relaxation, exact explanations and authored set changes from ordinary
+authority changes. See [provenance/data flow](provenance-data-flow.md) for the full comparison and
+trusted-input boundary. No generic security percentage or formal equivalence is claimed.

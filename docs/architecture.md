@@ -2,7 +2,7 @@
 
 **Document:** `docs/architecture.md`  
 **Status:** Phased architecture baseline
-**Scope:** Long-term architecture with implementation guidance through Phases 0–3; last reviewed 2026-10-15  
+**Scope:** Long-term architecture with implementation guidance through Phases 0–4; last reviewed 2026-10-16
 **Primary implementation language:** Python 3.12+ initially  
 **Primary deployment model:** Local-first / self-hosted; optional managed control plane later  
 **Initial runtime integration:** MCP  
@@ -1765,3 +1765,19 @@ the authored effective policy hash; discovery proof also binds to its metadata/b
 Generated conformance checks exact reasons and matching-rule provenance. Grouped identity/scope
 atoms remain NOT_RUN without discriminating generated obligations; semantic diff includes
 explanation changes independently of authority rank.
+
+
+## Phase 4 tracked provenance boundary
+
+The immutable `phase4-v1` plan includes exact data rules. Native policy applies them only after
+ordinary ALLOW/REQUIRE_APPROVAL, preserving every ordinary deny/error. Protocol-independent
+provenance state holds content-free immutable nodes and a concurrency-safe exposure frontier.
+Requests snapshot the frontier; response artifacts inherit that snapshot's labels monotonically.
+TOOL_RETURNED is distinct from DATA_EXPOSED: guarded release records critical exposure evidence
+before atomically committing the frontier and returning. Rejected responses never taint context.
+MCP bindings explicitly classify output labels and static opaque sink destinations; their exact
+configuration remains bound by discovery proof. Approvals bind destination and canonical artifact
+context. No semantic byte matching, label lattice, declassification, initial user/model context
+tracking or model-internal provenance is claimed. See [provenance/data flow](provenance-data-flow.md)
+for normative composition, concurrency, exposure and coverage limits. Replay/incident workflows
+remain Phase 5; no persistence or new protocol dependency enters the provenance core.

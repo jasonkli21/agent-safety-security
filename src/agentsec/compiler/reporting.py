@@ -17,6 +17,8 @@ class ProbeResult(VersionedModel):
     status: Status
     expected: PolicyOutcome
     actual: PolicyOutcome | None = None
+    obligation_kind: str = "tool_policy"
+    not_derivable_reason: str | None = None
 
 
 class ConformanceReport(VersionedModel):
@@ -28,6 +30,15 @@ class ConformanceReport(VersionedModel):
 
 
 def run_probe(plan: CompiledSecurityPlan, probe: PolicyProbe, engine: PolicyEngine) -> ProbeResult:
+    if not probe.derivable:
+        return ProbeResult(
+            schema_version="0.1",
+            probe_id=probe.probe_id,
+            status="NOT_RUN",
+            expected=probe.expected,
+            obligation_kind=probe.obligation_kind,
+            not_derivable_reason="No base-permitted witness for this flow obligation",
+        )
     try:
         decision = engine.decide(probe.request(plan), plan)
         valid = (
@@ -43,11 +54,16 @@ def run_probe(plan: CompiledSecurityPlan, probe: PolicyProbe, engine: PolicyEngi
             probe_id=probe.probe_id,
             status="PASS" if valid else "FAIL",
             expected=probe.expected,
+            obligation_kind=probe.obligation_kind,
             actual=decision.outcome,
         )
     except Exception:
         return ProbeResult(
-            schema_version="0.1", probe_id=probe.probe_id, status="ERROR", expected=probe.expected
+            schema_version="0.1",
+            probe_id=probe.probe_id,
+            status="ERROR",
+            expected=probe.expected,
+            obligation_kind=probe.obligation_kind,
         )
 
 
@@ -65,6 +81,16 @@ def run_conformance(
 
 
 class AtomCoverage(SemanticAtom):
+    provenance_input_required: bool = False
+    source_classification_required: bool = False
+    sink_classification_required: bool = False
+    adapter_boundary: str | None = None
+    source_classification_status: Literal["NOT_REQUIRED", "UNPROVEN", "COVERED", "UNCOVERED"] = (
+        "NOT_REQUIRED"
+    )
+    sink_classification_status: Literal["NOT_REQUIRED", "UNPROVEN", "COVERED", "UNCOVERED"] = (
+        "NOT_REQUIRED"
+    )
     adapter_status: Literal["NOT_REQUIRED", "UNPROVEN", "COVERED", "UNCOVERED"]
     probe_ids: tuple[str, ...]
     eval_case_ids: tuple[str, ...]
@@ -90,6 +116,8 @@ def _status(ids: tuple[str, ...], results: tuple[ProbeResult, ...]) -> Status:
 class AdapterAtomProof(SecurityModel):
     atom_id: str
     covered: bool
+    source_classification_covered: bool | None = None
+    sink_classification_covered: bool | None = None
 
 
 class AdapterProof(VersionedModel):
@@ -115,22 +143,66 @@ def coverage_report(
         or adapter_proof.discovery_snapshot_digest != discovery_snapshot_digest
     ):
         raise ValueError("STALE_ADAPTER_PROOF")
-    proofs = {p.atom_id: p.covered for p in adapter_proof.atoms} if adapter_proof else {}
+    proofs = {p.atom_id: p for p in adapter_proof.atoms} if adapter_proof else {}
     probes = generate_probes(plan)
     rows = []
     for atom in plan.atoms:
         ids = tuple(p.probe_id for p in probes if atom.atom_id in p.atom_ids)
         proof = proofs.get(atom.atom_id)
+        data_rule = next(
+            (r for r in plan.data_rules if atom.source_ref == f"data.rules/{r.rule_id}"), None
+        )
+
+        def classification_status(
+            required: bool, covered: bool | None
+        ) -> Literal["NOT_REQUIRED", "UNPROVEN", "COVERED", "UNCOVERED"]:
+            return (
+                "NOT_REQUIRED"
+                if not required
+                else "UNPROVEN"
+                if covered is None
+                else "COVERED"
+                if covered
+                else "UNCOVERED"
+            )
+
         rows.append(
             AtomCoverage(
                 **atom.model_dump(),
+                provenance_input_required=atom.source_ref.startswith("data.rules/"),
+                source_classification_required=any(
+                    atom.source_ref == f"data.rules/{r.rule_id}"
+                    and r.label.value not in {"TOOL_OUTPUT", "UNTRUSTED_CONTENT"}
+                    for r in plan.data_rules
+                ),
+                sink_classification_required=any(
+                    atom.source_ref == f"data.rules/{r.rule_id}"
+                    and bool(r.allowed_destinations or r.denied_destinations)
+                    for r in plan.data_rules
+                ),
+                adapter_boundary=(
+                    "Tracked released tool outputs only; unobserved user/model text "
+                    "and semantic content detection are not covered"
+                    if atom.source_ref.startswith("data.rules/")
+                    else None
+                ),
+                source_classification_status=classification_status(
+                    data_rule is not None
+                    and data_rule.label.value not in {"TOOL_OUTPUT", "UNTRUSTED_CONTENT"},
+                    proof.source_classification_covered if proof else None,
+                ),
+                sink_classification_status=classification_status(
+                    data_rule is not None
+                    and bool(data_rule.allowed_destinations or data_rule.denied_destinations),
+                    proof.sink_classification_covered if proof else None,
+                ),
                 adapter_status=(
                     "NOT_REQUIRED"
                     if not atom.adapter_required
                     else "UNPROVEN"
                     if proof is None
                     else "COVERED"
-                    if proof
+                    if proof.covered
                     else "UNCOVERED"
                 ),
                 probe_ids=ids,

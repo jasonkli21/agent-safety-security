@@ -27,18 +27,22 @@ If they appear to conflict, do not silently pick whichever is convenient. Prefer
 
 ## 3. Current phase boundary
 
-**Phase 3 unified contract implementation is complete and awaiting independent review.**
-The active scope is `docs/plans/phase-3-implementation-plan.md`; verification and limitations
-are recorded in `docs/reports/phase-3-implementation-report.md` and `docs/contract-conformance.md`.
-Phase 0 canonical types, Phase 1 evidence semantics and Phase 2 runtime hardening remain protected.
-Do not implement Phase 4 until Phase 3 review/fixes are complete and a reviewed Phase 4 plan exists.
+**Phase 4 provenance/data-flow implementation is complete and awaiting independent review.**
+The active scope is `docs/plans/phase-4-implementation-plan.md`; verification and limitations
+are recorded in `docs/reports/phase-4-implementation-report.md` and `docs/provenance-data-flow.md`.
+Phase 0–3 reviewed security boundaries remain protected. Do not implement Phase 5 until Phase 4
+review/fixes are complete and a reviewed Phase 5 plan exists.
 
 Native authorization, generated conformance, coverage and semantic diff consume an immutable
-compiled plan. Runtime compiles once at startup; mutable approval/budget state stays runtime-owned.
-MCP extraction/opaque-resource proof stays adapter-owned. Generated conformance proves synthetic
-policy/evidence behavior, not model robustness. Unsupported data/delegation intent remains explicit.
-Do not add provenance propagation, hosted services, UI, OAuth/OIDC, Cedar/OPA, general policy
-languages, or sandbox infrastructure in Phase 3.
+compiled plan. Runtime compiles once at startup; mutable approval/budget/provenance state stays
+runtime-owned. Data rules only restrict ordinary authority. Labels propagate monotonically;
+requests snapshot exposed context, and blocked responses never enter that frontier. Critical
+exposure evidence precedes ENFORCE release. MCP source/sink proof binds exact plan/discovery
+identity. Explicit source labels/static sink categories are trusted configuration; no argument
+can relabel context. Generated conformance proves synthetic policy/evidence behavior, not model
+robustness, semantic content detection or complete model-internal taint. Unsupported delegation
+intent remains explicit. Do not add replay/incidents, hosted services, UI, OAuth/OIDC, Cedar/OPA,
+general policy languages, automatic declassification or sandbox infrastructure in Phase 4.
 
 ## 4. Architectural invariants
 

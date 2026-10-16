@@ -45,7 +45,7 @@ def compile_contract(contract: AgentSecurityContract) -> CompiledSecurityPlan:
             atom(f"budgets.{name}", value)
     atom("approvals.default_timeout_seconds", contract.approvals.default_timeout_seconds)
     for data_rule in contract.data.rules:
-        atom(f"data.rules/{data_rule.rule_id}", data_rule, supported=False)
+        atom(f"data.rules/{data_rule.rule_id}", data_rule, adapter=True)
     for invariant in contract.invariants:
         atom(f"invariants/{invariant.id}", invariant, supported=False)
     if contract.identity.acts_on_behalf_of is not None:
@@ -62,6 +62,7 @@ def compile_contract(contract: AgentSecurityContract) -> CompiledSecurityPlan:
         principal=contract.identity.principal,
         environment=contract.environment.mode,
         rules=contract.tools.rules,
+        data_rules=contract.data.rules,
         scope=(
             CompiledScope(
                 task_id=scope.task_id,

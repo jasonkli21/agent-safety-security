@@ -2,7 +2,7 @@
 
 from typing import Literal
 
-from agentsec.contracts.models import ApprovalSettings, ToolRule
+from agentsec.contracts.models import ApprovalSettings, DataRule, ToolRule
 from agentsec.domain.base import (
     CapabilityId,
     Count,
@@ -77,7 +77,7 @@ class SemanticAtom(SecurityModel):
 
 
 class CompiledSecurityPlan(VersionedModel):
-    compiler_version: Literal["phase3-v2"] = "phase3-v2"
+    compiler_version: Literal["phase4-v1"] = "phase4-v1"
     contract_id: Identifier
     contract_schema_version: Literal["0.1"]
     effective_policy_hash: Digest
@@ -85,6 +85,7 @@ class CompiledSecurityPlan(VersionedModel):
     principal: PrincipalRef
     environment: Identifier
     rules: tuple[ToolRule, ...]
+    data_rules: tuple[DataRule, ...]
     scope: CompiledScope | None
     budgets: RuntimeBudgets
     approvals: ApprovalSettings

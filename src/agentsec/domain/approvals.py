@@ -2,7 +2,7 @@
 
 from typing import Self
 
-from pydantic import JsonValue, model_validator
+from pydantic import JsonValue, field_validator, model_validator
 from pydantic_core import PydanticCustomError
 
 from agentsec.domain.base import (
@@ -14,6 +14,7 @@ from agentsec.domain.base import (
     VersionedModel,
 )
 from agentsec.domain.identity import PrincipalRef
+from agentsec.domain.provenance import DataArtifactRef, canonical_artifacts
 from agentsec.domain.serialization import content_digest
 from agentsec.domain.taxonomy import ApprovalOutcome, ApprovalScope, ReasonCode
 
@@ -29,6 +30,11 @@ class NormalizedAction(VersionedModel):
     capability: CapabilityId
     tool_id: Identifier
     resource: NonEmpty | None = None
+    data_destination: Identifier | None = None
+    data_artifact_refs: tuple[DataArtifactRef, ...] = ()
+
+    _canonical_artifacts = field_validator("data_artifact_refs")(canonical_artifacts)
+
     arguments: dict[str, JsonValue]
     tool_schema_hash: Digest
     tool_description_hash: Digest

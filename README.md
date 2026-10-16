@@ -2,7 +2,7 @@
 
 A local-first security lifecycle for tool-using AI agents: define explicit authority, test it adversarially, enforce it at runtime, and turn observed failures into regressions.
 
-> **Current status:** Phase 3 unified contract compilation is implemented and awaiting independent review. Native runtime authorization, generated conformance, semantic coverage and policy diff share compiled intent. Phase 2 review fixes remain protected. See the [conformance guide](docs/contract-conformance.md) and [Phase 3 report](docs/reports/phase-3-implementation-report.md).
+> **Current status:** Phase 4 tracked provenance and data-flow security is implemented and awaiting independent review. Native authorization, generated conformance, coverage and semantic diff share compiled intent. Prior review fixes remain protected. See the [tracked-flow guide](docs/provenance-data-flow.md) and [Phase 4 report](docs/reports/phase-4-implementation-report.md).
 
 ## Product thesis
 
@@ -131,3 +131,10 @@ agentsec contract diff examples/mcp/contract.yaml examples/mcp/contract.yaml --f
 These commands run locally without tool dispatch, models or credentials. Coverage keeps
 unsupported intent, adapter proof and generated/executed tests separate. Synthetic conformance
 is not a prompt-injection robustness claim. See [the guide](docs/contract-conformance.md).
+
+
+Phase 4 adds [tracked provenance and data-flow restrictions](docs/provenance-data-flow.md),
+including labeled tool-output → external-sink and untrusted-output → memory-tool protection.
+Use `examples/mcp/flow-contract.yaml` with `examples/mcp/flow-gateway.yaml` and the existing
+synthetic server. This tracks released tool outputs conservatively; it does not classify arbitrary
+user/model text or provide complete DLP. Phase 4 awaits fresh independent review.

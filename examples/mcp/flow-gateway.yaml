@@ -1,0 +1,25 @@
+schema_version: "0.1"
+gateway_id: tracked-flow-gateway
+server_id: synthetic-tools
+mode: ENFORCE
+upstream:
+  transport: stdio
+  command: .venv/bin/python
+  args: [examples/mcp/upstream_server.py]
+  env: {}
+tool_bindings:
+  - upstream_name: search
+    capability: web.search
+    side_effect_class: READ
+    output_data_labels: [SECRET, PII, CREDENTIAL]
+    data_sink_destination: internal
+  - upstream_name: send_email
+    capability: email.send
+    side_effect_class: EXTERNAL_WRITE
+    output_data_labels: []
+    data_sink_destination: external
+  - upstream_name: write_file
+    capability: filesystem.write
+    side_effect_class: INTERNAL_WRITE
+    output_data_labels: []
+    data_sink_destination: memory

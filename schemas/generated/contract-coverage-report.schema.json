@@ -3,6 +3,18 @@
     "AtomCoverage": {
       "additionalProperties": false,
       "properties": {
+        "adapter_boundary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adapter Boundary"
+        },
         "adapter_required": {
           "default": false,
           "title": "Adapter Required",
@@ -65,9 +77,46 @@
           "title": "Probe Status",
           "type": "string"
         },
+        "provenance_input_required": {
+          "default": false,
+          "title": "Provenance Input Required",
+          "type": "boolean"
+        },
         "runtime_supported": {
           "title": "Runtime Supported",
           "type": "boolean"
+        },
+        "sink_classification_required": {
+          "default": false,
+          "title": "Sink Classification Required",
+          "type": "boolean"
+        },
+        "sink_classification_status": {
+          "default": "NOT_REQUIRED",
+          "enum": [
+            "NOT_REQUIRED",
+            "UNPROVEN",
+            "COVERED",
+            "UNCOVERED"
+          ],
+          "title": "Sink Classification Status",
+          "type": "string"
+        },
+        "source_classification_required": {
+          "default": false,
+          "title": "Source Classification Required",
+          "type": "boolean"
+        },
+        "source_classification_status": {
+          "default": "NOT_REQUIRED",
+          "enum": [
+            "NOT_REQUIRED",
+            "UNPROVEN",
+            "COVERED",
+            "UNCOVERED"
+          ],
+          "title": "Source Classification Status",
+          "type": "string"
         },
         "source_ref": {
           "title": "Source Ref",

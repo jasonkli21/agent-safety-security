@@ -85,6 +85,8 @@ class ContractTarget(FixtureTarget):
                         capability=probe.capability,
                         resource=probe.resource,
                         arguments={},
+                        data_artifact_refs=probe.data_artifact_refs,
+                        data_destination=probe.data_destination,
                     ),
                     FinishStep(type="FINISH"),
                 ),
@@ -115,6 +117,18 @@ def run_contract_cases(
 ) -> tuple[ProbeResult, ...]:
     rows = []
     for probe in generate_probes(plan):
+        if not probe.derivable:
+            rows.append(
+                ProbeResult(
+                    schema_version="0.1",
+                    probe_id=probe.probe_id,
+                    status="NOT_RUN",
+                    obligation_kind=probe.obligation_kind,
+                    expected=probe.expected,
+                    not_derivable_reason="No base-permitted witness for this flow obligation",
+                )
+            )
+            continue
         context = EvaluationContext()
         result = evaluate(
             contract=contract,
@@ -141,6 +155,7 @@ def run_contract_cases(
                 schema_version="0.1",
                 probe_id=probe.probe_id,
                 status=status,
+                obligation_kind=probe.obligation_kind,
                 expected=probe.expected,
                 actual=decisions[0].outcome if len(decisions) == 1 else None,
             )

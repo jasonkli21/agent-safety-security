@@ -51,7 +51,7 @@ default deny remain safe when an alias mismatch only denies the request. No gene
 email, or Unicode canonicalizer is applied. Identity, agent, environment, task and delegation
 consistency checks fail closed; they do not authenticate the MCP host.
 
-Configured data rules, prose invariants, acts-on-behalf-of identity, model-call, cost and
+Prose invariants, acts-on-behalf-of identity, model-call, cost and
 agent-delegation budgets are unsupported. Even configured zero budgets count as active.
 ENFORCE refuses these contracts; SHADOW lists gaps and evaluates only the supported subset.
 `--check` checks configured binding coverage without connecting; serving startup repeats the
@@ -114,7 +114,7 @@ Returns carry upstream success/error and a full response hash. Successful struct
 must match a declared output schema, including missing structured output. ENFORCE withholds
 violations behind `OUTPUT_SCHEMA_VIOLATION`; SHADOW signals and forwards protocol-valid output.
 Upstream declared tool errors remain errors and are exempt from success-output validation.
-No semantic content classifier, provenance propagation or verified effect is claimed.
+Tracked provenance is implemented in Phase 4; no semantic content classifier or verified effect is claimed.
 
 Canonical request/decision/approval/dispatch/return events remain distinct. A dispatch's new
 `enforcement_mode` defaults to ENFORCE for older artifacts. SHADOW preserves the real policy
@@ -139,7 +139,7 @@ cannot undo effects. SHADOW reports evidence failure and continues without claim
 capture. Dispatch evidence records an attempted invocation, not delivery, success or verified
 effect. Cancellation after entry records an unknown-effect signal and never retries. Process
 crashes may leave incomplete streams. There is no tamper resistance, sandbox, remote identity
-verification, taint analysis, hosted approval service or Phase 3 compiler.
+verification, semantic content detection or hosted approval service.
 
 ## Phase 3 compiled startup
 
@@ -151,3 +151,24 @@ MCP discovery composes extraction/`opaque_exact` checks with compiled rules/scop
 project discovery proof to semantic atoms using `semantic_adapter_proof`; offline CLI coverage
 reports adapter requirements as UNPROVEN. Approval ledgers, budgets, cancellation, redaction,
 shadow truthfulness, response guards and request-ID hardening retain their Phase 2 behavior.
+
+
+## Phase 4 source/sink inputs and ambient provenance
+
+Bindings add nullable output_data_labels (null unreviewed; [] reviewed with no extra labels) and
+nullable data_sink_destination (trusted static category, null unknown). data_access_labels keeps
+its prior risk/data-access meaning. Released output receives TOOL_OUTPUT/UNTRUSTED_CONTENT plus
+explicit/inherited labels. Requests snapshot only already-exposed context. Data rules restrict
+base authority; no client argument supplies labels or destinations. Destination rules require
+categories on every active binding; nonautomatic-label rules require reviewed output labels on
+every active binding. Preflight/discovery refuse ENFORCE with missing classification. SHADOW
+records gaps/affected-call context ERROR and forwards; DISABLED records no policy result.
+
+Runtime creates returned artifacts before validation, writes DATA_EXPOSED before release and
+commits exposure atomically, preserving concurrent branches. ENFORCE response rejection or
+critical exposure-record failure does not taint context. Approval and policy-input digests bind
+provenance/destination. Data source/sink proof uses the exact existing plan/discovery identity.
+See [tracked provenance/data flow](provenance-data-flow.md) for full semantics, synthetic examples,
+compatibility and limits. Protection covers tracked released MCP data, not arbitrary user/model
+text. The graph is session-local and grows with observed responses; configured budgets can bound
+session dispatches. Source classification and upstream execution semantics remain operator trust.

@@ -131,7 +131,6 @@ def test_coverage_conservative_including_zero():
         budgets={"max_model_calls": 0, "max_cost_usd": 0, "max_delegated_agents": 0},
     )
     assert coverage_gaps(contract) == (
-        "data.rules",
         "invariants",
         "budgets.max_model_calls",
         "budgets.max_cost_usd",

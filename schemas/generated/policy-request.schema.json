@@ -378,6 +378,21 @@
       "title": "Data Artifact Refs",
       "type": "array"
     },
+    "data_destination": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Data Destination"
+    },
     "delegation_id": {
       "anyOf": [
         {

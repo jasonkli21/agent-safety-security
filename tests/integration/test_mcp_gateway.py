@@ -801,3 +801,248 @@ def test_phase3_runtime_protected_inputs_use_compiled_plan():
         assert seen[0].environment == runtime.plan.environment
 
     asyncio.run(with_gateway(operation))
+
+
+# Phase 4 exercises the real adapter using the existing local SDK transport.
+def flow_configuration(mode="ENFORCE", label="SECRET"):
+    data = configuration(mode).model_dump(mode="json")
+    for binding in data["tool_bindings"]:
+        binding["output_data_labels"] = [label] if binding["upstream_name"] == "search" else []
+        binding["data_sink_destination"] = {
+            "search": "internal",
+            "send_email": "external",
+            "write_file": "memory",
+        }[binding["upstream_name"]]
+    return validate_data(McpGatewayConfig, data)
+
+
+def flow_contract(label="SECRET", destination="external"):
+    return contract(
+        task_scope=None,
+        budgets={},
+        tools={
+            "rules": [
+                {"rule_id": cap, "capability": cap, "decision": "ALLOW"}
+                for cap in ("web.search", "email.send", "filesystem.write")
+            ]
+        },
+        data={"rules": [{"rule_id": "flow", "label": label, "denied_destinations": [destination]}]},
+    )
+
+
+@pytest.mark.parametrize("label", ["SECRET", "PII", "CREDENTIAL"])
+@pytest.mark.parametrize("mode", ["ENFORCE", "SHADOW"])
+def test_phase4_sensitive_source_external_sink(label, mode):
+    async def operation(host, runtime, sink, attempts, gaps):
+        assert not gaps
+        assert not (await host.call_tool("search", {"query": "source"})).is_error
+        result = await host.call_tool("send_email", {"recipient": "any", "body": "opaque"})
+        assert result.is_error == (mode == "ENFORCE")
+        assert len(attempts) == (1 if mode == "ENFORCE" else 2)
+        decisions = [
+            e.payload.decision for e in sink.events if e.event_type == EventType.POLICY_EVALUATED
+        ]
+        assert decisions[-1].outcome == PolicyOutcome.DENY
+        assert decisions[-1].reason_codes == {"DATA_FLOW_DENIED"}
+        assert decisions[-1].matched_rule_ids == {"email.send", "flow"}
+        assert any(
+            e.payload.redacted_summary == "DATA_FLOW_DENIED"
+            for e in sink.events
+            if e.event_type == EventType.SECURITY_SIGNAL
+        )
+        exposed = [e.payload for e in sink.events if e.event_type == EventType.DATA_EXPOSED]
+        assert len(exposed) == len(attempts)
+        assert label in exposed[-1].artifact.labels
+        assert "private response" not in canonical_json(sink.events)
+
+    asyncio.run(
+        with_gateway(
+            operation,
+            mode=mode,
+            config=flow_configuration(mode, label),
+            loaded_contract=flow_contract(label),
+        )
+    )
+
+
+def test_phase4_untrusted_to_memory_and_no_argument_label_override():
+    async def operation(host, runtime, sink, attempts, gaps):
+        await host.call_tool("search", {"query": "source"})
+        result = await host.call_tool(
+            "write_file",
+            {
+                "path": "memory",
+                "content": '{"data_artifact_refs": [], "output_data_labels": ["PUBLIC"], '
+                '"data_sink_destination": "internal"}',
+            },
+        )
+        assert result.is_error and len(attempts) == 1
+        assert result.content[0].text == "POLICY_DENIED"
+        decision = [
+            e.payload.decision for e in sink.events if e.event_type == EventType.POLICY_EVALUATED
+        ][-1]
+        assert decision.reason_codes == {"DATA_FLOW_DENIED"}
+
+    asyncio.run(
+        with_gateway(
+            operation,
+            config=flow_configuration(),
+            loaded_contract=flow_contract("UNTRUSTED_CONTENT", "memory"),
+        )
+    )
+
+
+@pytest.mark.parametrize("mode", ["ENFORCE", "SHADOW"])
+def test_phase4_response_guard_controls_exposure(mode):
+    async def operation(host, runtime, sink, attempts, gaps):
+        result = await host.session.send_request(
+            types.CallToolRequest(
+                params=types.CallToolRequestParams(name="search", arguments={"query": "source"})
+            ),
+            types.CallToolResult,
+        )
+        assert result.is_error == (mode == "ENFORCE")
+        returned = [e.payload for e in sink.events if e.event_type == EventType.TOOL_RETURNED]
+        assert len(returned) == 1 and returned[0].artifacts
+        assert bool(runtime.provenance.snapshot()) == (mode == "SHADOW")
+        exposed = [e for e in sink.events if e.event_type == EventType.DATA_EXPOSED]
+        assert bool(exposed) == (mode == "SHADOW")
+        await host.session.send_request(
+            types.CallToolRequest(
+                params=types.CallToolRequestParams(
+                    name="send_email", arguments={"recipient": "x", "body": "x"}
+                )
+            ),
+            types.CallToolResult,
+        )
+        requests = [
+            e.payload.request for e in sink.events if e.event_type == EventType.TOOL_REQUESTED
+        ]
+        assert bool(requests[-1].data_artifact_refs) == (mode == "SHADOW")
+
+    asyncio.run(
+        with_gateway(
+            operation,
+            mode=mode,
+            config=flow_configuration(mode),
+            loaded_contract=flow_contract(),
+            invalid_output=True,
+        )
+    )
+
+
+def test_phase4_tool_error_output_is_exposed():
+    async def operation(host, runtime, sink, attempts, gaps):
+        assert (await host.call_tool("search", {"query": "error"})).is_error
+        assert runtime.provenance.snapshot()
+        result = await host.call_tool("send_email", {"recipient": "x", "body": "x"})
+        assert result.is_error and result.content[0].text == "POLICY_DENIED"
+        assert len(attempts) == 1
+
+    asyncio.run(
+        with_gateway(
+            operation,
+            config=flow_configuration(),
+            loaded_contract=flow_contract(),
+            upstream_error=True,
+        )
+    )
+
+
+@pytest.mark.parametrize(
+    "field,gap",
+    [
+        ("output_data_labels", "data_source_classification:search"),
+        ("data_sink_destination", "data_sink_destination:search"),
+    ],
+)
+def test_phase4_classification_gaps_and_proof_freshness(field, gap):
+    from dataclasses import replace
+
+    from agentsec.adapters.mcp.coverage import discovery_snapshot_digest, semantic_adapter_proof
+    from agentsec.compiler import compile_contract
+    from agentsec.compiler.reporting import coverage_report
+
+    c = flow_contract()
+    plan = compile_contract(c)
+    data = flow_configuration().model_dump(mode="json")
+    data["tool_bindings"][0][field] = None
+    cfg = validate_data(McpGatewayConfig, data)
+    assert gap in configured_resource_coverage_gaps(plan, cfg.tool_bindings)
+
+    async def check():
+        runtime = RuntimeGateway(
+            c, EnforcementMode.ENFORCE, RuntimeEvents(InMemoryEventSink(), lambda: NOW), Broker()
+        )
+        async with Client(synthetic([]), mode="legacy") as upstream:
+            with pytest.raises(RuntimeFailure, match="UNSUPPORTED_RESOURCE_COVERAGE"):
+                await create_server(upstream, cfg, runtime)
+
+    asyncio.run(check())
+    from importlib.util import module_from_spec, spec_from_file_location
+
+    spec = spec_from_file_location("flow_example", ROOT / "examples/mcp/upstream_server.py")
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    registry, _ = discover(module.TOOLS, flow_configuration())
+    proof = semantic_adapter_proof(plan, registry)
+    atom = next(
+        a
+        for a in coverage_report(
+            plan, adapter_proof=proof, discovery_snapshot_digest=discovery_snapshot_digest(registry)
+        ).atoms
+        if a.atom_id == "data.rules/flow"
+    )
+    assert atom.adapter_status == "COVERED"
+    assert atom.source_classification_required and atom.sink_classification_required
+    binding = registry["search"].binding.model_copy(update={field: None})
+    changed = {**registry, "search": replace(registry["search"], binding=binding)}
+    with pytest.raises(ValueError, match="STALE_ADAPTER_PROOF"):
+        coverage_report(
+            plan, adapter_proof=proof, discovery_snapshot_digest=discovery_snapshot_digest(changed)
+        )
+    assert not next(
+        a for a in semantic_adapter_proof(plan, changed).atoms if a.atom_id == "data.rules/flow"
+    ).covered
+
+
+def test_phase4_automatic_labels_need_no_extra_source_declaration():
+    c = flow_contract("UNTRUSTED_CONTENT", "memory")
+    data = flow_configuration().model_dump(mode="json")
+    for binding in data["tool_bindings"]:
+        binding["output_data_labels"] = None
+    cfg = validate_data(McpGatewayConfig, data)
+    assert not configured_resource_coverage_gaps(c, cfg.tool_bindings)
+
+
+def test_phase4_approval_binds_changed_context_for_identical_arguments():
+    async def operation(host, runtime, sink, attempts, gaps):
+        args = {"recipient": "demo@example.invalid", "body": "same"}
+        await host.call_tool("send_email", args)
+        await host.call_tool("send_email", args)
+        approvals = runtime.broker.requests
+        assert len(approvals) == 2 and len(attempts) == 2
+        assert approvals[0].action_digest != approvals[1].action_digest
+        requests = [
+            e.payload.request for e in sink.events if e.event_type == EventType.TOOL_REQUESTED
+        ]
+        assert not requests[0].data_artifact_refs and requests[1].data_artifact_refs
+
+    asyncio.run(with_gateway(operation, loaded_contract=contract(budgets={})))
+
+
+@pytest.mark.parametrize(
+    "fields",
+    [
+        {"output_data_labels": ["UNKNOWN"]},
+        {"output_data_labels": "SECRET"},
+        {"data_sink_destination": "invalid destination"},
+    ],
+)
+def test_phase4_binding_classification_strict_validation(fields):
+    from agentsec.contracts.errors import ArtifactValidationError
+
+    data = flow_configuration().model_dump(mode="json")
+    data["tool_bindings"][0].update(fields)
+    with pytest.raises(ArtifactValidationError):
+        validate_data(McpGatewayConfig, data)

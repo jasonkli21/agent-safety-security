@@ -14,7 +14,7 @@ from agentsec.domain.base import (
     VersionedModel,
 )
 from agentsec.domain.identity import AgentIdentity, PrincipalRef, TaskScope
-from agentsec.domain.provenance import DataArtifactRef
+from agentsec.domain.provenance import DataArtifactRef, canonical_artifacts
 from agentsec.domain.taxonomy import PolicyOutcome, ReasonCode
 
 
@@ -29,6 +29,10 @@ class PolicyRequest(VersionedModel):
     resource: NonEmpty | None = None
     arguments_summary: dict[str, JsonValue] | None = None
     data_artifact_refs: tuple[DataArtifactRef, ...] = ()
+    data_destination: Identifier | None = None
+
+    _canonical_artifacts = field_validator("data_artifact_refs")(canonical_artifacts)
+
     trajectory_ref: Identifier | None = None
     environment: Identifier
     requested_at: Timestamp

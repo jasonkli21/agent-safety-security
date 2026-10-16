@@ -59,6 +59,8 @@ class ToolBinding(SecurityModel):
     side_effect_class: SideEffectClass
     destructive: bool = False
     data_access_labels: frozenset[DataLabel] = frozenset()
+    output_data_labels: frozenset[DataLabel] | None = None
+    data_sink_destination: Identifier | None = None
     risk_tags: frozenset[SecurityCategory] = frozenset()
     resource_argument_path: tuple[NonEmpty, ...] | None = None
     resource_semantics: Literal["opaque_exact"] | None = None

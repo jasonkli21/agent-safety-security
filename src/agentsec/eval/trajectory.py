@@ -4,6 +4,7 @@ from agentsec.contracts.errors import ArtifactValidationError
 from agentsec.domain.events import (
     ApprovalDecidedPayload,
     ApprovalRequestedPayload,
+    DataExposedPayload,
     EffectVerifiedPayload,
     PolicyEvaluatedPayload,
     RunStartedPayload,
@@ -39,7 +40,8 @@ def validate_evaluation_trajectory(observation: EvaluationObservation) -> None:
     approvals: dict[str, ApprovalRequestedPayload] = {}
     approved: dict[str, ApprovalDecidedPayload] = {}
     dispatches: dict[str, ToolDispatchedPayload] = {}
-    returns: set[str] = set()
+    returns: dict[str, ToolReturnedPayload] = {}
+    exposures: set[str] = set()
     redeemed: set[str] = set()
     start: RunStartedPayload | None = None
     terminal = False
@@ -121,7 +123,13 @@ def validate_evaluation_trajectory(observation: EvaluationObservation) -> None:
             require(p.request_id == dispatch.request_id)
             if isinstance(p, ToolReturnedPayload):
                 require(p.tool_id == dispatch.tool_id and p.dispatch_id not in returns)
-                returns.add(p.dispatch_id)
+                returns[p.dispatch_id] = p
+        elif isinstance(p, DataExposedPayload):
+            require(p.dispatch_id in returns and p.dispatch_id not in exposures)
+            returned = returns[p.dispatch_id]
+            require(p.request_id == returned.request_id and p.tool_id == returned.tool_id)
+            require(p.artifact in returned.artifacts)
+            exposures.add(p.dispatch_id)
     if observation.coverage.event_stream_complete:
         require(start is not None and terminal)
     source_ids = [t.source_id for t in observation.text_observations]

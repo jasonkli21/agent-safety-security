@@ -38,6 +38,17 @@ def test_all_event_payloads(event_type):
             "artifact_refs": ["artifact-1"],
         },
         "RUN_TERMINATED": {"reason": "BUDGET_EXCEEDED"},
+        "DATA_EXPOSED": {
+            "dispatch_id": "d",
+            "request_id": "r",
+            "tool_id": "t",
+            "artifact": {
+                "schema_version": "0.1",
+                "artifact_id": "a",
+                "labels": ["TOOL_OUTPUT"],
+                "origin": {"origin_type": "tool_output", "trust_class": "TOOL_OUTPUT"},
+            },
+        },
     }
     if event_type in existing:
         data = deepcopy(existing[event_type])

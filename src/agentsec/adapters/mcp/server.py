@@ -105,7 +105,13 @@ async def create_server(
                 approval_display_paths=(
                     entry.binding.approval_display_paths if entry.binding is not None else ()
                 ),
-                resource_coverage_gap=params.name in resource_coverage.uncovered_tool_names,
+                resource_coverage_gap=(
+                    params.name in resource_coverage.uncovered_tool_names
+                    and params.name not in resource_coverage.data_uncovered_tool_names
+                ),
+                data_coverage_gap=params.name in resource_coverage.data_uncovered_tool_names,
+                data_destination=(entry.binding.data_sink_destination if entry.binding else None),
+                output_data_labels=(entry.binding.output_data_labels if entry.binding else None),
             )
             return types.CallToolResult.model_validate(response.body)
         except RuntimeFailure as exc:

@@ -21,7 +21,7 @@ special meaning and are rejected in capability IDs.
 | `identity` | Required `principal`; optional `acts_on_behalf_of`. Each is a `principal_id` plus `principal_type` (`USER`, `AGENT`, `SERVICE`). References are external; there is no contained principal registry or authentication check. |
 | `task_scope` | Optional `task_id`, `description`, `requested_capabilities`, `resource_scopes` model. Within a supplied scope the first two are required. Resources map capability IDs to sets of opaque resource strings. Scope expresses requested work and never grants permission. |
 | `tools.rules` | Unordered rules with required `rule_id`, `capability`, `decision`; optional opaque exact `resource` selector. Decisions are `ALLOW`, `DENY`, `REQUIRE_APPROVAL`. Omitted `tools` or rules means no explicit grants. No argument constraint language exists yet. |
-| `data.rules` | Unordered rules with required `rule_id`, `label`; sets `allowed_destinations`, `denied_destinations`, `allowed_capabilities`, `denied_capabilities` default empty. Destination names are opaque category IDs; no URL/glob matching is implemented. Each label has at most one rule. This represents intent, not taint propagation. |
+| `data.rules` | Unordered rules with required `rule_id`, `label`; sets `allowed_destinations`, `denied_destinations`, `allowed_capabilities`, `denied_capabilities` default empty. Destination names are opaque category IDs; no URL/glob matching is implemented. Each label has at most one rule. Phase 4 compiles these as restrictive tracked-data semantics; see below. |
 | `budgets` | Optional nonnegative `max_model_calls`, `max_tool_calls`, `max_external_writes`, `max_destructive_calls`, `max_runtime_seconds`, `max_delegated_agents` (strict integers), and finite nonnegative `max_cost_usd` (JSON number). Zero is valid; omitted/null is unspecified, never an implicit grant. |
 | `approvals` | `default_timeout_seconds`, positive strict integer, defaults to 120. |
 | `invariants` | Unordered declarations: required `id`, `description`; optional taxonomy `category`. These are prose intent, not executable predicates. |
@@ -125,7 +125,7 @@ agentsec examples validate
 Schema `0.1` is the only accepted version. No migration or compatibility fallback is implicit.
 Before 1.0, schema changes require review of generated schemas, golden forms, and these hash
 projections. Delegation subset checks, resource matching, argument constraints, budget metering,
-provenance propagation, enforcement, and actual approval workflows belong to later phases.
+the later scope is governed by the current focused runtime/provenance docs.
 
 ## Phase 2 executable subset
 
@@ -143,10 +143,28 @@ evaluation remains independent; it does not implicitly execute contract rules. S
 The supported tool rules, protected identity, task ceiling, runtime budget configuration and
 approval timeout compile into an immutable `CompiledSecurityPlan`. Its explicit version,
 compiler version, contract ID, effective policy hash and source-linked semantic atoms make
-executable intent inspectable. Unsupported data rules, invariants, acts-on-behalf-of and unsupported
+executable intent inspectable. Invariants, acts-on-behalf-of and unsupported
 budgets remain gaps; compilation does not enforce them. ENFORCE still refuses those gaps.
 
 `contract compile` intentionally exposes authored policy values, including exact resources.
 Conformance/coverage/diff reports minimize content using IDs/digests and outcomes. They do not
 persist runtime arguments/responses. Exported schemas cover all four new public artifacts.
 See [contract conformance](contract-conformance.md) for commands and precise coverage limits.
+
+
+## Phase 4 executable data rules
+
+`phase4-v1` additionally freezes data rules in the compiled plan. Applicable labels union over
+trusted request artifact refs. Capability/destination deny membership or exclusion from a
+nonempty allowlist clamps base ALLOW/REQUIRE_APPROVAL to DENY / DATA_FLOW_DENIED. Empty allow
+sets impose no restriction. If a destination-constrained applicable rule lacks trusted context,
+ERROR / DATA_FLOW_CONTEXT_MISSING results unless an explicit flow denial already applies.
+Base DENY/ERROR remains unchanged. Matching flow decisions retain matching tool IDs and all
+applicable data-rule IDs. Labels do not implicitly imply other labels. No rule grants authority.
+
+PolicyRequest and NormalizedAction add an optional exact data_destination and bind canonical
+artifact context (unique IDs sorted deterministically). Full policy-input and action digests
+cover these fields. Existing effective-policy hashing already includes data rules and is
+unchanged. Schema stays 0.1 for additive pre-1.0 changes; strict consumers and old approvals need
+regeneration. See [tracked provenance](provenance-data-flow.md) for classification, release,
+concurrency and unobserved-context limitations.

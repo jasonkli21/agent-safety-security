@@ -16,6 +16,7 @@ envelope type. Both Python validation and exported JSON Schema reject mismatches
 | APPROVAL_DECIDED | ApprovalDecision with approver, outcome and one-shot scope; does not prove authentication or execution. |
 | TOOL_DISPATCHED | Unique dispatch attempt ID, request/tool/action digest, decision ID and optional approval ID; records dispatch, not successful return. |
 | TOOL_RETURNED | Dispatch attempt ID, request/tool IDs, success boolean, optional response hash and artifact references; a success response alone does not prove an external effect. |
+| DATA_EXPOSED | Dispatch/request/tool IDs plus a content-free artifact committed to guarded context release; distinct from returned data and not proof of model ingestion or transport delivery. |
 | EFFECT_VERIFIED | Dispatch attempt ID, request, verifier principal, verified boolean and nonempty observation artifact IDs; records a verifier's claim, not independent proof of its honesty. |
 | SECURITY_SIGNAL | Category, ordered severity, artifact references, optional redacted summary; indicator needing interpretation. |
 | RUN_TERMINATED | Stable reason code; termination can be abnormal or budget-related. |
@@ -85,3 +86,18 @@ validation preserves the request-to-decision link without treating redacted `Non
 input. In SHADOW, a call with an uncovered required resource input records a policy ERROR rather
 than treating `resource=None` as an observed absence.
 See [MCP runtime](runtime-mcp.md) for counter, response, failure and privacy semantics.
+
+
+## Phase 4 returned and exposed artifacts
+
+TOOL_RETURNED.artifacts contains content-free returned response refs with parent IDs, exact
+labels, trusted tool-output origin, timestamp and response hash. DATA_EXPOSED references the
+same artifact only after the response guard permits release. ENFORCE records this critical event
+under the provenance frontier lock before committing exposure/returning; a write failure prevents
+release and poisons subsequent calls. Withheld responses remain returned but unexposed.
+Tool error bodies that are released are also exposed; transport exceptions create no artifact.
+SHADOW forwards and tracks actual output while preserving deny/error evidence and signals.
+DISABLED exposure makes no enforcement claim. Phase 1 trajectory validation requires exposure
+to match a prior returned artifact/dispatch and rejects duplicate exposure for that dispatch.
+Request evidence retains content-free provenance refs and sink category; the full input/action
+digests include them. Schema remains 0.1; strict older consumers need regenerated schemas.

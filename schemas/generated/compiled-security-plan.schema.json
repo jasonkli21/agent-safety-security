@@ -115,6 +115,90 @@
       "title": "CompiledScope",
       "type": "object"
     },
+    "DataLabel": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "SENSITIVE",
+        "SECRET",
+        "PII",
+        "CREDENTIAL",
+        "UNTRUSTED_CONTENT",
+        "USER_PROVIDED",
+        "TOOL_OUTPUT"
+      ],
+      "title": "DataLabel",
+      "type": "string"
+    },
+    "DataRule": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_capabilities": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 3,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+            "type": "string"
+          },
+          "title": "Allowed Capabilities",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "allowed_destinations": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Allowed Destinations",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "denied_capabilities": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 3,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+            "type": "string"
+          },
+          "title": "Denied Capabilities",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "denied_destinations": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Denied Destinations",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "label": {
+          "$ref": "#/$defs/DataLabel"
+        },
+        "rule_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Rule Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_id",
+        "label"
+      ],
+      "title": "DataRule",
+      "type": "object"
+    },
     "PrincipalRef": {
       "additionalProperties": false,
       "properties": {
@@ -345,8 +429,8 @@
       "$ref": "#/$defs/RuntimeBudgets"
     },
     "compiler_version": {
-      "const": "phase3-v2",
-      "default": "phase3-v2",
+      "const": "phase4-v1",
+      "default": "phase4-v1",
       "title": "Compiler Version",
       "type": "string"
     },
@@ -361,6 +445,13 @@
       "const": "0.1",
       "title": "Contract Schema Version",
       "type": "string"
+    },
+    "data_rules": {
+      "items": {
+        "$ref": "#/$defs/DataRule"
+      },
+      "title": "Data Rules",
+      "type": "array"
     },
     "effective_policy_hash": {
       "pattern": "^sha256:[0-9a-f]{64}$",
@@ -409,6 +500,7 @@
     "principal",
     "environment",
     "rules",
+    "data_rules",
     "scope",
     "budgets",
     "approvals",

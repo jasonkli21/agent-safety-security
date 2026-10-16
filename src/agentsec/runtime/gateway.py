@@ -17,6 +17,7 @@ from agentsec.domain.approvals import ApprovalRequest, NormalizedAction, action_
 from agentsec.domain.events import (
     ApprovalDecidedPayload,
     ApprovalRequestedPayload,
+    DataExposedPayload,
     PolicyEvaluatedPayload,
     RunFinishedPayload,
     RunStartedPayload,
@@ -26,19 +27,23 @@ from agentsec.domain.events import (
     ToolReturnedPayload,
 )
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
+from agentsec.domain.provenance import DataOrigin
 from agentsec.domain.serialization import canonical_json, content_digest
 from agentsec.domain.taxonomy import (
+    DataLabel,
     EnforcementMode,
     EventType,
     PolicyOutcome,
     ReasonCode,
     SecurityCategory,
     Severity,
+    TrustClass,
 )
 from agentsec.domain.tools import ToolDescriptor
 from agentsec.policy.coverage import coverage_gaps
 from agentsec.policy.native import NativePolicyEngine
 from agentsec.policy.ports import PolicyEngine
+from agentsec.provenance import ProvenanceEngine
 from agentsec.runtime.approvals import ApprovalBroker, ApprovalLedger
 from agentsec.runtime.budgets import BudgetLedger
 from agentsec.runtime.events import RuntimeEvents
@@ -104,6 +109,7 @@ class RuntimeGateway:
         self.budgets = budgets or BudgetLedger(Budgets(**self._plan.budgets.model_dump()))
         self.approvals = ApprovalLedger(events.clock)
         self._closed = False
+        self.provenance = ProvenanceEngine(events.clock)
         if mode == EnforcementMode.ENFORCE and coverage_gaps(self._plan):
             raise RuntimeFailure("UNSUPPORTED_POLICY_SEMANTICS")
         self.events.emit(
@@ -149,9 +155,13 @@ class RuntimeGateway:
         bound: bool,
         approval_display_paths: tuple[tuple[str, ...], ...] = (),
         resource_coverage_gap: bool = False,
+        data_coverage_gap: bool = False,
+        data_destination: str | None = None,
+        output_data_labels: frozenset[DataLabel] | None = None,
     ) -> ToolResponse:
         if self._closed:
             raise RuntimeFailure("SESSION_CLOSED")
+        context = self.provenance.snapshot()
         enforce = self.mode == EnforcementMode.ENFORCE
         if not bound and enforce:
             self.signal(SecurityCategory.UNAUTHORIZED_TOOL_USE, "UNBOUND_TOOL")
@@ -171,6 +181,8 @@ class RuntimeGateway:
             capability=capability,
             tool_id=tool.tool_id,
             resource=resource,
+            data_artifact_refs=context,
+            data_destination=data_destination,
             arguments=arguments,
             tool_schema_hash=tool.schema_hash,
             tool_description_hash=tool.description_hash,
@@ -187,6 +199,8 @@ class RuntimeGateway:
             capability=capability,
             tool_id=tool.tool_id,
             resource=resource,
+            data_artifact_refs=context,
+            data_destination=data_destination,
             arguments_summary=None,
             environment=plan.environment,
             requested_at=self.events.clock(),
@@ -213,14 +227,24 @@ class RuntimeGateway:
         decision: PolicyDecision | None = None
         if self.mode != EnforcementMode.DISABLED:
             try:
-                if resource_coverage_gap:
+                if resource_coverage_gap or data_coverage_gap:
                     decision = PolicyDecision(
                         schema_version="0.1",
                         decision_id=str(uuid4()),
                         request_id=request.request_id,
                         outcome=PolicyOutcome.ERROR,
-                        reason_codes=frozenset({ReasonCode.INVALID_REQUEST}),
-                        human_reason="UNSUPPORTED_RESOURCE_COVERAGE",
+                        reason_codes=frozenset(
+                            {
+                                ReasonCode.DATA_FLOW_CONTEXT_MISSING
+                                if data_coverage_gap
+                                else ReasonCode.INVALID_REQUEST
+                            }
+                        ),
+                        human_reason=(
+                            "UNSUPPORTED_DATA_COVERAGE"
+                            if data_coverage_gap
+                            else "UNSUPPORTED_RESOURCE_COVERAGE"
+                        ),
                         contract_id=plan.contract_id,
                         effective_policy_hash=self._plan.effective_policy_hash,
                         decided_at=self.events.clock(),
@@ -257,6 +281,16 @@ class RuntimeGateway:
             self.events.emit(
                 PolicyEvaluatedPayload(kind=EventType.POLICY_EVALUATED, decision=decision)
             )
+            if decision.outcome in {PolicyOutcome.DENY, PolicyOutcome.ERROR} and (
+                ReasonCode.DATA_FLOW_DENIED in decision.reason_codes
+                or ReasonCode.DATA_FLOW_CONTEXT_MISSING in decision.reason_codes
+            ):
+                self.signal(
+                    SecurityCategory.POLICY_BYPASS,
+                    ReasonCode.DATA_FLOW_DENIED.value
+                    if ReasonCode.DATA_FLOW_DENIED in decision.reason_codes
+                    else ReasonCode.DATA_FLOW_CONTEXT_MISSING.value,
+                )
             if enforce and decision.outcome in {PolicyOutcome.DENY, PolicyOutcome.ERROR}:
                 raise RuntimeFailure(
                     "POLICY_DENIED"
@@ -356,12 +390,24 @@ class RuntimeGateway:
                     )
                 )
                 raise RuntimeFailure("UPSTREAM_FAILURE") from exc
+            artifact = self.provenance.derive(
+                DataOrigin(
+                    origin_type="tool_output",
+                    source_id=tool.tool_id,
+                    trust_class=TrustClass.TOOL_OUTPUT,
+                ),
+                parents=context,
+                labels=frozenset({DataLabel.TOOL_OUTPUT, DataLabel.UNTRUSTED_CONTENT})
+                | (output_data_labels or frozenset()),
+                content_hash=content_digest(response.body),
+            )
             self.events.emit(
                 ToolReturnedPayload(
                     kind=EventType.TOOL_RETURNED,
                     dispatch_id=dispatch_id,
                     request_id=request.request_id,
                     tool_id=tool.tool_id,
+                    artifacts=(artifact,),
                     success=response.success,
                     response_hash=content_digest(response.body),
                 )
@@ -373,6 +419,18 @@ class RuntimeGateway:
                     self.signal(SecurityCategory.ARGUMENT_VIOLATION, "OUTPUT_SCHEMA_VIOLATION")
                     if enforce:
                         raise RuntimeFailure("OUTPUT_SCHEMA_VIOLATION") from exc
+            self.provenance.expose(
+                artifact,
+                lambda: self.events.emit(
+                    DataExposedPayload(
+                        kind=EventType.DATA_EXPOSED,
+                        dispatch_id=dispatch_id,
+                        request_id=request.request_id,
+                        tool_id=tool.tool_id,
+                        artifact=artifact,
+                    )
+                ),
+            )
             return response
         except RuntimeFailure as exc:
             if exc.code == "BUDGET_EXCEEDED":

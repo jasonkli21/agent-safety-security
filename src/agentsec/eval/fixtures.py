@@ -3,7 +3,7 @@
 from collections import defaultdict, deque
 from typing import Annotated, Literal, Self
 
-from pydantic import Field, JsonValue, model_validator
+from pydantic import Field, JsonValue, field_validator, model_validator
 from pydantic_core import PydanticCustomError
 
 from agentsec.contracts.canonical import effective_policy_hash
@@ -30,6 +30,7 @@ from agentsec.domain.events import (
     ToolReturnedPayload,
 )
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
+from agentsec.domain.provenance import DataArtifactRef, canonical_artifacts
 from agentsec.domain.scenarios import Scenario
 from agentsec.domain.serialization import canonical_json, content_digest
 from agentsec.domain.taxonomy import (
@@ -58,6 +59,9 @@ class ToolCallStep(SecurityModel):
     capability: CapabilityId
     arguments: dict[str, JsonValue]
     resource: NonEmpty | None = None
+    data_artifact_refs: tuple[DataArtifactRef, ...] = ()
+    data_destination: Identifier | None = None
+    _canonical_artifacts = field_validator("data_artifact_refs")(canonical_artifacts)
     policy_outcome: PolicyOutcome | None = None
     reason_codes: frozenset[ReasonCode] = frozenset()
     matched_rule_ids: frozenset[Identifier] = frozenset()
@@ -176,6 +180,8 @@ class FixtureTarget:
                     tool_id=tool.tool_id,
                     capability=step.capability,
                     resource=step.resource,
+                    data_artifact_refs=step.data_artifact_refs,
+                    data_destination=step.data_destination,
                     arguments=step.arguments,
                     tool_schema_hash=tool.schema_hash,
                     tool_description_hash=tool.description_hash,
@@ -191,6 +197,8 @@ class FixtureTarget:
                     capability=step.capability,
                     tool_id=tool.tool_id,
                     resource=step.resource,
+                    data_artifact_refs=step.data_artifact_refs,
+                    data_destination=step.data_destination,
                     environment=contract.agent.environment,
                     requested_at=context.clock(),
                 )

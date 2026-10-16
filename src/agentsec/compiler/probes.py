@@ -2,11 +2,14 @@
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from itertools import product
 
 from agentsec.compiler.models import CompiledSecurityPlan
 from agentsec.domain.policy import PolicyRequest
+from agentsec.domain.provenance import DataArtifactRef, DataOrigin
 from agentsec.domain.serialization import content_digest
-from agentsec.domain.taxonomy import PolicyOutcome, ReasonCode
+from agentsec.domain.taxonomy import DataLabel, PolicyOutcome, ReasonCode, TrustClass
+from agentsec.provenance import ProvenanceEngine
 
 
 @dataclass(frozen=True)
@@ -19,6 +22,11 @@ class PolicyProbe:
     atom_ids: tuple[str, ...]
     matched_rule_ids: frozenset[str] = frozenset()
 
+    data_artifact_refs: tuple[DataArtifactRef, ...] = ()
+    data_destination: str | None = None
+    derivable: bool = True
+    obligation_kind: str = "tool_policy"
+
     def request(self, plan: CompiledSecurityPlan) -> PolicyRequest:
         return PolicyRequest(
             schema_version="0.1",
@@ -30,6 +38,8 @@ class PolicyProbe:
             tool_id="conformance-tool",
             capability=self.capability,
             resource=self.resource,
+            data_artifact_refs=self.data_artifact_refs,
+            data_destination=self.data_destination,
             requested_at=datetime(2026, 1, 1, tzinfo=UTC),
         )
 
@@ -138,4 +148,188 @@ def generate_probes(plan: CompiledSecurityPlan) -> tuple[PolicyProbe, ...]:
                 ),
             )
         )
+    return tuple(probes) + generate_flow_probes(plan)
+
+
+def flow_partition(*plans: CompiledSecurityPlan) -> tuple[tuple[DataLabel, str, str | None], ...]:
+    """Exact independent label/capability/destination partitions; no model text."""
+    labels = {r.label for p in plans for r in p.data_rules}
+    caps = {
+        c
+        for p in plans
+        for r in p.data_rules
+        for c in r.allowed_capabilities | r.denied_capabilities
+    }
+    caps.update(r.capability for p in plans for r in p.rules)
+    destinations = {
+        d
+        for p in plans
+        for r in p.data_rules
+        for d in r.allowed_destinations | r.denied_destinations
+    }
+    return tuple(
+        product(
+            sorted(labels),
+            sorted(caps | {sentinel(caps, "flow.other")}),
+            (None, *sorted(destinations), sentinel(destinations, "flow-other")),
+        )
+    )
+
+
+def flow_obligation(
+    plan: CompiledSecurityPlan,
+    labels: frozenset[DataLabel],
+    capability: str,
+    destination: str | None,
+) -> tuple[PolicyOutcome | None, ReasonCode | None, frozenset[str]]:
+    """Independent declarative set oracle. None outcome means preserve ordinary policy."""
+    rules = [r for r in plan.data_rules if r.label in labels]
+    ids = frozenset(r.rule_id for r in rules)
+    forbidden_capabilities = set().union(*(r.denied_capabilities for r in rules))
+    capability_allowlists = [r.allowed_capabilities for r in rules if r.allowed_capabilities]
+    forbidden_destinations = set().union(*(r.denied_destinations for r in rules))
+    destination_allowlists = [r.allowed_destinations for r in rules if r.allowed_destinations]
+    if (
+        capability in forbidden_capabilities
+        or any(capability not in allowed for allowed in capability_allowlists)
+        or (
+            destination is not None
+            and (
+                destination in forbidden_destinations
+                or any(destination not in allowed for allowed in destination_allowlists)
+            )
+        )
+    ):
+        return PolicyOutcome.DENY, ReasonCode.DATA_FLOW_DENIED, ids
+    if destination is None and (forbidden_destinations or destination_allowlists):
+        return PolicyOutcome.ERROR, ReasonCode.DATA_FLOW_CONTEXT_MISSING, ids
+    return None, None, ids
+
+
+def synthetic_artifacts(labels: frozenset[DataLabel]) -> tuple[DataArtifactRef, ...]:
+    ids = iter(("flow-source", "flow-derived"))
+    graph = ProvenanceEngine(lambda: datetime(2026, 1, 1, tzinfo=UTC), lambda: next(ids))
+    origin = DataOrigin(
+        origin_type="synthetic", source_id="conformance-source", trust_class=TrustClass.TOOL_OUTPUT
+    )
+    source = graph.derive(origin, labels=labels)
+    return (graph.derive(origin, parents=(source,)),)
+
+
+def generate_flow_probes(plan: CompiledSecurityPlan) -> tuple[PolicyProbe, ...]:
+    """Non-vacuous witnesses for each authored restriction, or explicit NOT_RUN.
+
+    Base authorization is derived declaratively and must permit reaching the flow clamp.
+    Each axis gets its own witness so an unrelated denial cannot cover it accidentally.
+    """
+    bases = [
+        (c, r, *obligation(plan, c, r))
+        for c, r in partition(plan)
+        if obligation(plan, c, r)[0] in {PolicyOutcome.ALLOW, PolicyOutcome.REQUIRE_APPROVAL}
+    ]
+    destinations = sorted(
+        {d for r in plan.data_rules for d in r.allowed_destinations | r.denied_destinations}
+    )
+    dests = (None, *destinations, sentinel(set(destinations), "flow-other"))
+    probes: list[PolicyProbe] = []
+    for rule in plan.data_rules:
+        labels = frozenset({rule.label})
+        kinds = ["preserve"]
+        if rule.denied_capabilities:
+            kinds.append("denied_capability")
+        if rule.allowed_capabilities:
+            kinds.append("outside_allowed_capabilities")
+        if rule.denied_destinations:
+            kinds.append("denied_destination")
+        if rule.allowed_destinations:
+            kinds.append("outside_allowed_destinations")
+        if rule.allowed_destinations or rule.denied_destinations:
+            kinds.append("missing_destination")
+        for kind in kinds:
+            witness = None
+            for c, resource, base, base_reason in bases:
+                cap_safe = c not in rule.denied_capabilities and (
+                    not rule.allowed_capabilities or c in rule.allowed_capabilities
+                )
+                for dest in dests:
+                    out, reason, ids = flow_obligation(plan, labels, c, dest)
+                    qualifies = {
+                        "preserve": out is None,
+                        "denied_capability": c in rule.denied_capabilities,
+                        "outside_allowed_capabilities": bool(rule.allowed_capabilities)
+                        and c not in rule.allowed_capabilities,
+                        "denied_destination": cap_safe and dest in rule.denied_destinations,
+                        "outside_allowed_destinations": cap_safe
+                        and dest is not None
+                        and bool(rule.allowed_destinations)
+                        and dest not in rule.allowed_destinations,
+                        "missing_destination": cap_safe and dest is None,
+                    }[kind]
+                    if qualifies:
+                        matched = (
+                            frozenset(
+                                r.rule_id
+                                for r in plan.rules
+                                if r.capability == c and r.resource in {None, resource}
+                            )
+                            | ids
+                        )
+                        witness = PolicyProbe(
+                            "flow-" + content_digest((rule.rule_id, kind)).split(":")[1][:24],
+                            c,
+                            resource,
+                            out or base,
+                            reason or base_reason,
+                            (f"data.rules/{rule.rule_id}",),
+                            matched,
+                            synthetic_artifacts(labels),
+                            dest,
+                            True,
+                            kind,
+                        )
+                        break
+                if witness:
+                    break
+            if witness is None:
+                witness = PolicyProbe(
+                    "flow-" + content_digest((rule.rule_id, kind)).split(":")[1][:24],
+                    "flow.unavailable",
+                    None,
+                    PolicyOutcome.DENY,
+                    ReasonCode.DATA_FLOW_DENIED,
+                    (f"data.rules/{rule.rule_id}",),
+                    derivable=False,
+                    obligation_kind=kind,
+                )
+            probes.append(witness)
+    # Exercise any-deny-wins with all configured labels over every permitted base partition.
+    if len(plan.data_rules) > 1:
+        labels = frozenset(r.label for r in plan.data_rules)
+        for c, resource, _base, base_reason in bases:
+            for dest in dests:
+                out, reason, ids = flow_obligation(plan, labels, c, dest)
+                if out == PolicyOutcome.DENY:
+                    matched = (
+                        frozenset(
+                            r.rule_id
+                            for r in plan.rules
+                            if r.capability == c and r.resource in {None, resource}
+                        )
+                        | ids
+                    )
+                    probes.append(
+                        PolicyProbe(
+                            "flow-multi-" + content_digest((c, resource, dest)).split(":")[1][:24],
+                            c,
+                            resource,
+                            out,
+                            reason or base_reason,
+                            tuple(f"data.rules/{r.rule_id}" for r in plan.data_rules),
+                            matched,
+                            synthetic_artifacts(labels),
+                            dest,
+                            obligation_kind="any_deny_wins",
+                        )
+                    )
+                    break
     return tuple(probes)

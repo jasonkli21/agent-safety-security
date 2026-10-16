@@ -61,6 +61,33 @@ class NativePolicyEngine:
                 if any(r.decision == decision for r in rules):
                     outcome, reason = PolicyOutcome(decision.value), code
                     break
+        if outcome in {PolicyOutcome.ALLOW, PolicyOutcome.REQUIRE_APPROVAL}:
+            labels = {label for ref in request.data_artifact_refs for label in ref.labels}
+            applicable = tuple(r for r in contract.data_rules if r.label in labels)
+            matched |= frozenset(r.rule_id for r in applicable)
+            blocked = any(
+                request.capability in r.denied_capabilities
+                or (r.allowed_capabilities and request.capability not in r.allowed_capabilities)
+                or (
+                    request.data_destination is not None
+                    and (
+                        request.data_destination in r.denied_destinations
+                        or (
+                            r.allowed_destinations
+                            and request.data_destination not in r.allowed_destinations
+                        )
+                    )
+                )
+                for r in applicable
+            )
+            missing = request.data_destination is None and any(
+                r.allowed_destinations or r.denied_destinations for r in applicable
+            )
+            # Explicit denial wins over missing context, independent of rule ordering.
+            if blocked:
+                outcome, reason = PolicyOutcome.DENY, ReasonCode.DATA_FLOW_DENIED
+            elif missing:
+                outcome, reason = PolicyOutcome.ERROR, ReasonCode.DATA_FLOW_CONTEXT_MISSING
         return PolicyDecision(
             schema_version="0.1",
             decision_id=str(uuid4()),

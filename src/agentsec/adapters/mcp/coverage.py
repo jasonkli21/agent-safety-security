@@ -9,12 +9,14 @@ from agentsec.compiler import CompiledSecurityPlan, compile_contract
 from agentsec.compiler.reporting import AdapterAtomProof, AdapterProof
 from agentsec.contracts.models import AgentSecurityContract
 from agentsec.domain.serialization import content_digest
+from agentsec.domain.taxonomy import DataLabel
 
 
 @dataclass(frozen=True)
 class ResourceCoverage:
     gaps: tuple[str, ...]
     uncovered_tool_names: frozenset[str]
+    data_uncovered_tool_names: frozenset[str] = frozenset()
 
 
 def configured_resource_coverage_gaps(
@@ -53,7 +55,11 @@ def discovered_resource_coverage(
     binding_coverage = _binding_coverage(contract, bindings)
     gaps.extend(binding_coverage.gaps)
     uncovered_names.update(binding_coverage.uncovered_tool_names)
-    return ResourceCoverage(tuple(sorted(set(gaps))), frozenset(uncovered_names))
+    return ResourceCoverage(
+        tuple(sorted(set(gaps))),
+        frozenset(uncovered_names),
+        binding_coverage.data_uncovered_tool_names,
+    )
 
 
 def _binding_coverage(
@@ -76,7 +82,19 @@ def _binding_coverage(
 
     gaps: list[str] = []
     uncovered_names: set[str] = set()
+    data_uncovered: set[str] = set()
+    reviewed_sources = any(
+        r.label not in {DataLabel.TOOL_OUTPUT, DataLabel.UNTRUSTED_CONTENT}
+        for r in contract.data_rules
+    )
+    destinations = any(r.allowed_destinations or r.denied_destinations for r in contract.data_rules)
     for name, capability, binding in bindings:
+        if reviewed_sources and binding.output_data_labels is None:
+            gaps.append(f"data_source_classification:{name}")
+            data_uncovered.add(name)
+        if destinations and binding.data_sink_destination is None:
+            gaps.append(f"data_sink_destination:{name}")
+            data_uncovered.add(name)
         if capability not in required_capabilities:
             continue
         if binding.resource_argument_path is None:
@@ -88,7 +106,11 @@ def _binding_coverage(
         ):
             gaps.append(f"resource_semantics:{capability}:{name}:opaque_exact_required")
             uncovered_names.add(name)
-    return ResourceCoverage(tuple(sorted(set(gaps))), frozenset(uncovered_names))
+    return ResourceCoverage(
+        tuple(sorted(set(gaps))),
+        frozenset(uncovered_names | data_uncovered),
+        frozenset(data_uncovered),
+    )
 
 
 def _canonical_resource_capabilities(
@@ -123,9 +145,45 @@ def semantic_adapter_proof(
 ) -> AdapterProof:
     """Project discovery/binding proof to atoms; absent applicable tools remain unproven."""
     coverage = discovered_resource_coverage(plan, registry)
-    proof: dict[str, bool] = {}
+    proof: dict[str, AdapterAtomProof] = {}
     for atom in plan.atoms:
         if not atom.adapter_required:
+            continue
+        if atom.source_ref.startswith("data.rules/"):
+            # All released tools may be sources and all later calls receive ambient context.
+            if registry:
+                rule = next(
+                    r for r in plan.data_rules if atom.source_ref == f"data.rules/{r.rule_id}"
+                )
+                bindings = [entry.binding for entry in registry.values()]
+                source_ok = all(
+                    b is not None
+                    and (
+                        rule.label in {DataLabel.TOOL_OUTPUT, DataLabel.UNTRUSTED_CONTENT}
+                        or b.output_data_labels is not None
+                    )
+                    for b in bindings
+                )
+                sink_ok = all(
+                    b is not None
+                    and (
+                        not (rule.allowed_destinations or rule.denied_destinations)
+                        or b.data_sink_destination is not None
+                    )
+                    for b in bindings
+                )
+                proof[atom.atom_id] = AdapterAtomProof(
+                    atom_id=atom.atom_id,
+                    covered=source_ok
+                    and sink_ok
+                    and all(
+                        entry.binding is not None
+                        and entry.binding.capability in entry.descriptor.capabilities
+                        for entry in registry.values()
+                    ),
+                    source_classification_covered=source_ok,
+                    sink_classification_covered=sink_ok,
+                )
             continue
         if atom.source_ref == "task_scope":
             capabilities = (
@@ -139,13 +197,16 @@ def semantic_adapter_proof(
             name for name, entry in registry.items() if entry.descriptor.capabilities & capabilities
         }
         if applicable:
-            proof[atom.atom_id] = all(
-                registry[name].binding is not None and name not in coverage.uncovered_tool_names
-                for name in applicable
+            proof[atom.atom_id] = AdapterAtomProof(
+                atom_id=atom.atom_id,
+                covered=all(
+                    registry[name].binding is not None and name not in coverage.uncovered_tool_names
+                    for name in applicable
+                ),
             )
     return AdapterProof(
         schema_version="0.1",
         plan_identity=plan.identity,
         discovery_snapshot_digest=discovery_snapshot_digest(registry),
-        atoms=tuple(AdapterAtomProof(atom_id=k, covered=v) for k, v in sorted(proof.items())),
+        atoms=tuple(v for _, v in sorted(proof.items())),
     )

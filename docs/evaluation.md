@@ -204,3 +204,13 @@ REQUIRE_APPROVAL decision, exact bound approval and decided APPROVE before synth
 These tests prove contract conformance of the synthetic policy/evidence path. They do not run
 an agent/model, establish prompt-injection resistance, or enforce runtime budgets. Budget and
 timeout atoms therefore have no generated case coverage. See [the guide](contract-conformance.md).
+
+
+## Phase 4 generated context
+
+Contract-derived cases may supply content-free artifact refs and a trusted destination to fixture
+steps. Both the request evidence and exact action bind this context. Scripted fixtures remain
+explicit observations rather than a production provenance adapter. The trajectory validator also
+checks DATA_EXPOSED against the prior returned artifact and rejects duplicate/dangling exposure.
+Generated flow expectations come from an independent set oracle; unavailable base-permitted
+witnesses are NOT_RUN. Actual source release/concurrency is verified by local MCP/runtime tests.

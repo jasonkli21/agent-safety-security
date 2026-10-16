@@ -51,7 +51,7 @@ def test_compile_deterministic_sources_gaps_and_deep_immutability():
     )
     plan = compile_contract(c)
     assert canonical_json(plan) == canonical_json(compile_contract(c))
-    assert plan.gaps == ("budgets.max_model_calls", "data.rules/secret", "invariants/never")
+    assert plan.gaps == ("budgets.max_model_calls", "invariants/never")
     assert plan.budgets.max_tool_calls == 2
     assert all(a.source_ref == a.atom_id for a in plan.atoms)
     scoped = compile_contract(load_contract(ROOT / "examples/mcp/contract.yaml"))
@@ -146,8 +146,9 @@ def test_coverage_separates_not_run_unsupported_and_adapter():
     )
     report = coverage_report(plan)
     secret = next(a for a in report.atoms if a.atom_id == "data.rules/secret")
-    assert not secret.compiled and not secret.runtime_supported
-    assert not secret.probe_ids and not secret.eval_case_ids
+    assert secret.compiled and secret.runtime_supported and secret.adapter_required
+    assert secret.probe_ids and secret.eval_case_ids
+    assert secret.adapter_status == "UNPROVEN" and secret.probe_status == "NOT_RUN"
     exact = next(a for a in report.atoms if a.atom_id == "tools.rules/exception")
     assert exact.adapter_status == "UNPROVEN" and exact.probe_status == "NOT_RUN"
     ran = coverage_report(plan, run_conformance(plan))

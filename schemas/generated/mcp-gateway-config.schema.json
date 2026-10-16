@@ -165,6 +165,21 @@
           "type": "array",
           "uniqueItems": true
         },
+        "data_sink_destination": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Data Sink Destination"
+        },
         "destructive": {
           "default": false,
           "title": "Destructive",
@@ -195,6 +210,22 @@
           ],
           "default": null,
           "title": "Expected Schema Hash"
+        },
+        "output_data_labels": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/DataLabel"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Output Data Labels"
         },
         "resource_argument_path": {
           "anyOf": [

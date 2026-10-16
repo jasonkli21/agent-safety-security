@@ -132,6 +132,16 @@ class ToolReturnedPayload(SecurityModel):
     response_hash: Digest | None = None
 
 
+class DataExposedPayload(SecurityModel):
+    """A guarded response is committed to release into the protected context."""
+
+    kind: Literal[EventType.DATA_EXPOSED]
+    dispatch_id: Identifier
+    request_id: Identifier
+    tool_id: Identifier
+    artifact: DataArtifactRef
+
+
 class SecuritySignalPayload(SecurityModel):
     kind: Literal[EventType.SECURITY_SIGNAL]
     category: SecurityCategory
@@ -163,6 +173,7 @@ EventPayload = Annotated[
     | ApprovalDecidedPayload
     | ToolDispatchedPayload
     | ToolReturnedPayload
+    | DataExposedPayload
     | SecuritySignalPayload
     | RunTerminatedPayload
     | EffectVerifiedPayload,

@@ -20,6 +20,7 @@
         "OUTSIDE_TASK_SCOPE",
         "BUDGET_EXCEEDED",
         "DATA_FLOW_DENIED",
+        "DATA_FLOW_CONTEXT_MISSING",
         "INVALID_REQUEST",
         "POLICY_ENGINE_ERROR"
       ],

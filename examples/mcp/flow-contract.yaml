@@ -1,0 +1,42 @@
+schema_version: "0.1"
+metadata:
+  contract_id: tracked-flow-demo
+  name: Synthetic tracked source and sinks
+agent:
+  agent_id: demo-agent
+  name: Demo agent
+  environment: local
+identity:
+  principal:
+    principal_id: local-user
+    principal_type: USER
+environment:
+  mode: local
+tools:
+  rules:
+    - rule_id: search
+      capability: web.search
+      decision: ALLOW
+    - rule_id: email
+      capability: email.send
+      decision: ALLOW
+    - rule_id: memory
+      capability: filesystem.write
+      decision: ALLOW
+data:
+  rules:
+    - rule_id: secret-no-external
+      label: SECRET
+      denied_destinations: [external]
+    - rule_id: pii-no-external
+      label: PII
+      denied_destinations: [external]
+    - rule_id: credential-no-external
+      label: CREDENTIAL
+      denied_destinations: [external]
+    - rule_id: untrusted-no-memory
+      label: UNTRUSTED_CONTENT
+      denied_destinations: [memory]
+budgets:
+  max_tool_calls: 10
+  max_runtime_seconds: 600
