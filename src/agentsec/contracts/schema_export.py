@@ -5,7 +5,9 @@ from pathlib import Path
 
 from pydantic import BaseModel
 
+from agentsec.adapters.http import HttpAction
 from agentsec.adapters.mcp.config import McpGatewayConfig
+from agentsec.adapters.process import ProcessAction
 from agentsec.compiler.diff import SemanticDiff
 from agentsec.compiler.models import CompiledSecurityPlan
 from agentsec.compiler.reporting import ConformanceReport, CoverageReport
@@ -13,6 +15,7 @@ from agentsec.contracts.models import AgentSecurityContract
 from agentsec.domain.approvals import ApprovalDecision, ApprovalRequest, NormalizedAction
 from agentsec.domain.authority import AuthorityContext, VerifiedCredential
 from agentsec.domain.events import SecurityEvent
+from agentsec.domain.execution import ExecutionBinding
 from agentsec.domain.findings import Finding
 from agentsec.domain.identity import Delegation
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
@@ -22,8 +25,15 @@ from agentsec.domain.scenarios import Scenario
 from agentsec.domain.tools import ToolDescriptor
 from agentsec.eval.fixtures import TargetFixture
 from agentsec.eval.models import EvaluationResult, EvaluationSummary
+from agentsec.isolation.backends import DockerProfile
+from agentsec.runtime.bindings import ProtectedTool
 
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
+    "protected-tool": ProtectedTool,
+    "execution-binding": ExecutionBinding,
+    "http-action": HttpAction,
+    "process-action": ProcessAction,
+    "docker-profile": DockerProfile,
     "authority-context": AuthorityContext,
     "verified-credential": VerifiedCredential,
     "incident": Incident,

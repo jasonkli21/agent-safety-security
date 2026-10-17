@@ -1,0 +1,118 @@
+{
+  "$defs": {
+    "DockerMount": {
+      "additionalProperties": false,
+      "properties": {
+        "read_only": {
+          "default": true,
+          "title": "Read Only",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source": {
+          "title": "Source",
+          "type": "string"
+        },
+        "target": {
+          "title": "Target",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "source",
+        "target"
+      ],
+      "title": "DockerMount",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cpus": {
+      "default": 1,
+      "maximum": 64,
+      "minimum": 1,
+      "title": "Cpus",
+      "type": "integer"
+    },
+    "executable": {
+      "default": "/usr/bin/docker",
+      "title": "Executable",
+      "type": "string"
+    },
+    "image": {
+      "title": "Image",
+      "type": "string"
+    },
+    "memory_mb": {
+      "default": 256,
+      "maximum": 65536,
+      "minimum": 16,
+      "title": "Memory Mb",
+      "type": "integer"
+    },
+    "mounts": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/DockerMount"
+      },
+      "title": "Mounts",
+      "type": "array"
+    },
+    "network": {
+      "const": "none",
+      "default": "none",
+      "title": "Network",
+      "type": "string"
+    },
+    "pids": {
+      "default": 64,
+      "maximum": 4096,
+      "minimum": 1,
+      "title": "Pids",
+      "type": "integer"
+    },
+    "read_only": {
+      "default": true,
+      "title": "Read Only",
+      "type": "boolean"
+    },
+    "runtime": {
+      "anyOf": [
+        {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Runtime"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "user": {
+      "default": "65534:65534",
+      "title": "User",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "image"
+  ],
+  "title": "DockerProfile",
+  "type": "object"
+}

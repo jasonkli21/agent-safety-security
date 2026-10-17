@@ -9,23 +9,8 @@ from agentsec.contracts.loader import validate_data
 from agentsec.domain.serialization import canonical_json, content_digest
 from agentsec.domain.taxonomy import EnforcementMode, SideEffectClass
 from agentsec.domain.tools import ToolDescriptor
+from agentsec.runtime.arguments import check_local_schema as check_local_schema
 from agentsec.runtime.models import RuntimeFailure
-
-
-def check_local_schema(value: object) -> None:
-    """No implicit network/file resolution of upstream-controlled schemas."""
-    if isinstance(value, dict):
-        for key, child in value.items():
-            if (
-                key in {"$ref", "$dynamicRef"}
-                and isinstance(child, str)
-                and not child.startswith("#")
-            ):
-                raise RuntimeFailure("UNSUPPORTED_SCHEMA_REFERENCE")
-            check_local_schema(child)
-    elif isinstance(value, list):
-        for child in value:
-            check_local_schema(child)
 
 
 @dataclass(frozen=True)

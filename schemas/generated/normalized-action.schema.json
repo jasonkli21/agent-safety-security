@@ -257,6 +257,19 @@
       "title": "Environment",
       "type": "string"
     },
+    "execution_binding_digest": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Execution Binding Digest"
+    },
     "principal": {
       "$ref": "#/$defs/PrincipalRef"
     },

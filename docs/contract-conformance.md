@@ -100,7 +100,7 @@ reported without asserting a universal safety ordering. Unsupported intent chang
 by atom digests and labeled unsupported; their behavior is not simulated. Representative resource
 values are digested; capability names remain visible. This is finite comparison of the native
 subset, not formal equivalence, arbitrary argument analysis, deployment or general data policy.
-Full OAuth/OIDC lifecycle services and future protocol adapters remain out of scope. Current
+Full OAuth/OIDC lifecycle services remain out of scope. Phase 7 adapters reuse this compiler. Current
 Phase 6 identity conformance uses trusted synthetic authority facts and is described below.
 
 
@@ -148,3 +148,10 @@ The authority layer is shared with runtime/replay. These probes authenticate no 
 `identity.authority` is separately covered; grouped identity/task atoms remain unclaimed.
 Authored OBO changes and compiler semantic changes appear explicitly in semantic diff.
 See [identity and delegation](identity-delegation.md).
+
+## Phase 7 adapter integration
+
+See [adapters/isolation](adapters-isolation.md). New protected calls bind execution-route identity
+to exact actions and record safe route facts on dispatch. Absent fields preserve old serialization;
+offline replay substitutes these facts without live execution. Generic schema, argument and
+resource/data coverage checks are shared with MCP. Compiler and authored hashes are unchanged.

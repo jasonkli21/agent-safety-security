@@ -34,7 +34,9 @@ class PolicyProbe:
     missing_authority: bool = False
 
     def request(self, plan: CompiledSecurityPlan) -> PolicyRequest:
-        authority = None if self.missing_authority else (self.authority or synthetic_authority(plan))
+        authority = (
+            None if self.missing_authority else (self.authority or synthetic_authority(plan))
+        )
         grant = authority.delegation if authority else None
         return PolicyRequest(
             schema_version="0.1",
@@ -403,7 +405,9 @@ def generate_authority_probes(plan: CompiledSecurityPlan) -> tuple[PolicyProbe, 
             (
                 "missing_authority",
                 None,
-                ReasonCode.AUTHORITY_REQUIRED,
+                ReasonCode.DELEGATION_REQUIRED
+                if plan.acts_on_behalf_of
+                else ReasonCode.AUTHORITY_REQUIRED,
             ),
             (
                 "credential_ceiling",

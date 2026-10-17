@@ -11,7 +11,7 @@ from pydantic import ValidationError
 
 from agentsec.compiler import compile_contract
 from agentsec.compiler.diff import semantic_diff
-from agentsec.compiler.probes import generate_probes, synthetic_artifacts
+from agentsec.compiler.probes import generate_probes, synthetic_artifacts, synthetic_authority
 from agentsec.compiler.reporting import coverage_report, run_conformance
 from agentsec.contracts.canonical import effective_policy_hash
 from agentsec.contracts.loader import load_contract, validate_data
@@ -60,6 +60,7 @@ def request(c, *, labels=frozenset({DataLabel.SECRET}), destination="external"):
     return PolicyRequest(
         schema_version="0.1",
         request_id="r",
+        authority=synthetic_authority(plan),
         principal=plan.principal,
         agent=plan.agent.request_agent(),
         environment=plan.environment,

@@ -28,6 +28,7 @@ from agentsec.domain.taxonomy import ApprovalOutcome, ApprovalScope, ReasonCode
 class NormalizedAction(VersionedModel):
     """Use complete arguments, never a lossy/redacted PolicyRequest summary."""
 
+    execution_binding_digest: Digest | None = None
     authority_digest: Digest | None = None
     principal: PrincipalRef
     agent_id: Identifier
@@ -52,6 +53,8 @@ class NormalizedAction(VersionedModel):
         data: dict[str, object] = handler(self)
         if self.authority_digest is None:
             data.pop("authority_digest", None)
+        if self.execution_binding_digest is None:
+            data.pop("execution_binding_digest", None)
         return data
 
 

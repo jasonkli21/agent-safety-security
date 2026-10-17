@@ -5,6 +5,8 @@ from pathlib import Path
 
 import pytest
 
+from agentsec.compiler import compile_contract
+from agentsec.compiler.probes import synthetic_authority
 from agentsec.contracts.loader import load_contract, validate_data
 from agentsec.contracts.models import AgentSecurityContract
 from agentsec.domain.policy import PolicyRequest
@@ -26,6 +28,7 @@ def request_for(contract, capability="web.search", resource=None):
     return PolicyRequest(
         schema_version="0.1",
         request_id="request",
+        authority=synthetic_authority(compile_contract(contract)),
         principal=contract.identity.principal,
         agent=contract.agent,
         task_scope=contract.task_scope,

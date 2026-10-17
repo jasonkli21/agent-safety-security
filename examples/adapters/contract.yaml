@@ -1,0 +1,25 @@
+schema_version: "0.1"
+metadata:
+  contract_id: adapters-demo
+  name: Local protected dispatch
+agent:
+  agent_id: demo-agent
+  name: Adapter demo
+  environment: local
+identity:
+  principal:
+    principal_id: local-user
+    principal_type: USER
+environment:
+  mode: local
+tools:
+  rules:
+    - rule_id: echo
+      capability: local.echo
+      decision: ALLOW
+    - rule_id: process
+      capability: process.execute
+      decision: ALLOW
+budgets:
+  max_tool_calls: 4
+  max_runtime_seconds: 60

@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "adapter_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Adapter Id",
+      "type": "string"
+    },
+    "adapter_kind": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Adapter Kind",
+      "type": "string"
+    },
+    "adapter_version": {
+      "default": "1",
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Adapter Version",
+      "type": "string"
+    },
+    "binding_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Binding Digest",
+      "type": "string"
+    },
+    "isolation_digest": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Isolation Digest"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "adapter_kind",
+    "adapter_id",
+    "binding_digest"
+  ],
+  "title": "ExecutionBinding",
+  "type": "object"
+}

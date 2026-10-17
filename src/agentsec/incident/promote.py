@@ -55,8 +55,7 @@ def promote(
     if bundle.assessment.fidelity != Fidelity.SECURITY_RUNTIME:
         reason, active = "PROMOTION_INCOMPLETE_INPUT", False
     if bundle.program.authority is not None and any(
-        isinstance(e.payload, ToolRequestedPayload)
-        and "authority" in e.payload.redacted_fields
+        isinstance(e.payload, ToolRequestedPayload) and "authority" in e.payload.redacted_fields
         for e in bundle.program.events
     ):
         reason, active = "PROMOTION_PROTECTED_AUTHORITY_REVIEW", False

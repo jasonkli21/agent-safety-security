@@ -27,6 +27,7 @@ from agentsec.domain.events import (
     ToolRequestedPayload,
     ToolReturnedPayload,
 )
+from agentsec.domain.execution import ExecutionBinding
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
 from agentsec.domain.provenance import DataOrigin
 from agentsec.domain.serialization import canonical_json, content_digest
@@ -199,6 +200,7 @@ class RuntimeGateway:
         dispatch: Callable[[dict[str, JsonValue]], Awaitable[ToolResponse]],
         *,
         bound: bool,
+        execution_binding: ExecutionBinding | None = None,
         approval_display_paths: tuple[tuple[str, ...], ...] = (),
         resource_coverage_gap: bool = False,
         data_coverage_gap: bool = False,
@@ -220,6 +222,9 @@ class RuntimeGateway:
             raise RuntimeFailure("AMBIGUOUS_CAPABILITY")
         action = NormalizedAction(
             schema_version="0.1",
+            execution_binding_digest=content_digest(execution_binding)
+            if execution_binding
+            else None,
             principal=self._authority.credential.principal if self._authority else plan.principal,
             delegation_id=self._authority.delegation.delegation_id
             if self._authority and self._authority.delegation
@@ -445,6 +450,7 @@ class RuntimeGateway:
                     ToolDispatchedPayload(
                         kind=EventType.TOOL_DISPATCHED,
                         dispatch_id=dispatch_id,
+                        execution_binding=execution_binding,
                         request_id=request.request_id,
                         tool_id=tool.tool_id,
                         action_digest=digest,

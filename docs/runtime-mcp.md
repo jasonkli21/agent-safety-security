@@ -199,3 +199,10 @@ arguments or inherited upstream environment. `--check` validates keys/mappings a
 coverage without reading a token. ENFORCE checks authority at startup, every call and after
 approval; SHADOW/DISABLED evidence states actual assurance/error and enforcement status.
 See [identity and delegation](identity-delegation.md) for operational examples and limitations.
+
+## Phase 7 adapter integration
+
+See [adapters/isolation](adapters-isolation.md). New protected calls bind execution-route identity
+to exact actions and record safe route facts on dispatch. Absent fields preserve old serialization;
+offline replay substitutes these facts without live execution. Generic schema, argument and
+resource/data coverage checks are shared with MCP. Compiler and authored hashes are unchanged.

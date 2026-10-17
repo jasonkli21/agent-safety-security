@@ -13,3 +13,6 @@ The PRD should remain relatively stable. Architecture changes only for enduring 
 
 - [Identity and delegation](identity-delegation.md) — Phase 6 authority, verifier, operational trust and replay.
 - [Phase 6 implementation report](reports/phase-6-implementation-report.md) — verification and limitations.
+
+- [Adapters and isolation](adapters-isolation.md) — Phase 7 native/provider/framework/HTTP/process boundaries.
+- [Phase 7 implementation report](reports/phase-7-implementation-report.md) — verification and review readiness.

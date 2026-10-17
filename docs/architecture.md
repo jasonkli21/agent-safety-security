@@ -2,7 +2,7 @@
 
 **Document:** `docs/architecture.md`  
 **Status:** Phased architecture baseline
-**Scope:** Long-term architecture with implementation guidance through Phase 6; last reviewed 2026-10-16
+**Scope:** Long-term architecture with implementation guidance through Phase 7; last reviewed 2026-10-16
 **Primary implementation language:** Python 3.12+ initially  
 **Primary deployment model:** Local-first / self-hosted; optional managed control plane later  
 **Initial runtime integration:** MCP  
@@ -1809,3 +1809,23 @@ Normalized actions and policy-input evidence bind its computed digest. Resource-
 facts are explicitly redacted; replay needs trusted matching context or remains incomplete.
 No bearer credential, identity federation service or transitive graph belongs in the domain.
 See [identity and delegation](identity-delegation.md).
+
+
+## Phase 7 protected adapter routes and isolation composition
+
+`ProtectedCall` snapshots typed tool metadata, exact extraction/display and data classifications,
+checks shared compiled-plan coverage, and enters RuntimeGateway before private adapter dispatch.
+Native Python, strict provider JSON shapes, optional LangChain StructuredTool, fixed-endpoint HTTP
+and structured process execution share policy/identity/approval/budget/provenance/evidence behavior.
+MCP reuses generic schema/argument/coverage checks while retaining discovery/transport/proof logic.
+ExecutionBinding is operational identity, never an authored grant: additive normalized-action and
+dispatch fields bind adapter route, protected configuration and isolation to exact approvals.
+Absent fields preserve historical serialization/digests; compiler and authored policy hashes stay
+unchanged. Offline replay substitutes safe route facts without importing/executing adapters.
+
+Process isolation is a separate protected port. Explicit host execution or a concrete Docker backend
+with secure defaults is selected by trusted wiring. Docker runtime selection composes with runsc;
+no sandbox runtime is implemented, and containment failure never falls back to host in any mode.
+Cancellation after dispatcher entry remains potentially effectful/unknown. This extends operational
+surfaces only: direct Phase 6 authority and Phase 0–6 semantics remain protected. See
+[adapters/isolation](adapters-isolation.md). Phase 8 supply-chain trust and Phase 9 graphs are deferred.

@@ -27,12 +27,12 @@ If they appear to conflict, do not silently pick whichever is convenient. Prefer
 
 ## 3. Current phase boundary
 
-**Phase 6 identity/delegation is implemented and awaiting independent review.**
-The baseline includes Phase 5 independent-review fixes in `c84b03f`. The active scope is
-`docs/plans/phase-6-implementation-plan.md`; behavior and verification are recorded in
-`docs/identity-delegation.md` and `docs/reports/phase-6-implementation-report.md`.
-Phase 0–5 boundaries remain protected. Phase 7 requires independent Phase 6 review/fixes
-and a reviewed Phase 7 plan. Phase 8 supply-chain expansion and Phase 9 agent graphs remain out of scope.
+**Phase 7 adapters/isolation is implemented and awaiting independent review.**
+The baseline includes Phase 6 independent-review fixes in `4dd82ea`. The active scope is
+`docs/plans/phase-7-implementation-plan.md`; behavior and verification are recorded in
+`docs/adapters-isolation.md` and `docs/reports/phase-7-implementation-report.md`.
+Phase 0–6 boundaries remain protected. Phase 8 requires independent Phase 7 review/fixes
+and a reviewed Phase 8 plan. Supply-chain expansion and Phase 9 agent graphs remain out of scope.
 Direct one-hop delegation only: identity proof is restrictive and never grants beyond contract.
 Static config is not remote authentication; JWT verification uses pinned trusted keys/mappings.
 Raw credentials never belong in contracts/evidence. Authority freshness is rechecked before
@@ -49,7 +49,8 @@ robustness, semantic content detection or complete model-internal taint. Unsuppo
 intent remains explicit. Replay is offline security-semantic substitution, never live tool or model execution. Source
 evidence and replay identities stay separate; material redaction is a blocker. Promotion requires
 explicit safe assertions and never edits security contracts. Do not add hosted services, UI,
-full OAuth/OIDC lifecycle services, Cedar/OPA, general policy languages, automatic declassification or sandbox infrastructure.
+full OAuth/OIDC lifecycle services, Cedar/OPA, general policy languages, automatic declassification or new sandbox infrastructure. Phase 7 composes with Docker/gVisor;
+RuntimeGateway remains the common security boundary and configured isolation never falls back to host.
 
 ## 4. Architectural invariants
 

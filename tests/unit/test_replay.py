@@ -467,21 +467,22 @@ def test_classification_ambiguity_and_operator_basis():
 
 
 def test_protected_authority_recovery_promotes_to_private_draft():
-    from agentsec.domain.taxonomy import ReasonCode
     from test_identity_authority import (
         READ,
         WRITE,
         context,
-        contract as identity_contract,
         gateway,
     )
+    from test_identity_authority import (
+        contract as identity_contract,
+    )
+
+    from agentsec.domain.taxonomy import ReasonCode
 
     c = identity_contract()
     authority = context(c, resources={READ: frozenset({"private-A"})})
     runtime, sink = gateway(c, authority, [NOW])
-    denied_tool = tool().model_copy(
-        update={"tool_id": "write", "capabilities": frozenset({WRITE})}
-    )
+    denied_tool = tool().model_copy(update={"tool_id": "write", "capabilities": frozenset({WRITE})})
 
     async def dispatch(_):
         pytest.fail("outside-authority request dispatched")

@@ -2,7 +2,7 @@
 
 A local-first security lifecycle for tool-using AI agents: define explicit authority, test it adversarially, enforce it at runtime, and turn observed failures into regressions.
 
-> **Current status:** Phase 4 tracked provenance and data-flow security is implemented and awaiting independent review. Native authorization, generated conformance, coverage and semantic diff share compiled intent. Prior review fixes remain protected. See the [tracked-flow guide](docs/provenance-data-flow.md) and [Phase 4 report](docs/reports/phase-4-implementation-report.md).
+> **Current status:** Phase 7 harness-agnostic adapters and isolation integration is implemented and awaiting independent review. Native/provider/LangChain/HTTP/process actions share the runtime gateway; Docker supports protected gVisor runtime selection. See the [adapter guide](docs/adapters-isolation.md) and [Phase 7 report](docs/reports/phase-7-implementation-report.md).
 
 ## Product thesis
 
@@ -137,7 +137,7 @@ Phase 4 adds [tracked provenance and data-flow restrictions](docs/provenance-dat
 including labeled tool-output → external-sink and untrusted-output → memory-tool protection.
 Use `examples/mcp/flow-contract.yaml` with `examples/mcp/flow-gateway.yaml` and the existing
 synthetic server. This tracks released tool outputs conservatively; it does not classify arbitrary
-user/model text or provide complete DLP. The Phase 4 review fixes are included in the baseline. Phase 5 review fixes are included; Phase 6 awaits independent review.
+user/model text or provide complete DLP. The Phase 4 review fixes are included in the baseline. Phase 5 review fixes are included; Phase 6 review fixes are included.
 
 ## Incident replay and regression
 
@@ -165,5 +165,12 @@ python -m pip install -e '.[dev,mcp,identity]'
 
 See [identity setup, trust boundaries and limitations](docs/identity-delegation.md). Historical
 Phase 5 source can replay under its historical plan; comparison to a new Phase 6 candidate
-without recorded authority facts is explicitly INCOMPLETE. Phase 6 is ready for independent
-review; Phase 7 is not started.
+without recorded authority facts is explicitly INCOMPLETE. Phase 6 review fixes are included; Phase 7 is ready for independent
+review. Phase 8 has not started.
+
+## Phase 7 adapters and isolation
+
+Run `.venv/bin/python examples/adapters/local_tools.py` for native/provider/process dispatch.
+Install `.[langchain]` for the async StructuredTool integration. Fixed-endpoint HTTP and explicit
+Docker/gVisor composition use the same runtime policy, approval and evidence boundary.
+See [adapters and isolation](docs/adapters-isolation.md) for APIs and trust assumptions.

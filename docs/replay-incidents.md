@@ -181,3 +181,10 @@ Resource-bearing grant evidence is redacted with an authority digest. An explici
 `replay bundle create --authority PATH` artifact must match that digest; remaining resource/task
 redactions stay material blockers. Session authority commitments and unchanged request/authority
 bindings protect historical approval replay. See [identity and delegation](identity-delegation.md).
+
+## Phase 7 adapter integration
+
+See [adapters/isolation](adapters-isolation.md). New protected calls bind execution-route identity
+to exact actions and record safe route facts on dispatch. Absent fields preserve old serialization;
+offline replay substitutes these facts without live execution. Generic schema, argument and
+resource/data coverage checks are shared with MCP. Compiler and authored hashes are unchanged.

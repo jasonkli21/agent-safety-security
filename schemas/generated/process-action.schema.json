@@ -1,0 +1,90 @@
+{
+  "$defs": {
+    "ProcessRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "argv": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Argv",
+          "type": "array"
+        },
+        "cwd": {
+          "title": "Cwd",
+          "type": "string"
+        },
+        "env": {
+          "additionalProperties": {
+            "type": "string"
+          },
+          "title": "Env",
+          "type": "object"
+        },
+        "output_limit": {
+          "default": 65536,
+          "maximum": 1048576,
+          "minimum": 1,
+          "title": "Output Limit",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "timeout_seconds": {
+          "default": 10,
+          "maximum": 300,
+          "minimum": 1,
+          "title": "Timeout Seconds",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "schema_version",
+        "argv",
+        "cwd"
+      ],
+      "title": "ProcessRequest",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "adapter_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Adapter Id",
+      "type": "string"
+    },
+    "argument_slots": {
+      "default": [],
+      "items": {
+        "maxLength": 128,
+        "minLength": 1,
+        "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+        "type": "string"
+      },
+      "title": "Argument Slots",
+      "type": "array"
+    },
+    "request": {
+      "$ref": "#/$defs/ProcessRequest"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "adapter_id",
+    "request"
+  ],
+  "title": "ProcessAction",
+  "type": "object"
+}

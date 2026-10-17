@@ -206,6 +206,15 @@ def run_program(
                 request_id=request_id,
                 tool_id=requests[request_id].tool_id or "unknown-tool",
                 action_digest=actions[request_id],
+                execution_binding=next(
+                    (
+                        e.payload.execution_binding
+                        for e in program.events
+                        if isinstance(e.payload, ToolDispatchedPayload)
+                        and e.payload.dispatch_id == dispatch_id
+                    ),
+                    None,
+                ),
                 decision_id=d.decision_id,
                 approval_id=approval_id,
             )

@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "adapter_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Adapter Id",
+      "type": "string"
+    },
+    "destination": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Destination",
+      "type": "string"
+    },
+    "headers": {
+      "additionalProperties": {
+        "type": "string"
+      },
+      "title": "Headers",
+      "type": "object"
+    },
+    "method": {
+      "enum": [
+        "GET",
+        "POST",
+        "PUT",
+        "PATCH",
+        "DELETE"
+      ],
+      "title": "Method",
+      "type": "string"
+    },
+    "origin": {
+      "title": "Origin",
+      "type": "string"
+    },
+    "path": {
+      "title": "Path",
+      "type": "string"
+    },
+    "request_limit": {
+      "default": 65536,
+      "maximum": 1048576,
+      "minimum": 1,
+      "title": "Request Limit",
+      "type": "integer"
+    },
+    "response_limit": {
+      "default": 65536,
+      "maximum": 1048576,
+      "minimum": 1,
+      "title": "Response Limit",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "timeout_seconds": {
+      "default": 10,
+      "maximum": 300,
+      "minimum": 1,
+      "title": "Timeout Seconds",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "schema_version",
+    "adapter_id",
+    "origin",
+    "path",
+    "method",
+    "destination"
+  ],
+  "title": "HttpAction",
+  "type": "object"
+}

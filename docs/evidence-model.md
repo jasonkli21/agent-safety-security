@@ -125,3 +125,10 @@ an authority digest; otherwise minimized canonical facts support offline replay.
 is never labeled cryptographic authentication. DISABLED records enforcement_enabled=false;
 failed verification records no authenticated actor. Absent additive fields serialize as absent,
 preserving historical event identities. See [identity and delegation](identity-delegation.md).
+
+## Phase 7 adapter integration
+
+See [adapters/isolation](adapters-isolation.md). New protected calls bind execution-route identity
+to exact actions and record safe route facts on dispatch. Absent fields preserve old serialization;
+offline replay substitutes these facts without live execution. Generic schema, argument and
+resource/data coverage checks are shared with MCP. Compiler and authored hashes are unchanged.

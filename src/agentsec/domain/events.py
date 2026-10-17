@@ -24,6 +24,7 @@ from agentsec.domain.base import (
     Timestamp,
     VersionedModel,
 )
+from agentsec.domain.execution import ExecutionBinding
 from agentsec.domain.identity import PrincipalRef
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
 from agentsec.domain.provenance import DataArtifactRef
@@ -110,6 +111,15 @@ class ApprovalDecidedPayload(SecurityModel):
 
 
 class ToolDispatchedPayload(SecurityModel):
+    execution_binding: ExecutionBinding | None = None
+
+    @model_serializer(mode="wrap")
+    def compatible_wire(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data: dict[str, object] = handler(self)
+        if self.execution_binding is None:
+            data.pop("execution_binding", None)
+        return data
+
     model_config = ConfigDict(
         json_schema_extra={
             "allOf": [
