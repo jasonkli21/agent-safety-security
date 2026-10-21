@@ -1,14 +1,25 @@
 """Stable causal event projection; only explicitly enumerated volatility is removed."""
 
 from itertools import zip_longest
-from typing import cast
+from typing import Literal, cast
 
 from pydantic import JsonValue
 
-from agentsec.domain.events import ApprovalRequestedPayload, SecurityEvent, ToolReturnedPayload
+from agentsec.domain.events import (
+    ApprovalRequestedPayload,
+    SecurityEvent,
+    ToolDispatchedPayload,
+    ToolReturnedPayload,
+)
 from agentsec.domain.findings import Finding
-from agentsec.domain.replay import TraceDiff, TraceDifference, TraceFact
-from agentsec.domain.serialization import canonical_json, normalize
+from agentsec.domain.replay import (
+    CandidateRouteManifest,
+    RouteComparison,
+    TraceDiff,
+    TraceDifference,
+    TraceFact,
+)
+from agentsec.domain.serialization import canonical_json, content_digest, normalize
 from agentsec.eval.models import AssertionResult
 
 # IDs are normalized by namespace, preserving cross-event links and sequence ordering.
@@ -87,6 +98,52 @@ def project(events: tuple[SecurityEvent, ...]) -> tuple[TraceFact, ...]:
             ),
         )
         for e in events
+    )
+
+
+def compare_execution_routes(
+    events: tuple[SecurityEvent, ...], candidate: CandidateRouteManifest | None
+) -> RouteComparison:
+    """Compare recorded route identities to protected candidate metadata, without execution."""
+    dispatches = [
+        event.payload for event in events if isinstance(event.payload, ToolDispatchedPayload)
+    ]
+    if candidate is None or not dispatches:
+        return RouteComparison(status="UNKNOWN")
+
+    source: dict[str, set[str]] = {}
+    missing_source: set[str] = set()
+    for dispatch in dispatches:
+        if dispatch.execution_binding is None:
+            missing_source.add(dispatch.tool_id)
+        else:
+            source.setdefault(dispatch.tool_id, set()).add(
+                content_digest(dispatch.execution_binding)
+            )
+
+    candidate_routes: dict[str, set[str]] = {}
+    for route in candidate.routes:
+        candidate_routes.setdefault(route.tool_id, set()).add(
+            content_digest(route.execution_binding)
+        )
+
+    missing_candidate = set(source) - set(candidate_routes)
+    changed = {
+        tool_id
+        for tool_id, bindings in source.items()
+        if tool_id in candidate_routes and not bindings.issubset(candidate_routes[tool_id])
+    }
+    if missing_source or missing_candidate:
+        status: Literal["UNKNOWN", "UNCHANGED", "CHANGED", "INCOMPLETE"] = "INCOMPLETE"
+    elif changed:
+        status = "CHANGED"
+    else:
+        status = "UNCHANGED"
+    return RouteComparison(
+        status=status,
+        changed_tool_ids=tuple(sorted(changed)),
+        missing_source_route_tool_ids=tuple(sorted(missing_source)),
+        missing_candidate_route_tool_ids=tuple(sorted(missing_candidate)),
     )
 
 

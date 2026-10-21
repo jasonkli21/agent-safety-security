@@ -30,6 +30,7 @@ from agentsec.domain.events import (
 from agentsec.domain.findings import Finding
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
 from agentsec.domain.replay import (
+    CandidateRouteManifest,
     Fidelity,
     ReplayAssessment,
     ReplayBundle,
@@ -52,7 +53,7 @@ from agentsec.policy.native import NativePolicyEngine
 from agentsec.provenance.engine import ProvenanceEngine
 from agentsec.replay.bundle import recovered_request, validate_bundle, validate_program
 from agentsec.replay.expectations import evaluate_program
-from agentsec.replay.projection import semantic_diff
+from agentsec.replay.projection import compare_execution_routes, semantic_diff
 from agentsec.runtime.approvals import ApprovalLedger
 from agentsec.runtime.budgets import BudgetLedger
 from agentsec.runtime.models import RuntimeFailure
@@ -427,13 +428,23 @@ def run_program(
     )
 
 
-def replay(bundle: ReplayBundle, current: AgentSecurityContract | None = None) -> ReplayResult:
+def replay(
+    bundle: ReplayBundle,
+    current: AgentSecurityContract | None = None,
+    *,
+    candidate_routes: CandidateRouteManifest | None = None,
+) -> ReplayResult:
     bundle = validate_bundle(bundle)
     plan = compile_contract(current) if current is not None else bundle.source_plan
-    return run_program(
+    result = run_program(
         bundle.program,
         bundle.source_plan,
         plan,
         source_digest=bundle.bundle_digest,
         assessment=bundle.assessment,
+    )
+    return result.model_copy(
+        update={
+            "route_comparison": compare_execution_routes(bundle.program.events, candidate_routes)
+        }
     )

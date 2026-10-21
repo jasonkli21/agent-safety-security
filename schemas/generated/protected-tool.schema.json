@@ -306,6 +306,12 @@
       "title": "Approval Display Paths",
       "type": "array"
     },
+    "approval_display_resource": {
+      "default": false,
+      "description": "Explicitly allow the extracted resource in human approval presentation.",
+      "title": "Approval Display Resource",
+      "type": "boolean"
+    },
     "data_sink_destination": {
       "anyOf": [
         {
@@ -377,6 +383,21 @@
       "const": "0.1",
       "title": "Schema Version",
       "type": "string"
+    },
+    "trusted_effect_resource": {
+      "anyOf": [
+        {
+          "maxLength": 8192,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Reviewed operator assertion of this route's fixed physical effect target.",
+      "title": "Trusted Effect Resource"
     }
   },
   "required": [

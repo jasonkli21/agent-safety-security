@@ -3,10 +3,12 @@
 import asyncio
 import json
 import socket
+import ssl
 import sys
 import threading
 from datetime import timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 from typing import ClassVar
 
 import pytest
@@ -163,6 +165,50 @@ def test_langchain_real_async_wrapper():
     assert sum(e.event_type == EventType.TOOL_DISPATCHED for e in sink.events) == 1
 
 
+def test_langchain_async_methods_and_callback_precede_denial():
+    pytest.importorskip("langchain_core")
+    from langchain_core.callbacks import BaseCallbackHandler
+
+    from agentsec.adapters.langchain import as_langchain_tool
+
+    observed = []
+    order = []
+
+    class Recorder(BaseCallbackHandler):
+        def on_tool_start(self, serialized, input_str, **kwargs):
+            observed.append((input_str, kwargs.get("inputs")))
+            order.append("callback")
+
+    gateway, sink = runtime(unrestricted(tools={"rules": []}))
+    original_call = gateway.call
+
+    async def tracked_call(*args, **kwargs):
+        order.append("gateway")
+        return await original_call(*args, **kwargs)
+
+    gateway.call = tracked_call
+    denied = protected()
+    wrapped = as_langchain_tool(protect_native(gateway, denied, echo))
+    with pytest.raises(RuntimeFailure):
+        asyncio.run(
+            wrapped.ainvoke({"secret": "P7_CALLBACK_CANARY"}, config={"callbacks": [Recorder()]})
+        )
+    assert observed and "P7_CALLBACK_CANARY" in repr(observed)
+    assert order.index("callback") < order.index("gateway")
+    assert not any(e.event_type == EventType.TOOL_DISPATCHED for e in sink.events)
+
+    gateway, _ = runtime(unrestricted())
+    wrapped = as_langchain_tool(protect_native(gateway, protected(), echo))
+    assert asyncio.run(wrapped.arun({"x": "async-run"})) == {
+        "success": True,
+        "result": {"result": {"x": "async-run"}},
+    }
+    with pytest.raises(NotImplementedError):
+        wrapped.run({"x": "sync-run"})
+    with pytest.raises(NotImplementedError):
+        wrapped.invoke({"x": "sync-invoke"})
+
+
 def test_binding_hash_approval_and_historical_wire():
     base = NormalizedAction(
         schema_version="0.1",
@@ -243,6 +289,34 @@ def http_server(monkeypatch):
     thread.join()
 
 
+@pytest.fixture
+def https_server(monkeypatch):
+    Handler.hits = []
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    fixture_dir = Path(__file__).resolve().parents[1] / "fixtures"
+    context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    context.load_cert_chain(
+        certfile=fixture_dir / "http-test-server.pem",
+        keyfile=fixture_dir / "http-test-server.key",
+    )
+    server.socket = context.wrap_socket(server.socket, server_side=True)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    def local_connection(address, timeout=10, source_address=None):
+        assert address == ("127.0.0.1", server.server_port)
+        connection = socket.socket()
+        connection.settimeout(timeout)
+        _LOCAL_CONNECT(connection, address)
+        return connection
+
+    monkeypatch.setattr(socket, "create_connection", local_connection)
+    yield f"https://127.0.0.1:{server.server_port}"
+    server.shutdown()
+    server.server_close()
+    thread.join()
+
+
 def http_config(endpoint, **updates):
     values = dict(
         schema_version="0.1",
@@ -298,6 +372,35 @@ def test_http_redirect_and_response_limit(http_server, path, limit):
 def test_http_strict_config(updates):
     with pytest.raises(ValidationError):
         http_config("http://localhost", **updates)
+
+
+def test_https_uses_only_protected_ca_without_ambient_tls_effects(
+    https_server, tmp_path, monkeypatch
+):
+    from agentsec.adapters.http import _tls_context
+
+    ca_pem = (Path(__file__).resolve().parents[1] / "fixtures/http-test-ca.pem").read_text()
+    keylog = tmp_path / "tls-keys.log"
+    monkeypatch.setenv("SSLKEYLOGFILE", str(keylog))
+    monkeypatch.setenv("SSL_CERT_FILE", str(tmp_path / "ambient-ca.pem"))
+    monkeypatch.setenv("SSL_CERT_DIR", str(tmp_path / "ambient-ca-dir"))
+    config = http_config(https_server, tls_ca_pem=ca_pem)
+    context = _tls_context(config)
+    assert context is not None
+    assert context.verify_mode == ssl.CERT_REQUIRED and context.check_hostname
+    assert context.minimum_version >= ssl.TLSVersion.TLSv1_2
+    assert context.keylog_filename is None and not keylog.exists()
+    assert context.cert_store_stats()["x509_ca"] == 1
+    assert ca_pem not in repr(config)
+    gateway, sink = runtime(unrestricted())
+    response = asyncio.run(
+        protect_http(gateway, protected(), config).invoke({"message": "P7_TLS_BODY"})
+    )
+    assert response.success and Handler.hits == [("/fixed", b'{"message":"P7_TLS_BODY"}')]
+    assert not keylog.exists()
+    assert "P7_TLS_BODY" not in "".join(event.model_dump_json() for event in sink.events)
+    with pytest.raises(ValidationError):
+        http_config("https://example.invalid")
 
 
 def process_request(**updates):
@@ -380,6 +483,7 @@ def test_docker_secure_command_and_route_identity():
     ):
         assert flag in command.argv
     assert "runsc" in command.argv and "type=bind,src=/tmp/data,dst=/data,readonly" in command.argv
+    assert "--rm" not in command.argv
     assert command.env == {} and command.cwd == "/"
     assert backend.identity_digest != HostBackend().identity_digest
     assert (
@@ -558,6 +662,7 @@ def test_shared_pre_dispatch_failures_never_enter_adapter(gate):
 
 
 def test_new_binding_replay_is_offline_and_unchanged(monkeypatch):
+    from agentsec.domain.replay import CandidateRouteManifest, ExecutionRouteEntry
     from agentsec.replay.bundle import create_bundle
     from agentsec.replay.engine import replay
 
@@ -571,6 +676,7 @@ def test_new_binding_replay_is_offline_and_unchanged(monkeypatch):
     result = replay(bundle)
     assert result.external_effects_performed is False
     assert result.diff.status == "UNCHANGED"
+    assert result.route_comparison.status == "UNKNOWN"
     source_route = next(
         e.payload.execution_binding
         for e in sink.events
@@ -582,6 +688,39 @@ def test_new_binding_replay_is_offline_and_unchanged(monkeypatch):
         if e.event_type == EventType.TOOL_DISPATCHED
     )
     assert source_route == replay_route
+    candidate = CandidateRouteManifest(
+        schema_version="0.1",
+        routes=(ExecutionRouteEntry(tool_id="tool", execution_binding=source_route),),
+    )
+    matching = replay(bundle, candidate_routes=candidate)
+    assert matching.diff.status == "UNCHANGED"
+    assert matching.route_comparison.status == "UNCHANGED"
+    changed_candidate = CandidateRouteManifest(
+        schema_version="0.1",
+        routes=(
+            ExecutionRouteEntry(
+                tool_id="tool",
+                execution_binding=source_route.model_copy(update={"adapter_id": "other-route"}),
+            ),
+        ),
+    )
+    changed = replay(bundle, candidate_routes=changed_candidate)
+    assert changed.diff.status == "UNCHANGED"
+    assert changed.route_comparison.status == "CHANGED"
+    assert changed.route_comparison.changed_tool_ids == ("tool",)
+
+    legacy_events = tuple(
+        event.model_copy(
+            update={"payload": event.payload.model_copy(update={"execution_binding": None})}
+        )
+        if event.event_type == EventType.TOOL_DISPATCHED
+        else event
+        for event in sink.events
+    )
+    legacy_bundle = create_bundle(legacy_events, c, tools=(tool(),))
+    historical = replay(legacy_bundle, candidate_routes=candidate)
+    assert historical.route_comparison.status == "INCOMPLETE"
+    assert historical.route_comparison.missing_source_route_tool_ids == ("tool",)
 
 
 def test_process_cancellation_kills_child(tmp_path):
@@ -608,6 +747,52 @@ def test_process_cancellation_kills_child(tmp_path):
         os.kill(int(pid_file.read_text()), 0)
 
 
+def test_process_cancellation_during_spawn_waits_for_ownership(monkeypatch):
+    from agentsec.isolation import process as process_module
+
+    started = asyncio.Event()
+    release = asyncio.Event()
+    killed = []
+    child_holder = []
+
+    class FakeProcess:
+        pid = 918273
+
+        def __init__(self):
+            self.stdout = asyncio.StreamReader()
+            self.stderr = asyncio.StreamReader()
+
+        async def wait(self):
+            return -9
+
+        def kill(self):
+            killed.append((self.pid, "leader"))
+
+    async def delayed_spawn(*args, **kwargs):
+        started.set()
+        await release.wait()
+        return child_holder[0]
+
+    monkeypatch.setattr(asyncio, "create_subprocess_exec", delayed_spawn)
+    monkeypatch.setattr(process_module.os, "killpg", lambda pid, sig: killed.append((pid, sig)))
+
+    async def run():
+        child = FakeProcess()
+        child_holder.append(child)
+
+        task = asyncio.create_task(run_process(process_request()))
+        await started.wait()
+        task.cancel()
+        await asyncio.sleep(0)
+        assert not task.done()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    asyncio.run(run())
+    assert killed and killed[0][0] == 918273
+
+
 def test_docker_success_calls_real_backend_port_once_and_cleans(monkeypatch):
     from agentsec.isolation import backends
     from agentsec.isolation.process import ProcessResult
@@ -621,17 +806,137 @@ def test_docker_success_calls_real_backend_port_once_and_cleans(monkeypatch):
     monkeypatch.setattr(backends, "run_process", fake)
     gateway, _ = runtime(unrestricted())
     config = ProcessAction(schema_version="0.1", adapter_id="isolated", request=process_request())
-    response = asyncio.run(
-        protect_process(
-            gateway,
-            protected(),
-            config,
-            DockerBackend(DockerProfile(schema_version="0.1", image="local:test")),
-        ).invoke({})
-    )
+    backend = DockerBackend(DockerProfile(schema_version="0.1", image="local:test"))
+    response = asyncio.run(protect_process(gateway, protected(), config, backend).invoke({}))
     assert response.success and response.structured["stdout"] == "ok"
     assert len(calls) == 2 and calls[0].argv[3] == "run" and calls[1].argv[3] == "rm"
     assert calls[0].env == {} and not __import__("os").path.exists(calls[0].argv[2])
+    assert backend.pending_cleanup_count == 0 and asyncio.run(backend.drain_cleanup())
+
+
+def test_docker_cleanup_survives_repeated_cancellation(monkeypatch):
+    from agentsec.isolation import backends
+    from agentsec.isolation.process import ProcessResult
+
+    cleanup_started = asyncio.Event()
+    release_cleanup = asyncio.Event()
+
+    async def fake(request):
+        if request.argv[3] == "run":
+            return ProcessResult(schema_version="0.1", exit_code=0, stdout="", stderr="")
+        cleanup_started.set()
+        await release_cleanup.wait()
+        return ProcessResult(schema_version="0.1", exit_code=0, stdout="", stderr="")
+
+    monkeypatch.setattr(backends, "run_process", fake)
+    backend = DockerBackend(DockerProfile(schema_version="0.1", image="local:test"))
+
+    async def run():
+        task = asyncio.create_task(backend.execute(process_request()))
+        await asyncio.wait_for(cleanup_started.wait(), 2)
+        task.cancel()
+        await asyncio.sleep(0)
+        task.cancel()
+        await asyncio.sleep(0)
+        assert not task.done()
+        release_cleanup.set()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    asyncio.run(run())
+    assert backend.pending_cleanup_count == 0
+    assert asyncio.run(backend.drain_cleanup())
+
+
+def test_docker_cancellation_during_run_still_owns_teardown(monkeypatch):
+    from agentsec.isolation import backends
+    from agentsec.isolation.process import ProcessResult
+
+    run_started = asyncio.Event()
+    cleanup_called = asyncio.Event()
+
+    async def fake(request):
+        if request.argv[3] == "run":
+            run_started.set()
+            await asyncio.Event().wait()
+        cleanup_called.set()
+        return ProcessResult(schema_version="0.1", exit_code=0, stdout="", stderr="")
+
+    monkeypatch.setattr(backends, "run_process", fake)
+    backend = DockerBackend(DockerProfile(schema_version="0.1", image="local:test"))
+
+    async def run():
+        task = asyncio.create_task(backend.execute(process_request()))
+        await asyncio.wait_for(run_started.wait(), 2)
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+
+    asyncio.run(run())
+    assert cleanup_called.is_set()
+    assert asyncio.run(backend.drain_cleanup())
+
+
+def test_docker_unconfirmed_cleanup_is_bounded_and_retained(monkeypatch):
+    from agentsec.isolation import backends
+    from agentsec.isolation.process import ProcessResult
+
+    cleanup_started = asyncio.Event()
+    release_cleanup = asyncio.Event()
+
+    class ShortWaitBackend(DockerBackend):
+        _cleanup_wait_seconds = 0.02
+
+    async def fake(request):
+        if request.argv[3] == "run":
+            return ProcessResult(schema_version="0.1", exit_code=0, stdout="", stderr="")
+        cleanup_started.set()
+        await release_cleanup.wait()
+        return ProcessResult(schema_version="0.1", exit_code=0, stdout="", stderr="")
+
+    monkeypatch.setattr(backends, "run_process", fake)
+    backend = ShortWaitBackend(DockerProfile(schema_version="0.1", image="local:test"))
+
+    async def run():
+        with pytest.raises(RuntimeFailure, match="ISOLATION_CLEANUP_UNCONFIRMED"):
+            await backend.execute(process_request())
+        assert backend.pending_cleanup_count == 1
+        assert await backend.drain_cleanup(timeout_seconds=0.01) is False
+        release_cleanup.set()
+        await asyncio.sleep(0)
+        assert await backend.drain_cleanup(timeout_seconds=1)
+
+    asyncio.run(run())
+    assert cleanup_started.is_set()
+
+
+def test_docker_cleanup_failure_is_explicit_and_never_claimed_success(monkeypatch):
+    from agentsec.isolation import backends
+    from agentsec.isolation.process import ProcessResult
+
+    calls = []
+
+    async def fake(request):
+        calls.append(request)
+        if request.argv[3] == "run":
+            return ProcessResult(schema_version="0.1", exit_code=0, stdout="", stderr="")
+        return ProcessResult(schema_version="0.1", exit_code=1, stdout="", stderr="")
+
+    monkeypatch.setattr(backends, "run_process", fake)
+    gateway, sink = runtime(unrestricted())
+    call = protect_process(
+        gateway,
+        protected(),
+        ProcessAction(schema_version="0.1", adapter_id="isolated", request=process_request()),
+        DockerBackend(DockerProfile(schema_version="0.1", image="local:test")),
+    )
+    with pytest.raises(RuntimeFailure, match="ISOLATION_CLEANUP_UNCONFIRMED"):
+        asyncio.run(call.invoke({}))
+    assert len(calls) == 2
+    assert any(
+        getattr(event.payload, "redacted_summary", "") == "ISOLATION_CLEANUP_UNCONFIRMED"
+        for event in sink.events
+    )
 
 
 def test_adapter_and_classification_changes_invalidate_route_identity():
@@ -657,6 +962,132 @@ def test_http_request_limit_prevents_network(http_server):
     assert Handler.hits == []
 
 
+class CountingApprovalBroker:
+    def __init__(self):
+        self.presentations = []
+
+    async def decide(self, request, presentation):
+        self.presentations.append(presentation)
+        return await Broker().decide(request, presentation)
+
+
+def test_approval_resource_redacted_by_default_and_opt_in_is_explicit():
+    contract = unrestricted(
+        tools={
+            "rules": [
+                {
+                    "rule_id": "approval",
+                    "capability": "web.search",
+                    "decision": "REQUIRE_APPROVAL",
+                }
+            ]
+        }
+    )
+    gateway, sink = runtime(contract)
+    broker = CountingApprovalBroker()
+    gateway.broker = broker
+    secret = "P7_APPROVAL_RESOURCE_CANARY"
+    base = dict(
+        resource_argument_path=("resource",),
+        resource_semantics="opaque_exact",
+        trusted_effect_resource=secret,
+    )
+    asyncio.run(protect_native(gateway, protected(**base), echo).invoke({"resource": secret}))
+    assert secret not in broker.presentations[0]
+    assert content_digest(secret) in broker.presentations[0]
+    assert secret not in "".join(event.model_dump_json() for event in sink.events)
+
+    asyncio.run(
+        protect_native(
+            gateway,
+            protected(**base, approval_display_resource=True),
+            echo,
+        ).invoke({"resource": secret})
+    )
+    assert secret in broker.presentations[1]
+    assert secret not in "".join(event.model_dump_json() for event in sink.events)
+
+
+def approval_budget_contract():
+    return unrestricted(
+        tools={
+            "rules": [
+                {
+                    "rule_id": "approval",
+                    "capability": "web.search",
+                    "decision": "REQUIRE_APPROVAL",
+                }
+            ]
+        },
+        budgets={"max_tool_calls": 1},
+    )
+
+
+def assert_preflight_did_not_enter_gateway(gateway, sink, broker):
+    assert broker.presentations == []
+    assert not any(
+        event.event_type in {EventType.TOOL_REQUESTED, EventType.TOOL_DISPATCHED}
+        for event in sink.events
+    )
+    token, exceeded = gateway.budgets.reserve(tool())
+    assert not exceeded
+    gateway.budgets.release(token)
+
+
+@pytest.mark.parametrize(
+    "config,arguments,error",
+    [
+        ({"method": "GET"}, {"unused": "value"}, "HTTP_GET_ARGUMENTS_UNSUPPORTED"),
+        ({"request_limit": 1}, {"body": "large"}, "HTTP_REQUEST_LIMIT"),
+    ],
+)
+def test_http_preflight_rejects_before_approval_or_budget(http_server, config, arguments, error):
+    gateway, sink = runtime(approval_budget_contract())
+    broker = CountingApprovalBroker()
+    gateway.broker = broker
+    call = protect_http(gateway, protected(), http_config(http_server, **config))
+    with pytest.raises(RuntimeFailure, match=error):
+        asyncio.run(call.invoke(arguments))
+    assert_preflight_did_not_enter_gateway(gateway, sink, broker)
+    assert Handler.hits == []
+
+
+@pytest.mark.parametrize(
+    "arguments,error",
+    [
+        ({"first": "x"}, "INVALID_PROCESS_ARGUMENTS"),
+        ({"first": "x", "second": "y", "extra": "z"}, "INVALID_PROCESS_ARGUMENTS"),
+        ({"first": "x\0y", "second": "z"}, "INVALID_PROCESS_ARGUMENTS"),
+        ({"first": "x" * 65536, "second": "y"}, "PROCESS_REQUEST_LIMIT"),
+    ],
+)
+def test_process_preflight_rejects_before_approval_or_budget(arguments, error):
+    gateway, sink = runtime(approval_budget_contract())
+    broker = CountingApprovalBroker()
+    gateway.broker = broker
+
+    class Backend:
+        identity_digest = content_digest("backend")
+
+        async def execute(self, request):
+            pytest.fail("invalid invocation reached process backend")
+
+    call = protect_process(
+        gateway,
+        protected(),
+        ProcessAction(
+            schema_version="0.1",
+            adapter_id="process",
+            request=process_request(),
+            argument_slots=("first", "second"),
+        ),
+        Backend(),
+    )
+    with pytest.raises(RuntimeFailure, match=error):
+        asyncio.run(call.invoke(arguments))
+    assert_preflight_did_not_enter_gateway(gateway, sink, broker)
+
+
 def test_resource_coverage_and_exact_extraction():
     gateway, _ = runtime(
         unrestricted(
@@ -673,11 +1104,125 @@ def test_resource_coverage_and_exact_extraction():
             }
         )
     )
-    with pytest.raises(RuntimeFailure, match="ADAPTER_COVERAGE_GAP"):
+    with pytest.raises(RuntimeFailure, match="ADAPTER_EFFECT_RESOURCE_UNBOUND"):
         protect_native(gateway, protected(), echo)
-    metadata = protected(resource_argument_path=("resource",), resource_semantics="opaque_exact")
+    metadata = protected(trusted_effect_resource="allowed")
     call = protect_native(gateway, metadata, echo)
-    assert asyncio.run(call.invoke({"resource": "allowed"})).success
-    for args in ({"resource": "blocked"}, {}, {"resource": 4}):
-        with pytest.raises(RuntimeFailure):
-            asyncio.run(call.invoke(args))
+    assert asyncio.run(call.invoke({})).success
+
+
+def test_resource_argument_must_match_trusted_http_effect_target(http_server):
+    contract = unrestricted(
+        tools={
+            "rules": [
+                {"rule_id": "base", "capability": "web.search", "decision": "ALLOW"},
+                {
+                    "rule_id": "production",
+                    "capability": "web.search",
+                    "decision": "DENY",
+                    "resource": "production",
+                },
+            ]
+        }
+    )
+    gateway, sink = runtime(contract)
+    metadata = protected(resource_argument_path=("resource",), resource_semantics="opaque_exact")
+    call = protect_http(
+        gateway,
+        metadata,
+        http_config(http_server, trusted_effect_resource="production"),
+    )
+    with pytest.raises(RuntimeFailure, match="RESOURCE_TARGET_MISMATCH"):
+        asyncio.run(call.invoke({"resource": "development"}))
+    with pytest.raises(RuntimeFailure):
+        asyncio.run(call.invoke({"resource": "production"}))
+    assert Handler.hits == []
+    assert not any(e.event_type == EventType.TOOL_DISPATCHED for e in sink.events)
+
+    allowed_gateway, _ = runtime(contract)
+    allowed = protect_http(
+        allowed_gateway,
+        metadata,
+        http_config(http_server, trusted_effect_resource="development"),
+    )
+    assert asyncio.run(allowed.invoke({"resource": "development"})).success
+    assert Handler.hits[-1][0] == "/fixed"
+
+
+def test_fixed_http_resource_ignores_untrusted_body_resource_for_authorization(http_server):
+    contract = unrestricted(
+        tools={
+            "rules": [
+                {"rule_id": "base", "capability": "web.search", "decision": "ALLOW"},
+                {
+                    "rule_id": "production",
+                    "capability": "web.search",
+                    "decision": "DENY",
+                    "resource": "production",
+                },
+            ]
+        }
+    )
+    gateway, sink = runtime(contract)
+    call = protect_http(
+        gateway,
+        protected(),
+        http_config(http_server, trusted_effect_resource="production"),
+    )
+    with pytest.raises(RuntimeFailure):
+        asyncio.run(call.invoke({"resource": "development"}))
+    assert Handler.hits == []
+    assert not any(e.event_type == EventType.TOOL_DISPATCHED for e in sink.events)
+
+
+def test_fixed_process_resource_is_intersected_with_task_scope():
+    contract = unrestricted(
+        task_scope={
+            "task_id": "task",
+            "description": "development-only task",
+            "requested_capabilities": ["web.search"],
+            "resource_scopes": {"web.search": ["development"]},
+        },
+        tools={"rules": [{"rule_id": "base", "capability": "web.search", "decision": "ALLOW"}]},
+    )
+    gateway, sink = runtime(contract)
+    call = protect_process(
+        gateway,
+        protected(),
+        ProcessAction(
+            schema_version="0.1",
+            adapter_id="process",
+            request=process_request(argv=(sys.executable, "-c", "print('production')")),
+            trusted_effect_resource="production",
+        ),
+        HostBackend(),
+    )
+    with pytest.raises(RuntimeFailure):
+        asyncio.run(call.invoke({}))
+    assert not any(event.event_type == EventType.TOOL_DISPATCHED for event in sink.events)
+
+
+def test_process_resource_coverage_rejects_unrelated_argument_slot():
+    contract = unrestricted(
+        tools={
+            "rules": [
+                {"rule_id": "base", "capability": "web.search", "decision": "ALLOW"},
+                {
+                    "rule_id": "production",
+                    "capability": "web.search",
+                    "decision": "DENY",
+                    "resource": "production",
+                },
+            ]
+        }
+    )
+    gateway, _ = runtime(contract)
+    metadata = protected(resource_argument_path=("comment",), resource_semantics="opaque_exact")
+    action = ProcessAction(
+        schema_version="0.1",
+        adapter_id="process",
+        request=process_request(argv=(sys.executable, "-c", "print('production')")),
+        argument_slots=("comment",),
+    )
+    with pytest.raises(RuntimeFailure, match="ADAPTER_EFFECT_RESOURCE_UNBOUND"):
+        protect_process(gateway, metadata, action, HostBackend())

@@ -498,6 +498,12 @@
           "title": "Approval Display Paths",
           "type": "array"
         },
+        "approval_display_resource": {
+          "default": false,
+          "description": "Explicitly allow the extracted resource in human approval presentation.",
+          "title": "Approval Display Resource",
+          "type": "boolean"
+        },
         "capability": {
           "maxLength": 128,
           "minLength": 3,

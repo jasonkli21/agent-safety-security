@@ -68,7 +68,8 @@ For those results, `source_identity` is null; the compiled bundle source plan is
 interpretation of the supplied contract. Legacy non-approval policy replay remains available,
 but approval-dependent replay is blocked with `APPROVAL_SOURCE_PLAN_UNBOUND` and is INCOMPLETE.
 The scripted fixture producer stays legacy because it deliberately does not execute native
-policy. Compiler semantics/version remain `phase4-v1`. Public artifact schema versions remain
+policy. For this historical Phase 5 fixture-producer path, compiler semantics/version remain
+`phase4-v1`; current identity and delegation replay uses `phase6-v1`. Public artifact schema versions remain
 `0.1` under the existing additive pre-1.0 convention; strict older readers need refreshed schemas.
 
 A replay result records source bundle digest, the recorded source plan identity when known,
@@ -183,6 +184,13 @@ redactions stay material blockers. Session authority commitments and unchanged r
 bindings protect historical approval replay. See [identity and delegation](identity-delegation.md).
 
 ## Phase 7 adapter integration
+
+See [adapters/isolation](adapters-isolation.md). `diff.status` reports policy/evidence trace
+substitution only. Candidate route fidelity is separate in `ReplayResult.route_comparison`: it is
+`UNKNOWN` if no candidate route manifest is supplied, `UNCHANGED` only when all recorded route
+identities are present, `CHANGED` when an observed source route is absent from the candidate, and
+`INCOMPLETE` when source or candidate route facts are missing. Historical Phase 5/6 dispatches
+without route facts remain readable and cannot establish route equivalence.
 
 See [adapters/isolation](adapters-isolation.md). New protected calls bind execution-route identity
 to exact actions and record safe route facts on dispatch. Absent fields preserve old serialization;

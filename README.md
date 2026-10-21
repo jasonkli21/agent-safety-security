@@ -2,7 +2,7 @@
 
 A local-first security lifecycle for tool-using AI agents: define explicit authority, test it adversarially, enforce it at runtime, and turn observed failures into regressions.
 
-> **Current status:** Phase 7 harness-agnostic adapters and isolation integration is implemented and awaiting independent review. Native/provider/LangChain/HTTP/process actions share the runtime gateway; Docker supports protected gVisor runtime selection. See the [adapter guide](docs/adapters-isolation.md) and [Phase 7 report](docs/reports/phase-7-implementation-report.md).
+> **Current status:** Phase 7 harness-agnostic adapters and isolation integration is implemented; independent review corrections are recorded and awaiting re-review. Native/provider/LangChain/HTTP/process actions share the runtime gateway; Docker supports protected gVisor runtime selection. See the [adapter guide](docs/adapters-isolation.md), [Phase 7 implementation report](docs/reports/phase-7-implementation-report.md), and [review-fixes report](docs/reports/phase-7-review-fixes-report.md).
 
 ## Product thesis
 
@@ -171,6 +171,9 @@ review. Phase 8 has not started.
 ## Phase 7 adapters and isolation
 
 Run `.venv/bin/python examples/adapters/local_tools.py` for native/provider/process dispatch.
-Install `.[langchain]` for the async StructuredTool integration. Fixed-endpoint HTTP and explicit
-Docker/gVisor composition use the same runtime policy, approval and evidence boundary.
-See [adapters and isolation](docs/adapters-isolation.md) for APIs and trust assumptions.
+Install `.[langchain]` for the async StructuredTool integration. LangChain callbacks and
+LangSmith/other tracing run outside the AgentSec gateway and can observe raw inputs before a later
+DENY; apply a separate egress policy. HTTPS actions require protected `tls_ca_pem` configuration.
+Fixed-endpoint HTTP and explicit Docker/gVisor composition use the same runtime policy, approval
+and evidence boundary. See [adapters and isolation](docs/adapters-isolation.md) for APIs and trust
+assumptions.

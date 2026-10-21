@@ -105,6 +105,9 @@ async def create_server(
                 approval_display_paths=(
                     entry.binding.approval_display_paths if entry.binding is not None else ()
                 ),
+                approval_display_resource=(
+                    entry.binding.approval_display_resource if entry.binding is not None else False
+                ),
                 resource_coverage_gap=(
                     params.name in resource_coverage.uncovered_tool_names
                     and params.name not in resource_coverage.data_uncovered_tool_names

@@ -78,6 +78,21 @@
       "const": "0.1",
       "title": "Schema Version",
       "type": "string"
+    },
+    "trusted_effect_resource": {
+      "anyOf": [
+        {
+          "maxLength": 8192,
+          "minLength": 1,
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Reviewed operator assertion of the configured executable's fixed effect target.",
+      "title": "Trusted Effect Resource"
     }
   },
   "required": [

@@ -11,6 +11,12 @@ if TYPE_CHECKING:
 
 
 def as_langchain_tool(call: ProtectedCall) -> "StructuredTool":
+    """Wrap protected dispatch; framework callbacks and tracing remain separate effects.
+
+    LangChain may notify configured callbacks before this coroutine reaches the gateway.
+    Callers must apply a separate egress policy to callbacks and tracing that can see raw
+    tool inputs, outputs, or errors.
+    """
     from langchain_core.tools import StructuredTool
 
     call = call.for_adapter("langchain")

@@ -60,6 +60,7 @@ def _approval_presentation(
     resource: str | None,
     arguments: dict[str, JsonValue],
     display_paths: tuple[tuple[str, ...], ...],
+    display_resource: bool,
     digest: str,
 ) -> str:
     def display(value: JsonValue) -> str:
@@ -68,11 +69,17 @@ def _approval_presentation(
         rendered = canonical_json(value)
         return rendered if len(rendered) <= 160 else rendered[:157] + "..."
 
+    if resource is None:
+        resource_display = "[not configured]"
+    elif display_resource:
+        resource_display = display(resource)
+    else:
+        resource_display = f"[redacted {content_digest(resource)}]"
     lines = [
         "Review this action. The digest binds the complete action.",
         f"Tool: {tool_name}",
         f"Capability: {capability}",
-        f"Resource: {display(resource) if resource is not None else '[not configured]'}",
+        f"Resource: {resource_display}",
         f"Action digest: {digest}",
     ]
     for path in display_paths:
@@ -202,6 +209,7 @@ class RuntimeGateway:
         bound: bool,
         execution_binding: ExecutionBinding | None = None,
         approval_display_paths: tuple[tuple[str, ...], ...] = (),
+        approval_display_resource: bool = False,
         resource_coverage_gap: bool = False,
         data_coverage_gap: bool = False,
         data_destination: str | None = None,
@@ -413,6 +421,7 @@ class RuntimeGateway:
                                 resource,
                                 arguments,
                                 approval_display_paths,
+                                approval_display_resource,
                                 digest,
                             ),
                         ),
@@ -470,6 +479,14 @@ class RuntimeGateway:
                     SecurityCategory.TRACE_INTEGRITY_FAILURE, "DISPATCH_CANCELLED_EFFECT_UNKNOWN"
                 )
                 raise
+            except RuntimeFailure as exc:
+                if exc.code in {
+                    "ISOLATION_CLEANUP_UNCONFIRMED",
+                    "PROCESS_CLEANUP_UNCONFIRMED",
+                }:
+                    self.signal(SecurityCategory.TRACE_INTEGRITY_FAILURE, exc.code)
+                    raise
+                raise RuntimeFailure("UPSTREAM_FAILURE") from exc
             except Exception as exc:
                 raise RuntimeFailure("UPSTREAM_FAILURE") from exc
             artifact = self.provenance.derive(

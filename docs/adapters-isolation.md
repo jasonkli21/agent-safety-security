@@ -9,17 +9,26 @@ callables, binaries and contracts must be protected from agent modification.
 ## Common protected dispatch
 
 `runtime.bindings.ProtectedTool` combines an explicit `ToolDescriptor`, versioned
-`ExecutionBinding`, exact resource path/semantics, approval display paths, output labels and
-static sink destination. `ProtectedCall` snapshots validated canonical configuration, checks
-shared resource/data coverage, validates arguments and invokes the gateway before its private
-dispatcher. Its `tool` property returns a fresh copy. There is no unprotected execute method.
+`ExecutionBinding`, exact resource path/semantics, a trusted fixed effect resource when needed,
+approval display paths, output labels and static sink destination. `ProtectedCall` snapshots
+validated canonical configuration, checks shared resource/data coverage, validates arguments and
+invokes the gateway before its private dispatcher. Its `tool` property returns a fresh copy. There
+is no unprotected execute method.
 Python object privacy is an application boundary convention, not a sandbox for hostile Python
 running inside the same interpreter.
 
 `runtime.arguments` rejects remote schema references and extracts exact object keys without
-URL/path alias interpretation. `runtime.coverage` checks resource extraction, opaque-exact
-exceptions, reviewed sources and classified sinks. MCP imports these same helpers; its
-pagination, pins, request IDs, transport and coverage-proof projection remain MCP-specific.
+URL/path alias interpretation. For new adapters, a caller-supplied resource value alone does not
+prove the effect target. Resource-scoped ENFORCE bindings must include `trusted_effect_resource`
+in the fixed HTTP/process configuration. If an argument extraction path is also configured, its
+value must equal that fixed resource before the gateway is entered. A route with no supported
+fixed-target mapping fails closed during registration. This is a reviewed operator assertion about
+the downstream endpoint or executable; AgentSec cannot prove that a remote server honors the
+configured route or that an arbitrary executable has no hidden target. Dynamic resource mappings
+for those routes are unsupported until a narrowly scoped mapping can be established. MCP retains
+its existing discovery-bound exact opaque resource proof. `runtime.coverage` still checks reviewed
+sources and classified sinks; MCP imports these helpers while keeping pagination, pins, request
+IDs, transport and coverage-proof projection MCP-specific.
 
 Execution binding hashes commit the entire protected metadata snapshot plus adapter identity,
 implementation revision, transport configuration and isolation digest. Changing adapter kind,
@@ -70,30 +79,48 @@ LangGraph can consume it as a normal tool; graph execution/checkpointing is not 
 The narrow direction is protected call → framework tool. To protect existing tool behavior,
 register its async callable with explicit protected metadata first. Framework callbacks/config
 supply no identity or authority. Do not also expose the original unprotected implementation.
-Tracing and framework persistence are application responsibilities; canonical AgentSec evidence
-remains minimized. The default core imports no LangChain dependency.
+LangChain callback handlers and tracing execute outside the AgentSec gateway boundary and may
+receive raw tool inputs, outputs or errors before authorization, including for a later-denied call.
+LangSmith and other tracing integrations can therefore transmit values that canonical AgentSec
+evidence redacts. Apply a separate egress policy to callbacks, tracing and framework persistence;
+AgentSec does not sandbox arbitrary callbacks. The default core imports no LangChain dependency.
 
 ## HTTP
 
 `protect_http(gateway, tool, HttpAction(...))` binds a fixed protected HTTP(S) origin, exact path,
 method, headers, timeout, request/response limits and destination category. Non-GET arguments
-are a canonical JSON body; GET accepts only `{}`. No variable URL, query or path templating is
-implemented. Arguments cannot select a host, port, scheme, trusted headers or sink classification.
+are a canonical JSON body; GET accepts only `{}`. Pure method/size validation runs before approval,
+budget commitment and dispatch evidence. No variable URL, query or path templating is implemented.
+Arguments cannot select a host, port, scheme, trusted headers or sink classification. For
+resource-scoped rules, configure `trusted_effect_resource` in `HttpAction`; an extracted resource
+must match it exactly. This fixed route mapping is trusted operator configuration, not proof of
+remote API semantics. If the API uses another request field to select its effect target, the
+configuration must bind that field to the same value or the route is not covered.
 URL userinfo/fragments, scheme-relative paths, control characters, ambiguous headers and
-proxy/host/framing overrides are rejected. HTTPS uses normal certificate verification.
+proxy/host/framing overrides are rejected.
 
-The standard-library `http.client` transport has no proxy/environment handling, redirects,
-retry loop, cookie jar or authentication discovery. Redirect responses fail without following
-Location. Responses are bounded while streaming; request bodies are bounded before connection.
+For HTTPS, provide a protected PEM CA bundle as `tls_ca_pem`. The adapter builds an explicit
+TLS 1.2+ client context with hostname and certificate verification enabled. It does not load
+system/environment CA paths and does not enable `SSLKEYLOGFILE`; changing `SSL_CERT_FILE`,
+`SSL_CERT_DIR` or `SSLKEYLOGFILE` cannot change this route's TLS trust or create a key log. The
+CA bundle content is part of the protected route digest and never enters evidence.
+
+The standard-library `http.client` transport does not consult HTTP proxy environment variables,
+redirects, retry loops, cookie jars or authentication discovery. Redirect responses fail without
+following Location. Responses are bounded while streaming; request bodies are bounded and
+validated before approval or connection.
 Socket timeouts and a streaming deadline bound reads. Cancellation of the worker cannot undo
 an already-sent request: the gateway emits unknown-effect evidence and never retries. A worker
 may finish after cancellation, under its timeout. Trusted DNS and endpoint operation remain
 operator assumptions; this is not a generic SSRF proxy or DNS-rebinding firewall.
 
-Headers/env/body values never enter canonical evidence. Returned body is untrusted tool output;
-raw content is returned to the application, while evidence contains its digest and provenance.
-Safe errors omit transport exception text. Protected IDs, labels and destination categories must
-not themselves contain secrets. Only explicitly configured approval-display fields are shown.
+Headers/env/body values never enter canonical evidence. The approval presentation shows only a
+resource digest by default; full resource display requires the explicit `approval_display_resource`
+setting, with bounded/sanitized rendering. Configured `approval_display_paths` remain the only
+argument fields shown. Returned body is untrusted tool output; raw content is returned to the
+application, while evidence contains its digest and provenance. Safe errors omit transport
+exception text. Protected IDs, labels and destination categories must not themselves contain
+secrets.
 
 ## Structured process and Docker
 
@@ -102,9 +129,14 @@ explicit env, timeout and aggregate output limit). Named argument slots append o
 each in fixed order. No argument chooses executable, cwd, env or isolation. No shell interpolation,
 parent environment, PATH resolution, stdin or retry exists. Operator-chosen executables can of
 course interpret their arguments; declaring a code-execution capability is not an executable
-allowlist. Process groups are killed on cancellation, timeout and output overflow. Output is
-bounded across stdout plus stderr and released through the gateway's existing provenance path.
-This POSIX process lifecycle currently targets Linux/macOS.
+allowlist. Slot, NUL and argv-size checks run before approval, budget commitment and dispatch
+evidence. For resource-scoped rules, `ProcessAction.trusted_effect_resource` is a reviewed
+operator assertion about the executable's fixed effect target. Arbitrary executables and unrelated
+argument slots cannot establish resource correspondence; unsupported routes fail ENFORCE coverage.
+Process groups are killed on cancellation, timeout and output overflow, including cancellation
+during asynchronous subprocess acquisition. Output is bounded across stdout plus stderr and
+released through the gateway's existing provenance path. This POSIX process lifecycle currently
+targets Linux/macOS.
 
 Select `HostBackend()` explicitly for unisolated local execution, or
 `DockerBackend(DockerProfile(schema_version="0.1", image="local:tag", runtime="runsc"))` for
@@ -122,9 +154,13 @@ and disabling rootfs read-only are explicit protected choices and change identit
 
 The Docker client gets an empty environment and private empty config directory, preventing
 ambient daemon/context/proxy/credential configuration. No Docker credentials are loaded.
-Each action has a random container name; `rm -f` cleanup follows the run, including cancellation.
-Cleanup errors after interrupted runs remain explicit failures; an inaccessible daemon cannot
-prove cleanup. Exit 125/126/127 fails isolation. No isolation failure invokes the host backend,
+Each action has a random container name. A separate bounded cleanup task runs `rm -f`; cancellation
+is shielded while cleanup is observed. If daemon confirmation does not arrive within the bound,
+the call reports `ISOLATION_CLEANUP_UNCONFIRMED`, retains task/config ownership, and emits a
+trace-integrity signal. `pending_cleanup_count` exposes retained work and
+`await backend.drain_cleanup()` lets orderly application shutdown wait for it. A later successful
+drain does not rewrite earlier unknown-effect evidence. An inaccessible daemon cannot prove
+cleanup. Exit 125/126/127 fails isolation. No isolation failure invokes the host backend,
 including SHADOW/DISABLED. Docker CLI argv contains explicitly configured process env values;
 protect host process inspection permissions accordingly. Canonical evidence never records argv/env.
 
@@ -133,8 +169,12 @@ protect host process inspection permissions accordingly. Canonical evidence neve
 New route facts are additive schema `0.1`; old actions/events omit absent fields on serialization.
 Compiler `phase6-v1` and authored document/effective-policy hashes are unchanged. Refresh generated
 schemas for strict readers. Replay substitutes recorded dispatch metadata, including the binding,
-and has no live adapter/backend port. It cannot prove historical code/container execution from
-hashes. Existing historical bundles and regressions retain their identities.
+and has no live adapter/backend port. `ReplayResult.diff` compares the scripted policy/evidence
+trace; separate `route_comparison` is `UNKNOWN` without candidate metadata. Pass a protected,
+content-free `CandidateRouteManifest` to compare recorded routes with the candidate deployment.
+Historical dispatches without route facts remain `INCOMPLETE` for candidate route comparison.
+Replay cannot prove historical code/container execution from hashes. Existing historical bundles
+and regressions retain their identities.
 
 The gateway owns ENFORCE/SHADOW/DISABLED truthfulness and post-dispatch cancellation ambiguity.
 Policy shadowing does not disable transport validation or configured isolation. Synthetic shared

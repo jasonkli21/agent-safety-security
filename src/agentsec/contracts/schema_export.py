@@ -20,7 +20,14 @@ from agentsec.domain.findings import Finding
 from agentsec.domain.identity import Delegation
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
 from agentsec.domain.provenance import DataArtifactRef
-from agentsec.domain.replay import Incident, RegressionCase, ReplayBundle, ReplayResult, TraceDiff
+from agentsec.domain.replay import (
+    CandidateRouteManifest,
+    Incident,
+    RegressionCase,
+    ReplayBundle,
+    ReplayResult,
+    TraceDiff,
+)
 from agentsec.domain.scenarios import Scenario
 from agentsec.domain.tools import ToolDescriptor
 from agentsec.eval.fixtures import TargetFixture
@@ -40,6 +47,7 @@ SCHEMA_MODELS: dict[str, type[BaseModel]] = {
     "replay-bundle": ReplayBundle,
     "replay-result": ReplayResult,
     "trace-diff": TraceDiff,
+    "candidate-route-manifest": CandidateRouteManifest,
     "regression-case": RegressionCase,
     "compiled-security-plan": CompiledSecurityPlan,
     "contract-conformance-report": ConformanceReport,

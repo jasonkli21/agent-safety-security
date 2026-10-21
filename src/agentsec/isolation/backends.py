@@ -1,5 +1,6 @@
 """Explicit host backend and real Docker CLI isolation with no fallback."""
 
+import asyncio
 from tempfile import TemporaryDirectory
 from typing import Literal, Protocol, Self
 from uuid import uuid4
@@ -96,12 +97,22 @@ class DockerProfile(VersionedModel):
 
 
 class DockerBackend:
+    _cleanup_wait_seconds = 12.0
+
     def __init__(self, profile: DockerProfile) -> None:
         self.__profile_json = profile.model_dump_json()
+        self.__cleanup_tasks: dict[asyncio.Task[ProcessResult], TemporaryDirectory[str]] = {}
+        self.__cleanup_failed = False
 
     @property
     def identity_digest(self) -> str:
-        return content_digest(DockerProfile.model_validate_json(self.__profile_json))
+        return content_digest(
+            {
+                "backend": "docker",
+                "version": "2",
+                "profile": DockerProfile.model_validate_json(self.__profile_json),
+            }
+        )
 
     def command(self, request: ProcessRequest, name: str, config_directory: str) -> ProcessRequest:
         p = DockerProfile.model_validate_json(self.__profile_json)
@@ -110,7 +121,6 @@ class DockerBackend:
             "--config",
             config_directory,
             "run",
-            "--rm",
             "--pull=never",
             "--name",
             name,
@@ -159,28 +169,108 @@ class DockerBackend:
         name = "agentsec-" + uuid4().hex
         private_config = TemporaryDirectory(prefix="agentsec-docker-")
         command = self.command(request, name, private_config.name)
-        completed = False
         try:
             result = await run_process(command)
-            completed = True
             if result.exit_code in {125, 126, 127}:
                 raise RuntimeFailure("ISOLATION_UNAVAILABLE")
             return result
         finally:
-            # CLI termination does not prove container termination; remove by protected random name.
-            cleanup = ProcessRequest(
-                schema_version="0.1",
-                argv=(command.argv[0], "--config", private_config.name, "rm", "-f", name),
-                cwd="/",
-                env={},
-                timeout_seconds=10,
-                output_limit=8192,
+            cleanup_task = asyncio.create_task(
+                self._remove_container(command, name, private_config.name)
             )
+            self.__cleanup_tasks[cleanup_task] = private_config
+            cleanup_task.add_done_callback(self._cleanup_finished)
+            await self._await_cleanup(cleanup_task, timeout_seconds=self._cleanup_wait_seconds)
+
+    async def _remove_container(
+        self, command: ProcessRequest, name: str, config_directory: str
+    ) -> ProcessResult:
+        # CLI termination does not prove daemon-side termination; remove by protected random name.
+        cleanup = ProcessRequest(
+            schema_version="0.1",
+            argv=(command.argv[0], "--config", config_directory, "rm", "-f", name),
+            cwd="/",
+            env={},
+            timeout_seconds=10,
+            output_limit=8192,
+        )
+        try:
+            result = await run_process(cleanup)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            raise RuntimeFailure("ISOLATION_CLEANUP_UNCONFIRMED") from exc
+        if result.exit_code != 0:
+            raise RuntimeFailure("ISOLATION_CLEANUP_UNCONFIRMED")
+        return result
+
+    def _cleanup_finished(self, task: asyncio.Task[ProcessResult]) -> None:
+        directory = self.__cleanup_tasks.get(task)
+        if directory is not None:
+            directory.cleanup()
+        try:
+            result = task.result()
+            if result.exit_code != 0:
+                self.__cleanup_failed = True
+        except Exception:
+            self.__cleanup_failed = True
+        except asyncio.CancelledError:
+            self.__cleanup_failed = True
+
+    def _release_cleanup(self, task: asyncio.Task[ProcessResult]) -> None:
+        directory = self.__cleanup_tasks.pop(task, None)
+        if directory is not None:
+            directory.cleanup()
+
+    async def _await_cleanup(
+        self, task: asyncio.Task[ProcessResult], *, timeout_seconds: float
+    ) -> ProcessResult:
+        loop = asyncio.get_running_loop()
+        deadline = loop.time() + timeout_seconds
+        cancelled = False
+        while not task.done():
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                break
             try:
-                cleaned = await run_process(cleanup)
-                if cleaned.exit_code != 0 and not completed:
-                    raise RuntimeFailure("ISOLATION_CLEANUP_FAILED")
-            except RuntimeFailure:
-                raise RuntimeFailure("ISOLATION_CLEANUP_FAILED") from None
-            finally:
-                private_config.cleanup()
+                await asyncio.wait_for(asyncio.shield(task), timeout=remaining)
+            except asyncio.CancelledError:
+                cancelled = True
+            except TimeoutError:
+                break
+        if not task.done():
+            raise RuntimeFailure("ISOLATION_CLEANUP_UNCONFIRMED")
+        try:
+            result = task.result()
+        except asyncio.CancelledError as exc:
+            self.__cleanup_failed = True
+            self._release_cleanup(task)
+            raise RuntimeFailure("ISOLATION_CLEANUP_UNCONFIRMED") from exc
+        except Exception:
+            self.__cleanup_failed = True
+            self._release_cleanup(task)
+            raise
+        self._release_cleanup(task)
+        if cancelled:
+            raise asyncio.CancelledError
+        return result
+
+    @property
+    def pending_cleanup_count(self) -> int:
+        return sum(not task.done() for task in self.__cleanup_tasks)
+
+    async def drain_cleanup(self, timeout_seconds: float = 12) -> bool:
+        """Wait for owned late cleanup work during orderly application shutdown."""
+        tasks = tuple(self.__cleanup_tasks)
+        if not tasks:
+            return not self.__cleanup_failed
+        deadline = asyncio.get_running_loop().time() + timeout_seconds
+        for task in tasks:
+            remaining = deadline - asyncio.get_running_loop().time()
+            if remaining <= 0:
+                return False
+            try:
+                await self._await_cleanup(task, timeout_seconds=remaining)
+            except (RuntimeFailure, asyncio.CancelledError):
+                return False
+        return not self.__cleanup_failed

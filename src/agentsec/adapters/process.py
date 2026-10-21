@@ -2,9 +2,9 @@
 
 from typing import Self
 
-from pydantic import JsonValue, model_validator
+from pydantic import Field, JsonValue, model_validator
 
-from agentsec.domain.base import Identifier, VersionedModel
+from agentsec.domain.base import Identifier, NonEmpty, VersionedModel
 from agentsec.domain.execution import ExecutionBinding
 from agentsec.domain.serialization import content_digest
 from agentsec.isolation.backends import IsolationBackend
@@ -18,6 +18,12 @@ class ProcessAction(VersionedModel):
     adapter_id: Identifier
     request: ProcessRequest
     argument_slots: tuple[Identifier, ...] = ()
+    trusted_effect_resource: NonEmpty | None = Field(
+        default=None,
+        description=(
+            "Reviewed operator assertion of the configured executable's fixed effect target."
+        ),
+    )
 
     @model_validator(mode="after")
     def unique_slots(self) -> Self:
@@ -35,14 +41,19 @@ def protect_process(
         schema_version="0.1",
         adapter_kind="process",
         adapter_id=config.adapter_id,
+        adapter_version="2",
         binding_digest=content_digest(config),
         isolation_digest=identity,
     )
     tool = tool.model_copy(update={"execution_binding": binding})
+    tool = tool.model_copy(update={"trusted_effect_resource": config.trusted_effect_resource})
+    if tool.resource_argument_path is not None and (
+        len(tool.resource_argument_path) != 1
+        or tool.resource_argument_path[0] not in config.argument_slots
+    ):
+        raise RuntimeFailure("ADAPTER_RESOURCE_MAPPING_INVALID")
 
-    async def dispatch(arguments: dict[str, JsonValue]) -> ToolResponse:
-        if backend.identity_digest != identity:
-            raise RuntimeFailure("ISOLATION_BINDING_CHANGED")
+    def preflight(arguments: dict[str, JsonValue]) -> None:
         if set(arguments) != set(config.argument_slots):
             raise RuntimeFailure("INVALID_PROCESS_ARGUMENTS")
         values = [arguments[key] for key in config.argument_slots]
@@ -51,6 +62,12 @@ def protect_process(
         argv = (*config.request.argv, *(str(v) for v in values))
         if sum(len(v.encode()) for v in argv) > 65536:
             raise RuntimeFailure("PROCESS_REQUEST_LIMIT")
+
+    async def dispatch(arguments: dict[str, JsonValue]) -> ToolResponse:
+        if backend.identity_digest != identity:
+            raise RuntimeFailure("ISOLATION_BINDING_CHANGED")
+        values = [arguments[key] for key in config.argument_slots]
+        argv = (*config.request.argv, *(str(v) for v in values))
         request = config.request.model_copy(update={"argv": argv})
         result = await backend.execute(request)
         body: dict[str, JsonValue] = {
@@ -60,4 +77,4 @@ def protect_process(
         }
         return ToolResponse(body=body, structured=body, success=result.exit_code == 0)
 
-    return ProtectedCall(gateway, tool, dispatch)
+    return ProtectedCall(gateway, tool, dispatch, preflight)

@@ -25,6 +25,7 @@ class ResourceCoverage:
     gaps: tuple[str, ...]
     uncovered_tool_names: frozenset[str]
     data_uncovered_tool_names: frozenset[str] = frozenset()
+    resource_scoped_capabilities: frozenset[str] = frozenset()
 
 
 def binding_coverage(
@@ -62,11 +63,15 @@ def binding_coverage(
             data_uncovered.add(name)
         if capability not in required_capabilities:
             continue
-        if binding.resource_argument_path is None:
+        if (
+            binding.resource_argument_path is None
+            and getattr(binding, "trusted_effect_resource", None) is None
+        ):
             gaps.append(f"resource_extractor:{capability}:{name}")
             uncovered_names.add(name)
         elif (
-            capability in canonical_resource_capabilities
+            binding.resource_argument_path is not None
+            and capability in canonical_resource_capabilities
             and binding.resource_semantics != "opaque_exact"
         ):
             gaps.append(f"resource_semantics:{capability}:{name}:opaque_exact_required")
@@ -75,6 +80,7 @@ def binding_coverage(
         tuple(sorted(set(gaps))),
         frozenset(uncovered_names | data_uncovered),
         frozenset(data_uncovered),
+        frozenset(required_capabilities),
     )
 
 

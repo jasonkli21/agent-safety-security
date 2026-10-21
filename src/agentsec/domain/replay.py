@@ -4,6 +4,7 @@ from enum import StrEnum
 from typing import Literal, Self
 
 from pydantic import (
+    Field,
     SerializerFunctionWrapHandler,
     field_validator,
     model_serializer,
@@ -15,6 +16,7 @@ from agentsec.contracts.models import AgentSecurityContract
 from agentsec.domain.authority import AuthorityContext
 from agentsec.domain.base import Digest, Identifier, SecurityModel, VersionedModel
 from agentsec.domain.events import SecurityEvent
+from agentsec.domain.execution import ExecutionBinding
 from agentsec.domain.findings import Finding
 from agentsec.domain.scenarios import Assertion
 from agentsec.domain.serialization import content_digest
@@ -113,9 +115,50 @@ class TraceDifference(SecurityModel):
 
 
 class TraceDiff(VersionedModel):
+    """Policy/evidence event-trace diff; route fidelity is reported separately."""
+
     status: Literal["UNCHANGED", "CHANGED", "INCOMPLETE"]
     differences: tuple[TraceDifference, ...] = ()
     limitations: frozenset[Identifier] = frozenset()
+
+
+class ExecutionRouteEntry(SecurityModel):
+    """Content-free protected route identity for candidate replay comparison."""
+
+    tool_id: Identifier
+    execution_binding: ExecutionBinding
+
+
+class CandidateRouteManifest(VersionedModel):
+    """Protected, content-free routes used only for offline route comparison."""
+
+    routes: tuple[ExecutionRouteEntry, ...]
+
+    @model_validator(mode="after")
+    def unique_routes(self) -> Self:
+        keys = [
+            (
+                route.tool_id,
+                route.execution_binding.adapter_kind,
+                route.execution_binding.adapter_id,
+                route.execution_binding.adapter_version,
+                route.execution_binding.binding_digest,
+                route.execution_binding.isolation_digest,
+            )
+            for route in self.routes
+        ]
+        if len(set(keys)) != len(keys):
+            raise ValueError("Duplicate candidate route")
+        return self
+
+
+class RouteComparison(SecurityModel):
+    """Candidate route fidelity, separate from policy/evidence event projection."""
+
+    status: Literal["UNKNOWN", "UNCHANGED", "CHANGED", "INCOMPLETE"]
+    changed_tool_ids: tuple[Identifier, ...] = ()
+    missing_source_route_tool_ids: tuple[Identifier, ...] = ()
+    missing_candidate_route_tool_ids: tuple[Identifier, ...] = ()
 
 
 class ReplayResult(VersionedModel):
@@ -133,10 +176,16 @@ class ReplayResult(VersionedModel):
         data: dict[str, object] = handler(self)
         if self.authority is None:
             data.pop("authority", None)
+        if self.route_comparison is None:
+            data.pop("route_comparison", None)
         return data
 
     events: tuple[SecurityEvent, ...]
     diff: TraceDiff
+    route_comparison: RouteComparison | None = Field(
+        default=None,
+        description="Candidate route fidelity; UNKNOWN when replay receives no route manifest.",
+    )
     assertions: tuple[AssertionResult, ...] = ()
     findings: tuple[Finding, ...] = ()
     substituted_dispatch_ids: tuple[Identifier, ...] = ()

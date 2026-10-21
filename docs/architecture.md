@@ -1823,6 +1823,15 @@ dispatch fields bind adapter route, protected configuration and isolation to exa
 Absent fields preserve historical serialization/digests; compiler and authored policy hashes stay
 unchanged. Offline replay substitutes safe route facts without importing/executing adapters.
 
+For resource-scoped Phase 7 HTTP/process routes, an extracted argument value alone does not prove
+the physical effect target. ENFORCE coverage requires a protected fixed `trusted_effect_resource`;
+an extracted value, when configured, must equal it before the gateway. This remains a reviewed
+operator assertion about the downstream service or executable, not semantic attestation. Candidate
+route fidelity is a separate replay result from policy/evidence trace diff and is `UNKNOWN` without
+a protected candidate route manifest. Adapter-level pure validation runs before approval, budget
+commitment and dispatch evidence. Approval presentation redacts resources unless explicitly opted
+in. LangChain callbacks and tracing remain external effects and require their own egress controls.
+
 Process isolation is a separate protected port. Explicit host execution or a concrete Docker backend
 with secure defaults is selected by trusted wiring. Docker runtime selection composes with runsc;
 no sandbox runtime is implemented, and containment failure never falls back to host in any mode.

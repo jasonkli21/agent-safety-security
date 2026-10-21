@@ -67,6 +67,10 @@ class ToolBinding(SecurityModel):
     resource_argument_path: tuple[NonEmpty, ...] | None = None
     resource_semantics: Literal["opaque_exact"] | None = None
     approval_display_paths: tuple[tuple[NonEmpty, ...], ...] = ()
+    approval_display_resource: bool = Field(
+        default=False,
+        description="Explicitly allow the extracted resource in human approval presentation.",
+    )
     expected_schema_hash: Digest | None = None
     expected_description_hash: Digest | None = None
 

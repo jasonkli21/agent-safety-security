@@ -177,5 +177,8 @@ signed JWT proof, negative verifier cases, approval expiry, concurrency, replay 
 There is no production token issuer in this package.
 
 Phase 6 supports only a direct one-hop grant. Parent chains and `max_delegated_agents` remain
-unsupported. Phase 7 adapters, Phase 8 supply-chain expansion and Phase 9 agent graphs remain
-outside scope. Phase 7 requires independent Phase 6 review and a reviewed plan.
+unsupported. This paragraph records the Phase 6 scope: Phase 7 adapters, Phase 8 supply-chain
+expansion and Phase 9 agent graphs were then outside scope, and Phase 7 depended on independent
+Phase 6 review and a reviewed plan. Phase 7 is now implemented; its independent review corrections
+are recorded in the [Phase 7 review-fixes report](reports/phase-7-review-fixes-report.md). Phase 8
+remains gated on independent Phase 7 acceptance and a reviewed Phase 8 plan.

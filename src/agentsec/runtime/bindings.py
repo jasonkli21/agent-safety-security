@@ -4,7 +4,7 @@ from collections.abc import Awaitable, Callable
 from copy import deepcopy
 from typing import Literal, Self
 
-from pydantic import JsonValue, model_validator
+from pydantic import Field, JsonValue, model_validator
 
 from agentsec.domain.base import Identifier, NonEmpty, VersionedModel
 from agentsec.domain.execution import ExecutionBinding
@@ -22,7 +22,15 @@ class ProtectedTool(VersionedModel):
     execution_binding: ExecutionBinding
     resource_argument_path: tuple[NonEmpty, ...] | None = None
     resource_semantics: Literal["opaque_exact"] | None = None
+    trusted_effect_resource: NonEmpty | None = Field(
+        default=None,
+        description="Reviewed operator assertion of this route's fixed physical effect target.",
+    )
     approval_display_paths: tuple[tuple[NonEmpty, ...], ...] = ()
+    approval_display_resource: bool = Field(
+        default=False,
+        description="Explicitly allow the extracted resource in human approval presentation.",
+    )
     data_sink_destination: Identifier | None = None
     output_data_labels: frozenset[DataLabel] | None = None
 
@@ -49,6 +57,7 @@ class ProtectedCall:
         gateway: RuntimeGateway,
         tool: ProtectedTool,
         dispatch: Callable[[dict[str, JsonValue]], Awaitable[ToolResponse]],
+        preflight: Callable[[dict[str, JsonValue]], None] | None = None,
     ) -> None:
         # Bind the entire classification/extraction configuration as well as transport identity.
         route = tool.execution_binding.model_copy(update={"binding_digest": content_digest(tool)})
@@ -56,10 +65,17 @@ class ProtectedCall:
         self.__tool_json = tool.model_dump_json(round_trip=True)
         self.__gateway = gateway
         self.__dispatch = dispatch
+        self.__preflight = preflight
         capability = next(iter(tool.descriptor.capabilities))
         coverage = binding_coverage(gateway.plan, [(tool.descriptor.name, capability, tool)])
         self.__gap = bool(coverage.uncovered_tool_names)
         self.__data_gap = bool(coverage.data_uncovered_tool_names)
+        if (
+            capability in coverage.resource_scoped_capabilities
+            and tool.trusted_effect_resource is None
+            and gateway.mode == EnforcementMode.ENFORCE
+        ):
+            raise RuntimeFailure("ADAPTER_EFFECT_RESOURCE_UNBOUND")
         if coverage.gaps and gateway.mode == EnforcementMode.ENFORCE:
             raise RuntimeFailure("ADAPTER_COVERAGE_GAP")
 
@@ -72,13 +88,30 @@ class ProtectedCall:
         tool = self.tool
         route = tool.execution_binding.model_copy(update={"adapter_kind": adapter_kind})
         return ProtectedCall(
-            self.__gateway, tool.model_copy(update={"execution_binding": route}), self.__dispatch
+            self.__gateway,
+            tool.model_copy(update={"execution_binding": route}),
+            self.__dispatch,
+            self.__preflight,
         )
 
     async def invoke(self, arguments: dict[str, JsonValue]) -> ToolResponse:
         tool = self.tool
         arguments = deepcopy(arguments)
-        resource = validate_arguments(tool.descriptor, arguments, tool.resource_argument_path)
+        extracted_resource = validate_arguments(
+            tool.descriptor, arguments, tool.resource_argument_path
+        )
+        if self.__preflight is not None:
+            self.__preflight(arguments)
+        resource: str | None
+        if tool.trusted_effect_resource is not None:
+            if (
+                extracted_resource is not None
+                and extracted_resource != tool.trusted_effect_resource
+            ):
+                raise RuntimeFailure("RESOURCE_TARGET_MISMATCH")
+            resource = tool.trusted_effect_resource
+        else:
+            resource = extracted_resource
         return await self.__gateway.call(
             tool.descriptor,
             arguments,
@@ -87,6 +120,7 @@ class ProtectedCall:
             bound=True,
             execution_binding=tool.execution_binding,
             approval_display_paths=tool.approval_display_paths,
+            approval_display_resource=tool.approval_display_resource,
             resource_coverage_gap=self.__gap,
             data_coverage_gap=self.__data_gap,
             data_destination=tool.data_sink_destination,

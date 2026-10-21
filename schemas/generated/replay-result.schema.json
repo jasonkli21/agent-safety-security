@@ -1383,6 +1383,60 @@
       "title": "ReplayAssessment",
       "type": "object"
     },
+    "RouteComparison": {
+      "additionalProperties": false,
+      "description": "Candidate route fidelity, separate from policy/evidence event projection.",
+      "properties": {
+        "changed_tool_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Changed Tool Ids",
+          "type": "array"
+        },
+        "missing_candidate_route_tool_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Missing Candidate Route Tool Ids",
+          "type": "array"
+        },
+        "missing_source_route_tool_ids": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Missing Source Route Tool Ids",
+          "type": "array"
+        },
+        "status": {
+          "enum": [
+            "UNKNOWN",
+            "UNCHANGED",
+            "CHANGED",
+            "INCOMPLETE"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "status"
+      ],
+      "title": "RouteComparison",
+      "type": "object"
+    },
     "RunFinishedPayload": {
       "additionalProperties": false,
       "properties": {
@@ -2328,6 +2382,7 @@
     },
     "TraceDiff": {
       "additionalProperties": false,
+      "description": "Policy/evidence event-trace diff; route fidelity is reported separately.",
       "properties": {
         "differences": {
           "default": [],
@@ -2566,6 +2621,18 @@
       "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
       "title": "Replay Id",
       "type": "string"
+    },
+    "route_comparison": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/RouteComparison"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "description": "Candidate route fidelity; UNKNOWN when replay receives no route manifest."
     },
     "schema_version": {
       "const": "0.1",

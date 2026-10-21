@@ -1,4 +1,4 @@
-"""Bounded argv execution with explicit environment and kill-on-cancellation."""
+"""Bounded argv execution with explicit environment and cancellation-safe cleanup."""
 
 import asyncio
 import os
@@ -34,9 +34,22 @@ class ProcessResult(VersionedModel):
     stderr: str
 
 
+async def _finish_cleanup(task: asyncio.Task[None]) -> None:
+    """Finish process cleanup despite repeated cancellation; propagate a new cancellation."""
+    cancelled = False
+    while not task.done():
+        try:
+            await asyncio.shield(task)
+        except asyncio.CancelledError:
+            cancelled = True
+    task.result()
+    if cancelled:
+        raise asyncio.CancelledError
+
+
 async def run_process(request: ProcessRequest) -> ProcessResult:
-    try:
-        process = await asyncio.create_subprocess_exec(
+    spawn = asyncio.create_task(
+        asyncio.create_subprocess_exec(
             *request.argv,
             cwd=request.cwd,
             env=dict(request.env),
@@ -45,8 +58,22 @@ async def run_process(request: ProcessRequest) -> ProcessResult:
             stderr=asyncio.subprocess.PIPE,
             start_new_session=True,
         )
+    )
+    spawn_cancelled = False
+    while not spawn.done():
+        try:
+            await asyncio.shield(spawn)
+        except asyncio.CancelledError:
+            # Subprocess creation itself is not cancellable. Wait until ownership is known,
+            # then enter the same kill/reap path as a running process.
+            spawn_cancelled = True
+    try:
+        process = spawn.result()
     except (OSError, ValueError) as exc:
+        if spawn_cancelled:
+            raise asyncio.CancelledError from exc
         raise RuntimeFailure("PROCESS_UNAVAILABLE") from exc
+
     used = 0
 
     async def read(stream: asyncio.StreamReader | None) -> bytes:
@@ -61,6 +88,36 @@ async def run_process(request: ProcessRequest) -> ProcessResult:
         return b"".join(chunks)
 
     tasks = [asyncio.create_task(read(process.stdout)), asyncio.create_task(read(process.stderr))]
+
+    async def terminate_and_reap() -> None:
+        kill_failed = False
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+        except OSError:
+            kill_failed = True
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
+
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        try:
+            async with asyncio.timeout(3):
+                await asyncio.gather(*tasks, return_exceptions=True)
+                await process.wait()
+        except TimeoutError as exc:
+            raise RuntimeFailure("PROCESS_CLEANUP_UNCONFIRMED") from exc
+        if kill_failed:
+            raise RuntimeFailure("PROCESS_CLEANUP_UNCONFIRMED")
+
+    if spawn_cancelled:
+        await _finish_cleanup(asyncio.create_task(terminate_and_reap()))
+        raise asyncio.CancelledError
+
     try:
         async with asyncio.timeout(request.timeout_seconds):
             stdout, stderr = await asyncio.gather(*tasks)
@@ -74,12 +131,5 @@ async def run_process(request: ProcessRequest) -> ProcessResult:
     except TimeoutError as exc:
         raise RuntimeFailure("PROCESS_TIMEOUT") from exc
     finally:
-        # Kill descendants too, including those holding output pipes open.
-        try:
-            os.killpg(process.pid, signal.SIGKILL)
-        except ProcessLookupError:
-            pass
-        for task in tasks:
-            task.cancel()
-        await asyncio.gather(*tasks, return_exceptions=True)
-        await process.wait()
+        # Killing the process group also covers descendants holding output pipes open.
+        await _finish_cleanup(asyncio.create_task(terminate_and_reap()))
