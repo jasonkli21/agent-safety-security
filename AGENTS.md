@@ -27,12 +27,15 @@ If they appear to conflict, do not silently pick whichever is convenient. Prefer
 
 ## 3. Current phase boundary
 
-**Phase 7 adapters/isolation is implemented and awaiting independent review.**
-The baseline includes Phase 6 independent-review fixes in `4dd82ea`. The active scope is
-`docs/plans/phase-7-implementation-plan.md`; behavior and verification are recorded in
-`docs/adapters-isolation.md` and `docs/reports/phase-7-implementation-report.md`.
-Phase 0–6 boundaries remain protected. Phase 8 requires independent Phase 7 review/fixes
-and a reviewed Phase 8 plan. Supply-chain expansion and Phase 9 agent graphs remain out of scope.
+**Phase 8 supply-chain trust is implemented and awaiting independent review.**
+The baseline is `939c858` (Phase 7 independent-review corrections). Independent Phase 7
+acceptance remains unconfirmed; this implementation proceeds under the user's explicit Phase 8
+request, without treating readiness as acceptance. Active scope and actual behavior are in
+`docs/plans/phase-8-implementation-plan.md`, `docs/supply-chain-trust.md` and
+`docs/reports/phase-8-implementation-report.md`. Phases 0–7 boundaries remain protected.
+Phase 9 agent graphs and hosted registry services remain out of scope. Trust pins/signature keys
+are protected operator inputs, never discovery-provided authority. RuntimeGateway owns restrictive
+admission and final freshness; metadata/file hashes and signatures do not attest running code.
 Direct one-hop delegation only: identity proof is restrictive and never grants beyond contract.
 Static config is not remote authentication; JWT verification uses pinned trusted keys/mappings.
 Raw credentials never belong in contracts/evidence. Authority freshness is rechecked before

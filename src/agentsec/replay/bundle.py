@@ -60,6 +60,20 @@ def validate_program(program: ReplayProgram) -> bool:
                 payload=RunFinishedPayload(kind=EventType.RUN_FINISHED),
             ),
         )
+    trust_requests = {
+        e.payload.request.request_id: e.payload
+        for e in events
+        if isinstance(e.payload, ToolRequestedPayload)
+    }
+    for event in events:
+        dispatch = event.payload
+        if isinstance(dispatch, ToolDispatchedPayload) and dispatch.request_id in trust_requests:
+            request = trust_requests[dispatch.request_id]
+            if (
+                dispatch.trust_snapshot_digest != request.trust_snapshot_digest
+                or dispatch.trust_assessment != request.trust_assessment
+            ):
+                raise ReplayError("TRUST_BINDING_MISMATCH")
     start = events[0].payload
     if start.scenario_id is None:
         checked = (
@@ -162,6 +176,11 @@ def _validate_non_enforcing_source(events: tuple[SecurityEvent, ...]) -> None:
                 raise ReplayError("INVALID_TRAJECTORY")
             if p.tool_id != request.request.tool_id or p.action_digest != request.action_digest:
                 raise ReplayError("INVALID_TRAJECTORY")
+            if (
+                p.trust_snapshot_digest != request.trust_snapshot_digest
+                or p.trust_assessment != request.trust_assessment
+            ):
+                raise ReplayError("TRUST_BINDING_MISMATCH")
             if p.enforcement_mode == EnforcementMode.DISABLED:
                 if p.decision_id is not None or p.approval_id is not None:
                     raise ReplayError("INVALID_TRAJECTORY")

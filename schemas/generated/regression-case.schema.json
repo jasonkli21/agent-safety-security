@@ -2931,6 +2931,30 @@
           "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
           "title": "Tool Id",
           "type": "string"
+        },
+        "trust_assessment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrustAssessment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "trust_snapshot_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trust Snapshot Digest"
         }
       },
       "required": [
@@ -3047,6 +3071,30 @@
           ],
           "default": null,
           "title": "Task Scope Digest"
+        },
+        "trust_assessment": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TrustAssessment"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "trust_snapshot_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trust Snapshot Digest"
         }
       },
       "required": [
@@ -3163,6 +3211,94 @@
         "decision"
       ],
       "title": "ToolRule",
+      "type": "object"
+    },
+    "TrustAssessment": {
+      "additionalProperties": false,
+      "properties": {
+        "admitted": {
+          "title": "Admitted",
+          "type": "boolean"
+        },
+        "artifact": {
+          "enum": [
+            "LOCAL_BYTES",
+            "UNOBSERVED"
+          ],
+          "title": "Artifact",
+          "type": "string"
+        },
+        "candidate_id": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "completeness": {
+          "enum": [
+            "COMPLETE_FOR_REQUIREMENTS",
+            "INCOMPLETE"
+          ],
+          "title": "Completeness",
+          "type": "string"
+        },
+        "fingerprint": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "lock_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Lock Digest",
+          "type": "string"
+        },
+        "metadata_pin": {
+          "enum": [
+            "MATCH",
+            "MISMATCH",
+            "UNKNOWN"
+          ],
+          "title": "Metadata Pin",
+          "type": "string"
+        },
+        "reason_codes": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Reason Codes",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "signature": {
+          "enum": [
+            "VERIFIED",
+            "INVALID",
+            "UNSUPPORTED",
+            "NOT_CHECKED"
+          ],
+          "title": "Signature",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "candidate_id",
+        "fingerprint",
+        "lock_digest",
+        "admitted",
+        "metadata_pin",
+        "artifact",
+        "signature",
+        "completeness",
+        "reason_codes"
+      ],
+      "title": "TrustAssessment",
       "type": "object"
     },
     "TrustClass": {

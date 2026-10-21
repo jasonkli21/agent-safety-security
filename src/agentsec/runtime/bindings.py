@@ -70,6 +70,15 @@ class ProtectedCall:
         coverage = binding_coverage(gateway.plan, [(tool.descriptor.name, capability, tool)])
         self.__gap = bool(coverage.uncovered_tool_names)
         self.__data_gap = bool(coverage.data_uncovered_tool_names)
+        if gateway.trust_enabled:
+            gateway.admit_trust(
+                gateway.trust_candidate(
+                    tool.descriptor,
+                    tool.execution_binding,
+                    tool.data_sink_destination,
+                    tool.output_data_labels,
+                )
+            )
         if (
             capability in coverage.resource_scoped_capabilities
             and tool.trusted_effect_resource is None

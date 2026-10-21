@@ -19,6 +19,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+trust = ["cryptography>=44,<51"]
 langchain = ["langchain-core>=1,<2"]
 identity = ["PyJWT[crypto]>=2.10,<3"]
 mcp = ["mcp>=2.3,<3"]

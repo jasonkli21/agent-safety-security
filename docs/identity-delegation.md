@@ -180,5 +180,14 @@ Phase 6 supports only a direct one-hop grant. Parent chains and `max_delegated_a
 unsupported. This paragraph records the Phase 6 scope: Phase 7 adapters, Phase 8 supply-chain
 expansion and Phase 9 agent graphs were then outside scope, and Phase 7 depended on independent
 Phase 6 review and a reviewed plan. Phase 7 is now implemented; its independent review corrections
-are recorded in the [Phase 7 review-fixes report](reports/phase-7-review-fixes-report.md). Phase 8
-remains gated on independent Phase 7 acceptance and a reviewed Phase 8 plan.
+are recorded in the [Phase 7 review-fixes report](reports/phase-7-review-fixes-report.md). Phase 8 is now implemented under the explicit user request; independent Phase 7 acceptance remains
+unconfirmed and Phase 8 remains pending independent review.
+
+## Phase 8 trust composition
+
+The optional operator-owned supply-chain guard restricts protected implementations through
+RuntimeGateway; it never grants contract or delegated authority. Metadata pins and Ed25519
+signatures do not attest runtime code. Existing approval, evidence, provenance, TLS and isolation
+boundaries remain active. See [supply-chain trust](supply-chain-trust.md) for exact mode behavior,
+route identities, offline replay limits and commands. Independent Phase 7 acceptance is still
+unconfirmed; Phase 8 implementation is awaiting independent review.

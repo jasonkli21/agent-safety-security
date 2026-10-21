@@ -28,6 +28,9 @@ from agentsec.runtime.events import RuntimeEvents
 from agentsec.runtime.gateway import RuntimeGateway
 from agentsec.runtime.models import RuntimeFailure
 from agentsec.runtime.terminal_approval import TerminalApprovalBroker
+from agentsec.supply_chain.guard import TrustGuard
+from agentsec.supply_chain.io import load_json
+from agentsec.supply_chain.models import TrustInputs, TrustLock
 
 app = typer.Typer(no_args_is_help=True)
 
@@ -37,6 +40,7 @@ async def run(
     config: McpGatewayConfig,
     sink: EventSink,
     credential_file: Path | None = None,
+    trust_guard: TrustGuard | None = None,
 ) -> None:
     from agentsec.adapters.mcp.server import create_server, serve_stdio
     from agentsec.adapters.mcp.upstream import connect
@@ -71,6 +75,7 @@ async def run(
         TerminalApprovalBroker(),
         authority=authority,
         identity_error=identity_error,
+        trust_guard=trust_guard,
     )
     async with connect(config.upstream) as client:
         server, gaps = await create_server(client, config, runtime)
@@ -89,6 +94,12 @@ def protect_mcp(
     contract: Annotated[Path, typer.Option()],
     config: Annotated[Path, typer.Option()],
     evidence_out: Annotated[Path | None, typer.Option()] = None,
+    trust_lock: Annotated[
+        Path | None, typer.Option(help="Protected operator-reviewed trust lock")
+    ] = None,
+    trust_inputs: Annotated[
+        Path | None, typer.Option(help="Protected signature/artifact inputs")
+    ] = None,
     credential_file: Annotated[
         Path | None, typer.Option(help="Protected out-of-band JWT file")
     ] = None,
@@ -98,6 +109,21 @@ def protect_mcp(
 ) -> None:
     """Protect tools with an explicit contract and operational gateway config."""
     try:
+        if trust_inputs and not trust_lock:
+            raise RuntimeFailure("TRUST_LOCK_REQUIRED")
+        inputs = load_json(trust_inputs, TrustInputs) if trust_inputs else None
+        guard = (
+            TrustGuard(
+                load_json(trust_lock, TrustLock),
+                signatures=inputs.signatures if inputs else (),
+                artifacts={a.candidate_id: Path(a.path) for a in inputs.artifacts}
+                if inputs
+                else None,
+                dependencies=inputs.dependencies if inputs else None,
+            )
+            if trust_lock
+            else None
+        )
         loaded_contract = load_contract(contract)
         loaded_config = load_artifact(config, McpGatewayConfig)
         configured_provider(loaded_config.identity, loaded_contract.identity.principal)
@@ -153,13 +179,20 @@ def protect_mcp(
                 "MCP_DEPENDENCY_MISSING: install agent-safety-security[mcp]"
             ) from exc
         if evidence_out is not None:
-            if evidence_out.resolve() in {contract.resolve(), config.resolve()}:
+            if evidence_out.resolve() in {
+                contract.resolve(),
+                config.resolve(),
+                *([trust_lock.resolve()] if trust_lock else []),
+                *([trust_inputs.resolve()] if trust_inputs else []),
+            }:
                 raise RuntimeFailure("OUTPUT_PATH_COLLISION")
             # Exclusive creation prevents overwriting protected inputs, executables or old audit.
             with JsonlEventSink(evidence_out, exclusive=True) as sink:
-                asyncio.run(run(loaded_contract, loaded_config, sink, credential_file))
+                asyncio.run(run(loaded_contract, loaded_config, sink, credential_file, guard))
         else:
-            asyncio.run(run(loaded_contract, loaded_config, InMemoryEventSink(), credential_file))
+            asyncio.run(
+                run(loaded_contract, loaded_config, InMemoryEventSink(), credential_file, guard)
+            )
     except (RuntimeFailure, EvidenceError, IdentityError) as exc:
         typer.echo(exc.code, err=True)
         raise typer.Exit(1) from exc

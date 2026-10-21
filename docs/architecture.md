@@ -1837,4 +1837,28 @@ with secure defaults is selected by trusted wiring. Docker runtime selection com
 no sandbox runtime is implemented, and containment failure never falls back to host in any mode.
 Cancellation after dispatcher entry remains potentially effectful/unknown. This extends operational
 surfaces only: direct Phase 6 authority and Phase 0–6 semantics remain protected. See
-[adapters/isolation](adapters-isolation.md). Phase 8 supply-chain trust and Phase 9 graphs are deferred.
+[adapters/isolation](adapters-isolation.md). Phase 8 now adds restrictive supply-chain admission as described below; Phase 9 graphs remain deferred.
+
+## Phase 8 restrictive supply-chain admission
+
+Operator-owned TrustLock pins and independently provisioned Ed25519 public keys restrict
+candidate implementations without changing authored contract semantics or `phase6-v1`. Immutable,
+content-free qualified inventories bind exact observed metadata, routes and classifications, with
+explicit missing artifact/dependency proof. RuntimeGateway checks admission before approval and
+rechecks the action-bound lock/epoch/signature/local-byte snapshot synchronously at the final
+budget/dispatch boundary. Protected registration and MCP visibility also check admission.
+Provider/framework rebinding needs an independently pinned route; it cannot remove the guard.
+
+Local file hashing proves inspected bytes only. Remote code, loaded Python functions, executable
+hash-and-exec, Docker tags/images/daemon and actual sandbox behavior are unproven; runtime
+attestation requirements reject as unsupported. Declared dependency manifests are not complete
+resolved SBOMs. Trust root protection remains an operator deployment responsibility, as with
+contracts. ENFORCE restricts, SHADOW reports and DISABLED skips trust while retaining transport/
+isolation safety. Same-event-loop ownership prevents cross-thread lock replacement races; it
+cannot constrain malicious trusted application code or privileged filesystem replacement.
+
+Optional request/dispatch assessment and snapshot fields are omitted on legacy paths. Approvals
+bind exact trust generation, and offline replay compares candidate observations separately from
+route fidelity without re-verifying signatures or accessing files/tools. Historical hashes and
+serialized omissions remain intact. See [supply-chain trust](supply-chain-trust.md). Independent
+Phase 7 acceptance remains unconfirmed, and Phase 8 needs independent review before release.

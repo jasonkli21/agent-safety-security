@@ -6,6 +6,7 @@ from mcp import types
 
 from agentsec.adapters.mcp.config import McpGatewayConfig, ToolBinding
 from agentsec.contracts.loader import validate_data
+from agentsec.domain.execution import ExecutionBinding
 from agentsec.domain.serialization import canonical_json, content_digest
 from agentsec.domain.taxonomy import EnforcementMode, SideEffectClass
 from agentsec.domain.tools import ToolDescriptor
@@ -29,12 +30,16 @@ class DiscoveredTool:
 
 
 def discover(
-    tools: list[types.Tool], config: McpGatewayConfig
+    tools: list[types.Tool], config: McpGatewayConfig, *, trust_limits: bool = False
 ) -> tuple[dict[str, DiscoveredTool], tuple[str, ...]]:
+    if trust_limits and len(tools) > 2048:
+        raise RuntimeFailure("TRUST_INPUT_INVALID")
     registry: dict[str, DiscoveredTool] = {}
     bindings = {b.upstream_name: b for b in config.tool_bindings}
     gaps = []
     for tool in tools:
+        if trust_limits and len(tool.model_dump_json().encode()) > 1024 * 1024:
+            raise RuntimeFailure("TRUST_INPUT_INVALID")
         if tool.name in registry:
             raise RuntimeFailure("DUPLICATE_TOOL")
         check_local_schema(tool.input_schema)
@@ -79,3 +84,20 @@ def discover(
             raise RuntimeFailure("STALE_TOOL_BINDING")
         gaps.append("stale_tool_binding")
     return registry, tuple(gaps)
+
+
+def trust_route(entry: DiscoveredTool, config: McpGatewayConfig) -> ExecutionBinding:
+    """Exact protected transport and classification; no raw configuration in evidence."""
+    return ExecutionBinding(
+        schema_version="0.1",
+        adapter_kind="mcp",
+        adapter_id=config.server_id,
+        binding_digest=content_digest(
+            {
+                "domain": "agentsec.mcp-route.v1",
+                "upstream": config.upstream,
+                "binding": entry.binding,
+                "discovery_metadata": entry.wire,
+            }
+        ),
+    )

@@ -16,3 +16,6 @@ The PRD should remain relatively stable. Architecture changes only for enduring 
 
 - [Adapters and isolation](adapters-isolation.md) — Phase 7 native/provider/framework/HTTP/process boundaries.
 - [Phase 7 implementation report](reports/phase-7-implementation-report.md) — verification and review readiness.
+
+- [Supply-chain trust](supply-chain-trust.md) — Phase 8 offline inventory, pins, signatures and runtime admission.
+- [Phase 8 implementation report](reports/phase-8-implementation-report.md) — verification and pending independent review.

@@ -34,8 +34,26 @@ from agentsec.eval.fixtures import TargetFixture
 from agentsec.eval.models import EvaluationResult, EvaluationSummary
 from agentsec.isolation.backends import DockerProfile
 from agentsec.runtime.bindings import ProtectedTool
+from agentsec.supply_chain.models import (
+    DependencyManifest,
+    Inventory,
+    InventoryDiff,
+    ScanReport,
+    Signature,
+    TrustAssessment,
+    TrustInputs,
+    TrustLock,
+)
 
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
+    "trust-inputs": TrustInputs,
+    "trust-inventory": Inventory,
+    "trust-lock": TrustLock,
+    "trust-dependencies": DependencyManifest,
+    "trust-assessment": TrustAssessment,
+    "trust-diff": InventoryDiff,
+    "trust-scan": ScanReport,
+    "trust-signature": Signature,
     "protected-tool": ProtectedTool,
     "execution-binding": ExecutionBinding,
     "http-action": HttpAction,

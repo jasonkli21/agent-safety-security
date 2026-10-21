@@ -176,12 +176,15 @@ class ReplayResult(VersionedModel):
         data: dict[str, object] = handler(self)
         if self.authority is None:
             data.pop("authority", None)
+        if self.trust_comparison is None:
+            data.pop("trust_comparison", None)
         if self.route_comparison is None:
             data.pop("route_comparison", None)
         return data
 
     events: tuple[SecurityEvent, ...]
     diff: TraceDiff
+    trust_comparison: Literal["UNKNOWN", "INCOMPLETE", "CHANGED", "UNCHANGED"] | None = None
     route_comparison: RouteComparison | None = Field(
         default=None,
         description="Candidate route fidelity; UNKNOWN when replay receives no route manifest.",

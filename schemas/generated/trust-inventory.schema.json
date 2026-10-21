@@ -1,0 +1,219 @@
+{
+  "$defs": {
+    "Candidate": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Artifact Digest"
+        },
+        "candidate_id": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "classification_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Classification Digest",
+          "type": "string"
+        },
+        "dependency_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dependency Digest"
+        },
+        "description_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Description Digest",
+          "type": "string"
+        },
+        "implementation_proof": {
+          "default": "UNOBSERVED",
+          "enum": [
+            "UNOBSERVED",
+            "LOCAL_BYTES"
+          ],
+          "title": "Implementation Proof",
+          "type": "string"
+        },
+        "injection_marker": {
+          "default": false,
+          "title": "Injection Marker",
+          "type": "boolean"
+        },
+        "labels_complete": {
+          "title": "Labels Complete",
+          "type": "boolean"
+        },
+        "metadata_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Metadata Digest",
+          "type": "string"
+        },
+        "route_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Route Digest",
+          "type": "string"
+        },
+        "schema_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Schema Digest",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "side_effect": {
+          "$ref": "#/$defs/SideEffectClass"
+        },
+        "source": {
+          "enum": [
+            "mcp_discovery",
+            "protected_registration"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "candidate_id",
+        "source",
+        "schema_digest",
+        "description_digest",
+        "metadata_digest",
+        "route_digest",
+        "classification_digest",
+        "side_effect",
+        "labels_complete"
+      ],
+      "title": "Candidate",
+      "type": "object"
+    },
+    "SideEffectClass": {
+      "enum": [
+        "NONE",
+        "READ",
+        "INTERNAL_WRITE",
+        "EXTERNAL_WRITE",
+        "DESTRUCTIVE",
+        "CODE_EXECUTION",
+        "IDENTITY_PRIVILEGE",
+        "FINANCIAL",
+        "INFRASTRUCTURE"
+      ],
+      "title": "SideEffectClass",
+      "type": "string"
+    },
+    "Signature": {
+      "additionalProperties": false,
+      "properties": {
+        "algorithm": {
+          "const": "Ed25519",
+          "title": "Algorithm",
+          "type": "string"
+        },
+        "candidate_id": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "expires_at": {
+          "format": "date-time",
+          "title": "Expires At",
+          "type": "string"
+        },
+        "issued_at": {
+          "format": "date-time",
+          "title": "Issued At",
+          "type": "string"
+        },
+        "key_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Key Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "signature_hex": {
+          "pattern": "^[0-9a-f]{128}$",
+          "title": "Signature Hex",
+          "type": "string"
+        },
+        "subject_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Subject Digest",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "candidate_id",
+        "subject_digest",
+        "key_id",
+        "algorithm",
+        "issued_at",
+        "expires_at",
+        "signature_hex"
+      ],
+      "title": "Signature",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "candidates": {
+      "items": {
+        "$ref": "#/$defs/Candidate"
+      },
+      "maxItems": 2048,
+      "title": "Candidates",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "signatures": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Signature"
+      },
+      "maxItems": 2048,
+      "title": "Signatures",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "candidates"
+  ],
+  "title": "Inventory",
+  "type": "object"
+}

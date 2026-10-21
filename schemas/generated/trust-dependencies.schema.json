@@ -1,0 +1,97 @@
+{
+  "$defs": {
+    "Dependency": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Artifact Digest"
+        },
+        "declaration_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Declaration Digest",
+          "type": "string"
+        },
+        "name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Name",
+          "type": "string"
+        },
+        "provenance": {
+          "default": "declared",
+          "enum": [
+            "declared",
+            "resolved",
+            "artifact_hashed"
+          ],
+          "title": "Provenance",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "name",
+        "declaration_digest"
+      ],
+      "title": "Dependency",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "completeness": {
+      "default": "DECLARED_ONLY",
+      "enum": [
+        "DECLARED_ONLY",
+        "INCOMPLETE"
+      ],
+      "title": "Completeness",
+      "type": "string"
+    },
+    "dependencies": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/Dependency"
+      },
+      "maxItems": 2048,
+      "title": "Dependencies",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source": {
+      "enum": [
+        "local_pyproject",
+        "operator_declaration"
+      ],
+      "title": "Source",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "source"
+  ],
+  "title": "DependencyManifest",
+  "type": "object"
+}

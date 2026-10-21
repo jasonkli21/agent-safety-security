@@ -181,3 +181,12 @@ NormalizedAction additionally binds `authority_digest`; PolicyRequest carries re
 No authored fields or document/effective-policy hash projections changed. Current compiler is
 `phase6-v1`; old `phase4-v1` artifacts retain historical meaning. See
 [identity and delegation](identity-delegation.md) for exact null/empty/scope and trust semantics.
+
+## Phase 8 trust composition
+
+The optional operator-owned supply-chain guard restricts protected implementations through
+RuntimeGateway; it never grants contract or delegated authority. Metadata pins and Ed25519
+signatures do not attest runtime code. Existing approval, evidence, provenance, TLS and isolation
+boundaries remain active. See [supply-chain trust](supply-chain-trust.md) for exact mode behavior,
+route identities, offline replay limits and commands. Independent Phase 7 acceptance is still
+unconfirmed; Phase 8 implementation is awaiting independent review.

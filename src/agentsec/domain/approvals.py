@@ -28,6 +28,7 @@ from agentsec.domain.taxonomy import ApprovalOutcome, ApprovalScope, ReasonCode
 class NormalizedAction(VersionedModel):
     """Use complete arguments, never a lossy/redacted PolicyRequest summary."""
 
+    trust_snapshot_digest: Digest | None = None
     execution_binding_digest: Digest | None = None
     authority_digest: Digest | None = None
     principal: PrincipalRef
@@ -51,6 +52,8 @@ class NormalizedAction(VersionedModel):
     @model_serializer(mode="wrap")
     def compatible_wire(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
         data: dict[str, object] = handler(self)
+        if self.trust_snapshot_digest is None:
+            data.pop("trust_snapshot_digest", None)
         if self.authority_digest is None:
             data.pop("authority_digest", None)
         if self.execution_binding_digest is None:

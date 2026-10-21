@@ -2,7 +2,7 @@
 
 A local-first security lifecycle for tool-using AI agents: define explicit authority, test it adversarially, enforce it at runtime, and turn observed failures into regressions.
 
-> **Current status:** Phase 7 harness-agnostic adapters and isolation integration is implemented; independent review corrections are recorded and awaiting re-review. Native/provider/LangChain/HTTP/process actions share the runtime gateway; Docker supports protected gVisor runtime selection. See the [adapter guide](docs/adapters-isolation.md), [Phase 7 implementation report](docs/reports/phase-7-implementation-report.md), and [review-fixes report](docs/reports/phase-7-review-fixes-report.md).
+> **Current status:** Phase 8 local supply-chain inventory, operator-reviewed pins, optional Ed25519 verification and restrictive runtime trust admission are implemented. See the [trust guide](docs/supply-chain-trust.md) and [implementation report](docs/reports/phase-8-implementation-report.md). Phase 7 fixes still await independent acceptance; Phase 8 awaits independent review.
 
 ## Product thesis
 
@@ -166,7 +166,7 @@ python -m pip install -e '.[dev,mcp,identity]'
 See [identity setup, trust boundaries and limitations](docs/identity-delegation.md). Historical
 Phase 5 source can replay under its historical plan; comparison to a new Phase 6 candidate
 without recorded authority facts is explicitly INCOMPLETE. Phase 6 review fixes are included; Phase 7 is ready for independent
-review. Phase 8 has not started.
+review. Phase 8 trust admission is now implemented and awaiting independent review.
 
 ## Phase 7 adapters and isolation
 
@@ -177,3 +177,16 @@ DENY; apply a separate egress policy. HTTPS actions require protected `tls_ca_pe
 Fixed-endpoint HTTP and explicit Docker/gVisor composition use the same runtime policy, approval
 and evidence boundary. See [adapters and isolation](docs/adapters-isolation.md) for APIs and trust
 assumptions.
+
+## Supply-chain trust
+
+```bash
+.venv/bin/agentsec trust verify examples/trust/native-inventory.json --lock examples/trust/native-lock.json
+.venv/bin/python examples/trust/pinned_native.py
+```
+
+Opt into MCP admission with `agentsec protect mcp ... --trust-lock reviewed-lock.json`.
+Inventory inspection/scanning/diffs are offline; locks remain protected operator inputs. Signatures
+use pinned Ed25519 public keys with the optional `trust` extra. Metadata pins, inspected file bytes
+and publisher signatures do not prove loaded or remote running code. See the
+[observe/review/pin/protect workflow and precise limits](docs/supply-chain-trust.md).

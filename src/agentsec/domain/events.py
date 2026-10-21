@@ -36,6 +36,7 @@ from agentsec.domain.taxonomy import (
     SecurityCategory,
     Severity,
 )
+from agentsec.supply_chain.models import TrustAssessment
 
 
 class RunStartedPayload(SecurityModel):
@@ -62,6 +63,8 @@ class RunFinishedPayload(SecurityModel):
 class ToolRequestedPayload(SecurityModel):
     kind: Literal[EventType.TOOL_REQUESTED]
     request: PolicyRequest
+    trust_assessment: TrustAssessment | None = None
+    trust_snapshot_digest: Digest | None = None
     action_digest: Digest
     policy_input_digest: Digest | None = None
     redacted_fields: frozenset[Literal["resource", "task_scope", "authority"]] = frozenset()
@@ -72,12 +75,18 @@ class ToolRequestedPayload(SecurityModel):
     @model_serializer(mode="wrap")
     def compatible_wire(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
         data: dict[str, object] = handler(self)
+        if self.trust_assessment is None:
+            data.pop("trust_assessment", None)
+        if self.trust_snapshot_digest is None:
+            data.pop("trust_snapshot_digest", None)
         if self.authority_digest is None:
             data.pop("authority_digest", None)
         return data
 
     @model_validator(mode="after")
     def truthful_redaction(self) -> Self:
+        if (self.trust_assessment is None) != (self.trust_snapshot_digest is None):
+            raise ValueError("TRUST_EVIDENCE_INCOMPLETE")
         if self.redacted_fields and self.policy_input_digest is None:
             raise PydanticCustomError(
                 "INVALID_SCHEMA", "Redacted policy inputs must carry a full-input digest"
@@ -111,11 +120,17 @@ class ApprovalDecidedPayload(SecurityModel):
 
 
 class ToolDispatchedPayload(SecurityModel):
+    trust_assessment: TrustAssessment | None = None
+    trust_snapshot_digest: Digest | None = None
     execution_binding: ExecutionBinding | None = None
 
     @model_serializer(mode="wrap")
     def compatible_wire(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
         data: dict[str, object] = handler(self)
+        if self.trust_assessment is None:
+            data.pop("trust_assessment", None)
+        if self.trust_snapshot_digest is None:
+            data.pop("trust_snapshot_digest", None)
         if self.execution_binding is None:
             data.pop("execution_binding", None)
         return data
@@ -150,6 +165,14 @@ class ToolDispatchedPayload(SecurityModel):
 
     @model_validator(mode="after")
     def truthful_mode(self) -> Self:
+        if (self.trust_assessment is None) != (self.trust_snapshot_digest is None):
+            raise ValueError("TRUST_EVIDENCE_INCOMPLETE")
+        if (
+            self.enforcement_mode == EnforcementMode.ENFORCE
+            and self.trust_assessment
+            and not self.trust_assessment.admitted
+        ):
+            raise ValueError("TRUST_EVIDENCE_NOT_ADMITTED")
         if self.enforcement_mode != EnforcementMode.DISABLED and self.decision_id is None:
             raise PydanticCustomError("INVALID_SCHEMA", "Protected dispatch requires decision")
         if self.enforcement_mode == EnforcementMode.DISABLED and (

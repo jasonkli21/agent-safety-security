@@ -1148,3 +1148,187 @@ def test_phase4_binding_classification_strict_validation(fields):
     data["tool_bindings"][0].update(fields)
     with pytest.raises(ArtifactValidationError):
         validate_data(McpGatewayConfig, data)
+
+
+def trust_lock(inventory):
+    from agentsec.supply_chain.inspection import propose
+    from agentsec.supply_chain.models import TrustLock
+
+    # Test operator independently chooses the expected snapshot, then explicitly reviews.
+    return TrustLock.model_validate_json(
+        propose(inventory, "test-reviewed")
+        .model_copy(update={"status": "REVIEWED"})
+        .model_dump_json()
+    )
+
+
+def test_strict_trust_mcp_sdk_allow_policy_deny_and_live_lock_change():
+    from agentsec.supply_chain.guard import TrustGuard
+    from agentsec.supply_chain.models import Inventory
+    from agentsec.supply_chain.registration import inspect_mcp
+
+    async def operation():
+        attempts = []
+        broker = Broker()
+        sink = InMemoryEventSink()
+        config = configuration()
+        async with Client(synthetic(attempts), mode="legacy") as upstream:
+            inventory = inspect_mcp(config, await upstream.list_tools())
+            guard = TrustGuard(trust_lock(inventory))
+            runtime = RuntimeGateway(
+                contract(),
+                EnforcementMode.ENFORCE,
+                RuntimeEvents(sink, lambda: NOW),
+                broker,
+                trust_guard=guard,
+            )
+            server, _ = await create_server(upstream, config, runtime)
+            async with Client(server, mode="legacy") as host:
+                assert len((await host.list_tools()).tools) == 3
+                assert not (await host.call_tool("search", {"query": "safe"})).is_error
+                assert (
+                    await host.call_tool("write_file", {"path": "/tmp/test", "content": "x"})
+                ).is_error
+                assert len(attempts) == 1
+                guard.replace_lock(trust_lock(Inventory(schema_version="0.1", candidates=())))
+                assert not (await host.list_tools()).tools
+                failed = await host.call_tool(
+                    "send_email", {"recipient": "demo@example.invalid", "body": "x"}
+                )
+                assert failed.is_error and failed.content[0].text == "TRUST_ADMISSION_REJECTED"
+                assert not broker.requests
+                assert len(attempts) == 1
+        runtime.finish()
+        dispatch = next(e.payload for e in sink.events if e.event_type == EventType.TOOL_DISPATCHED)
+        assert dispatch.trust_assessment.admitted
+        assert dispatch.execution_binding.adapter_kind == "mcp"
+
+    asyncio.run(operation())
+
+
+@pytest.mark.parametrize("substitution", ["unknown", "metadata", "route", "attestation"])
+def test_strict_mcp_registration_rejects_unreviewed_material(substitution):
+    from agentsec.supply_chain.guard import TrustGuard
+    from agentsec.supply_chain.models import Inventory
+    from agentsec.supply_chain.registration import inspect_mcp
+
+    async def operation():
+        attempts = []
+        config = configuration()
+        sink = InMemoryEventSink()
+        broker = Broker()
+        async with Client(synthetic(attempts), mode="legacy") as upstream:
+            inventory = inspect_mcp(config, await upstream.list_tools())
+            lock = trust_lock(inventory)
+            if substitution == "unknown":
+                lock = trust_lock(Inventory(schema_version="0.1", candidates=()))
+            elif substitution in {"metadata", "route"}:
+                field = "metadata_digest" if substitution == "metadata" else "route_digest"
+                from agentsec.domain.serialization import content_digest
+
+                candidates = tuple(
+                    c.model_copy(update={field: content_digest("other")})
+                    for c in inventory.candidates
+                )
+                lock = trust_lock(Inventory(schema_version="0.1", candidates=candidates))
+            else:
+                lock = lock.model_copy(
+                    update={
+                        "pins": tuple(
+                            p.model_copy(update={"require_runtime_attestation": True})
+                            for p in lock.pins
+                        )
+                    }
+                )
+            runtime = RuntimeGateway(
+                contract(),
+                EnforcementMode.ENFORCE,
+                RuntimeEvents(sink, lambda: NOW),
+                broker,
+                trust_guard=TrustGuard(lock),
+            )
+            with pytest.raises(RuntimeFailure, match="TRUST_ADMISSION_REJECTED"):
+                await create_server(upstream, config, runtime)
+            assert not attempts and not broker.requests
+            assert not any(e.event_type == EventType.TOOL_DISPATCHED for e in sink.events)
+
+    asyncio.run(operation())
+
+
+def test_strict_mcp_approval_generation_race_has_no_upstream_effect():
+    from agentsec.supply_chain.guard import TrustGuard
+    from agentsec.supply_chain.registration import inspect_mcp
+
+    async def operation():
+        attempts = []
+        sink = InMemoryEventSink()
+        config = configuration()
+        async with Client(synthetic(attempts), mode="legacy") as upstream:
+            lock = trust_lock(inspect_mcp(config, await upstream.list_tools()))
+            guard = TrustGuard(lock)
+
+            class RacingBroker(Broker):
+                async def decide(self, request, presentation):
+                    await asyncio.sleep(0)
+                    guard.replace_lock(lock.model_copy(update={"generation": "changed"}))
+                    return await super().decide(request, presentation)
+
+            runtime = RuntimeGateway(
+                contract(),
+                EnforcementMode.ENFORCE,
+                RuntimeEvents(sink, lambda: NOW),
+                RacingBroker(),
+                trust_guard=guard,
+            )
+            server, _ = await create_server(upstream, config, runtime)
+            async with Client(server, mode="legacy") as host:
+                result = await host.call_tool(
+                    "send_email", {"recipient": "demo@example.invalid", "body": "x"}
+                )
+                assert result.is_error and result.content[0].text == "TRUST_REGISTRY_STALE"
+            assert not attempts
+            assert not any(e.event_type == EventType.TOOL_DISPATCHED for e in sink.events)
+
+    asyncio.run(operation())
+
+
+def test_strict_trust_cli_stdio_static_reviewed_example(tmp_path):
+    async def scenario():
+        evidence = tmp_path / "trust-evidence.jsonl"
+        params = StdioServerParameters(
+            command=sys.executable,
+            args=[
+                "-m",
+                "agentsec.cli.main",
+                "protect",
+                "mcp",
+                "--contract",
+                str(ROOT / "examples/mcp/contract.yaml"),
+                "--config",
+                str(ROOT / "examples/mcp/gateway.yaml"),
+                "--trust-lock",
+                str(ROOT / "examples/trust/mcp-lock.json"),
+                "--evidence-out",
+                str(evidence),
+            ],
+            cwd=str(ROOT),
+            env={},
+        )
+
+        @asynccontextmanager
+        async def transport():
+            async with stdio_client(params) as streams:
+                yield streams
+
+        async with Client(transport(), mode="legacy") as host:
+            assert len((await host.list_tools()).tools) == 3
+            assert not (await host.call_tool("search", {"query": "synthetic"})).is_error
+        from agentsec.evidence.jsonl import read_jsonl
+
+        dispatched = [
+            e.payload for e in read_jsonl(evidence) if e.event_type == EventType.TOOL_DISPATCHED
+        ]
+        assert len(dispatched) == 1
+        assert dispatched[0].trust_assessment.admitted
+
+    asyncio.run(scenario())

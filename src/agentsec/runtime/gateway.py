@@ -52,6 +52,9 @@ from agentsec.runtime.approvals import ApprovalBroker, ApprovalLedger
 from agentsec.runtime.budgets import BudgetLedger
 from agentsec.runtime.events import RuntimeEvents
 from agentsec.runtime.models import RuntimeFailure, ToolResponse
+from agentsec.supply_chain.guard import TrustGuard
+from agentsec.supply_chain.inspection import observe
+from agentsec.supply_chain.models import Candidate, TrustAssessment
 
 
 def _approval_presentation(
@@ -111,7 +114,9 @@ class RuntimeGateway:
         plan: CompiledSecurityPlan | None = None,
         authority: AuthorityContext | None = None,
         identity_error: str | None = None,
+        trust_guard: TrustGuard | None = None,
     ) -> None:
+        self.__trust_guard = trust_guard
         self._contract = contract.model_copy(deep=True)
         compiled = compile_contract(self._contract)
         if plan is not None and plan != compiled:
@@ -195,6 +200,45 @@ class RuntimeGateway:
             )
         )
 
+    @property
+    def trust_enabled(self) -> bool:
+        return self.__trust_guard is not None and self.mode != EnforcementMode.DISABLED
+
+    def trust_candidate(
+        self,
+        tool: ToolDescriptor,
+        route: ExecutionBinding | None,
+        destination: str | None = None,
+        labels: frozenset[DataLabel] | None = None,
+    ) -> Candidate:
+        return observe(
+            tool,
+            route,
+            classification={"destination": destination, "labels": labels},
+            labels_complete=labels is not None
+            and (
+                tool.side_effect_class.value not in {"EXTERNAL_WRITE", "NETWORK"}
+                or destination is not None
+            ),
+        )
+
+    def admit_trust(self, candidate: Candidate) -> tuple[str | None, TrustAssessment | None]:
+        if self.__trust_guard is None or self.mode == EnforcementMode.DISABLED:
+            return None, None
+        try:
+            snapshot, assessment = self.__trust_guard.check(candidate, self.events.clock())
+        except RuntimeFailure as exc:
+            self.signal(SecurityCategory.SUPPLY_CHAIN_CHANGE, exc.code)
+            if self.mode == EnforcementMode.ENFORCE:
+                raise
+            return None, None
+        if not assessment.admitted:
+            for code in assessment.reason_codes:
+                self.signal(SecurityCategory.SUPPLY_CHAIN_CHANGE, code)
+            if self.mode == EnforcementMode.ENFORCE:
+                raise RuntimeFailure("TRUST_ADMISSION_REJECTED")
+        return snapshot, assessment
+
     def finish(self) -> None:
         self._closed = True
         self.events.emit(RunFinishedPayload(kind=EventType.RUN_FINISHED))
@@ -228,8 +272,18 @@ class RuntimeGateway:
         capability = next(iter(tool.capabilities))
         if len(tool.capabilities) != 1:
             raise RuntimeFailure("AMBIGUOUS_CAPABILITY")
+        candidate = (
+            self.trust_candidate(tool, execution_binding, data_destination, output_data_labels)
+            if self.trust_enabled
+            else None
+        )
+        # Check before broker/reservation; no caller can omit trust on a guarded gateway.
+        trust_snapshot, trust_assessment = (
+            self.admit_trust(candidate) if candidate else (None, None)
+        )
         action = NormalizedAction(
             schema_version="0.1",
+            trust_snapshot_digest=trust_snapshot,
             execution_binding_digest=content_digest(execution_binding)
             if execution_binding
             else None,
@@ -296,6 +350,8 @@ class RuntimeGateway:
                 kind=EventType.TOOL_REQUESTED,
                 request=evidence_request,
                 action_digest=digest,
+                trust_snapshot_digest=trust_snapshot,
+                trust_assessment=trust_assessment,
                 policy_input_digest=content_digest(request),
                 authority_digest=self._authority.authority_digest
                 if redact_authority and self._authority
@@ -451,6 +507,19 @@ class RuntimeGateway:
                 if failure:
                     self.signal(SecurityCategory.DELEGATION_ESCALATION, failure.value)
                     raise RuntimeFailure(failure.value)
+            if (
+                self.__trust_guard is not None
+                and trust_snapshot is not None
+                and candidate is not None
+            ):
+                try:
+                    final = self.__trust_guard.final(candidate, trust_snapshot, self.events.clock())
+                    if enforce and not final.admitted:
+                        raise RuntimeFailure("TRUST_ADMISSION_REJECTED")
+                except RuntimeFailure as exc:
+                    self.signal(SecurityCategory.SUPPLY_CHAIN_CHANGE, exc.code)
+                    if enforce:
+                        raise
             dispatch_id = str(uuid4())
             # No await between final expiry/budget checks, evidence and dispatcher entry.
             self.budgets.commit(token, enforce=enforce)
@@ -460,6 +529,8 @@ class RuntimeGateway:
                         kind=EventType.TOOL_DISPATCHED,
                         dispatch_id=dispatch_id,
                         execution_binding=execution_binding,
+                        trust_snapshot_digest=trust_snapshot,
+                        trust_assessment=trust_assessment,
                         request_id=request.request_id,
                         tool_id=tool.tool_id,
                         action_digest=digest,

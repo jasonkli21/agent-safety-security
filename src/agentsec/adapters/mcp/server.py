@@ -12,7 +12,7 @@ from pydantic import JsonValue
 
 from agentsec.adapters.mcp.config import McpGatewayConfig
 from agentsec.adapters.mcp.coverage import discovered_resource_coverage
-from agentsec.adapters.mcp.discovery import discover
+from agentsec.adapters.mcp.discovery import DiscoveredTool, discover, trust_route
 from agentsec.adapters.mcp.normalize import validate_arguments
 from agentsec.adapters.mcp.upstream import dispatch, list_all_tools
 from agentsec.domain.taxonomy import EnforcementMode, SecurityCategory
@@ -45,9 +45,12 @@ class McpRequestIdentityGuard:
 async def create_server(
     client: Client, config: McpGatewayConfig, runtime: RuntimeGateway
 ) -> tuple[Server[None], tuple[str, ...]]:
+    config = McpGatewayConfig.model_validate_json(config.model_dump_json())
     if config.mode != runtime.mode:
         raise RuntimeFailure("MODE_MISMATCH")
-    discovered, gaps = discover(await list_all_tools(client), config)
+    discovered, gaps = discover(
+        await list_all_tools(client), config, trust_limits=runtime.trust_enabled
+    )
     registry = MappingProxyType(discovered)
     request_ids = McpRequestIdentityGuard()
     enforce = config.mode == EnforcementMode.ENFORCE
@@ -60,6 +63,26 @@ async def create_server(
     for gap in resource_gaps:
         runtime.signal(SecurityCategory.POLICY_BYPASS, "COVERAGE_GAP:" + gap)
 
+    def admitted(entry: DiscoveredTool) -> bool:
+        if not runtime.trust_enabled:
+            return True
+        try:
+            runtime.admit_trust(
+                runtime.trust_candidate(
+                    entry.descriptor,
+                    trust_route(entry, config),
+                    entry.binding.data_sink_destination if entry.binding else None,
+                    entry.binding.output_data_labels if entry.binding else None,
+                )
+            )
+            return True
+        except RuntimeFailure:
+            return False
+
+    # Strict registration rejects a partial inventory rather than exposing unknown tools.
+    if enforce and any(not admitted(entry) for entry in registry.values()):
+        raise RuntimeFailure("TRUST_ADMISSION_REJECTED")
+
     async def list_tools(
         context: ServerRequestContext[None], params: types.PaginatedRequestParams | None
     ) -> types.ListToolsResult:
@@ -67,7 +90,7 @@ async def create_server(
             tools=[
                 entry.wire
                 for entry in registry.values()
-                if entry.binding is not None or not enforce
+                if (entry.binding is not None or not enforce) and admitted(entry)
             ]
         )
 
@@ -102,6 +125,7 @@ async def create_server(
                 resource,
                 forward,
                 bound=entry.binding is not None,
+                execution_binding=trust_route(entry, config) if runtime.trust_enabled else None,
                 approval_display_paths=(
                     entry.binding.approval_display_paths if entry.binding is not None else ()
                 ),

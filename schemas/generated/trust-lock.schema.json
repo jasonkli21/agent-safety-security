@@ -1,0 +1,139 @@
+{
+  "$defs": {
+    "TrustPin": {
+      "additionalProperties": false,
+      "properties": {
+        "candidate_id": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Candidate Id",
+          "type": "string"
+        },
+        "fingerprint": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "require_artifact": {
+          "default": false,
+          "title": "Require Artifact",
+          "type": "boolean"
+        },
+        "require_dependencies": {
+          "default": false,
+          "title": "Require Dependencies",
+          "type": "boolean"
+        },
+        "require_runtime_attestation": {
+          "default": false,
+          "title": "Require Runtime Attestation",
+          "type": "boolean"
+        },
+        "required_signer": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Required Signer"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "candidate_id",
+        "fingerprint"
+      ],
+      "title": "TrustPin",
+      "type": "object"
+    },
+    "TrustedKey": {
+      "additionalProperties": false,
+      "properties": {
+        "key_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Key Id",
+          "type": "string"
+        },
+        "public_key_hex": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Public Key Hex",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "key_id",
+        "public_key_hex"
+      ],
+      "title": "TrustedKey",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "generation": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Generation",
+      "type": "string"
+    },
+    "keys": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/TrustedKey"
+      },
+      "maxItems": 128,
+      "title": "Keys",
+      "type": "array"
+    },
+    "pins": {
+      "items": {
+        "$ref": "#/$defs/TrustPin"
+      },
+      "maxItems": 2048,
+      "title": "Pins",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "PROPOSED",
+        "REVIEWED"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "status",
+    "generation",
+    "pins"
+  ],
+  "title": "TrustLock",
+  "type": "object"
+}

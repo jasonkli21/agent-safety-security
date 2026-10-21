@@ -57,6 +57,7 @@ from agentsec.replay.projection import compare_execution_routes, semantic_diff
 from agentsec.runtime.approvals import ApprovalLedger
 from agentsec.runtime.budgets import BudgetLedger
 from agentsec.runtime.models import RuntimeFailure
+from agentsec.supply_chain.models import Inventory
 
 
 def run_program(
@@ -111,6 +112,18 @@ def run_program(
 
     limitations = set(assessment.limitations)
     blockers = set(assessment.blockers)
+    if any(
+        isinstance(e.payload, ToolRequestedPayload) and e.payload.trust_snapshot_digest
+        for e in program.events
+    ):
+        limitations.add("TRUST_NOT_REVERIFIED")
+    if any(
+        isinstance(e.payload, SecuritySignalPayload)
+        and e.payload.category == SecurityCategory.SUPPLY_CHAIN_CHANGE
+        and (e.payload.redacted_summary or "").startswith("TRUST_")
+        for e in program.events
+    ):
+        blockers.add("TRUST_FAILURE_REQUIRES_OFFLINE_REVIEW")
     if any(
         isinstance(e.payload, ToolRequestedPayload)
         and (e.payload.redacted_fields - ({"authority"} if program.authority else set()))
@@ -207,6 +220,24 @@ def run_program(
                 request_id=request_id,
                 tool_id=requests[request_id].tool_id or "unknown-tool",
                 action_digest=actions[request_id],
+                trust_snapshot_digest=next(
+                    (
+                        e.payload.trust_snapshot_digest
+                        for e in program.events
+                        if isinstance(e.payload, ToolDispatchedPayload)
+                        and e.payload.dispatch_id == dispatch_id
+                    ),
+                    None,
+                ),
+                trust_assessment=next(
+                    (
+                        e.payload.trust_assessment
+                        for e in program.events
+                        if isinstance(e.payload, ToolDispatchedPayload)
+                        and e.payload.dispatch_id == dispatch_id
+                    ),
+                    None,
+                ),
                 execution_binding=next(
                     (
                         e.payload.execution_binding
@@ -433,6 +464,7 @@ def replay(
     current: AgentSecurityContract | None = None,
     *,
     candidate_routes: CandidateRouteManifest | None = None,
+    candidate_trust: Inventory | None = None,
 ) -> ReplayResult:
     bundle = validate_bundle(bundle)
     plan = compile_contract(current) if current is not None else bundle.source_plan
@@ -445,6 +477,22 @@ def replay(
     )
     return result.model_copy(
         update={
-            "route_comparison": compare_execution_routes(bundle.program.events, candidate_routes)
+            "trust_comparison": compare_trust(bundle.program.events, candidate_trust),
+            "route_comparison": compare_execution_routes(bundle.program.events, candidate_routes),
         }
     )
+
+
+def compare_trust(events: tuple[SecurityEvent, ...], candidate: Inventory | None) -> str:
+    """Offline recorded-observation equality only; never verification/attestation."""
+    if candidate is None:
+        return "UNKNOWN"
+    requests = [e.payload for e in events if isinstance(e.payload, ToolRequestedPayload)]
+    if not requests or any(r.trust_assessment is None for r in requests):
+        return "INCOMPLETE"
+    expected = {c.candidate_id: c.fingerprint for c in candidate.candidates}
+    for request in requests:
+        fact = request.trust_assessment
+        if fact and expected.get(fact.candidate_id) != fact.fingerprint:
+            return "CHANGED"
+    return "UNCHANGED"

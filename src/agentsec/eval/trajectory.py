@@ -115,6 +115,8 @@ def validate_evaluation_trajectory(observation: EvaluationObservation) -> None:
             assert p.decision_id is not None
             d = decisions[p.decision_id].decision
             require(p.tool_id == r.request.tool_id and p.action_digest == r.action_digest)
+            require(p.trust_snapshot_digest == r.trust_snapshot_digest)
+            require(p.trust_assessment == r.trust_assessment)
             require(d.request_id == p.request_id)
             require(d.outcome in {PolicyOutcome.ALLOW, PolicyOutcome.REQUIRE_APPROVAL})
             if d.outcome == PolicyOutcome.REQUIRE_APPROVAL:

@@ -323,6 +323,19 @@
       "pattern": "^sha256:[0-9a-f]{64}$",
       "title": "Tool Schema Hash",
       "type": "string"
+    },
+    "trust_snapshot_digest": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Trust Snapshot Digest"
     }
   },
   "required": [

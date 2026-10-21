@@ -206,3 +206,12 @@ See [adapters/isolation](adapters-isolation.md). New protected calls bind execut
 to exact actions and record safe route facts on dispatch. Absent fields preserve old serialization;
 offline replay substitutes these facts without live execution. Generic schema, argument and
 resource/data coverage checks are shared with MCP. Compiler and authored hashes are unchanged.
+
+## Phase 8 trust composition
+
+The optional operator-owned supply-chain guard restricts protected implementations through
+RuntimeGateway; it never grants contract or delegated authority. Metadata pins and Ed25519
+signatures do not attest runtime code. Existing approval, evidence, provenance, TLS and isolation
+boundaries remain active. See [supply-chain trust](supply-chain-trust.md) for exact mode behavior,
+route identities, offline replay limits and commands. Independent Phase 7 acceptance is still
+unconfirmed; Phase 8 implementation is awaiting independent review.

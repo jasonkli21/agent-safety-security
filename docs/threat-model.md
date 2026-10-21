@@ -87,3 +87,12 @@ structure locally; it does not validate a tool implementation or resolve externa
 A valid scenario is a test specification, not a successful test result. A valid event stream is
 an evidence representation, not proof that the events happened. Protected security policy must
 remain outside ordinary agent write access when runtime enforcement is added.
+
+## Phase 8 trust composition
+
+The optional operator-owned supply-chain guard restricts protected implementations through
+RuntimeGateway; it never grants contract or delegated authority. Metadata pins and Ed25519
+signatures do not attest runtime code. Existing approval, evidence, provenance, TLS and isolation
+boundaries remain active. See [supply-chain trust](supply-chain-trust.md) for exact mode behavior,
+route identities, offline replay limits and commands. Independent Phase 7 acceptance is still
+unconfirmed; Phase 8 implementation is awaiting independent review.
