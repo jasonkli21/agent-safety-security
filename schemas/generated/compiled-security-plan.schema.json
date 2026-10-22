@@ -443,7 +443,8 @@
       "default": "phase6-v1",
       "enum": [
         "phase4-v1",
-        "phase6-v1"
+        "phase6-v1",
+        "phase9-v1"
       ],
       "title": "Compiler Version",
       "type": "string"
@@ -478,6 +479,19 @@
       "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
       "title": "Environment",
       "type": "string"
+    },
+    "max_delegated_agents": {
+      "anyOf": [
+        {
+          "minimum": 0,
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Max Delegated Agents"
     },
     "principal": {
       "$ref": "#/$defs/PrincipalRef"

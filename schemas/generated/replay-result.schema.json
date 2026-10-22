@@ -103,6 +103,47 @@
       "title": "AgentIdentity",
       "type": "object"
     },
+    "AncestorDecision": {
+      "additionalProperties": false,
+      "properties": {
+        "matched_rule_ids": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Matched Rule Ids",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "node_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Node Id",
+          "type": "string"
+        },
+        "outcome": {
+          "$ref": "#/$defs/PolicyOutcome"
+        },
+        "plan_identity": {
+          "$ref": "#/$defs/PlanIdentity"
+        },
+        "reason_code": {
+          "$ref": "#/$defs/ReasonCode"
+        }
+      },
+      "required": [
+        "node_id",
+        "plan_identity",
+        "outcome",
+        "reason_code",
+        "matched_rule_ids"
+      ],
+      "title": "AncestorDecision",
+      "type": "object"
+    },
     "ApprovalDecidedPayload": {
       "additionalProperties": false,
       "properties": {
@@ -738,6 +779,7 @@
     },
     "EventType": {
       "enum": [
+        "GRAPH_EVENT",
         "RUN_STARTED",
         "RUN_FINISHED",
         "TOOL_REQUESTED",
@@ -962,6 +1004,250 @@
       "title": "Finding",
       "type": "object"
     },
+    "GraphBinding": {
+      "additionalProperties": false,
+      "description": "Safe commitment only; cannot prove graph authority without protected session state.",
+      "properties": {
+        "authority_path_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Authority Path Digest",
+          "type": "string"
+        },
+        "generation": {
+          "minimum": 1,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "graph_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Graph Digest",
+          "type": "string"
+        },
+        "node_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Node Id",
+          "type": "string"
+        },
+        "path": {
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Path",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "graph_digest",
+        "generation",
+        "node_id",
+        "path",
+        "authority_path_digest"
+      ],
+      "title": "GraphBinding",
+      "type": "object"
+    },
+    "GraphEventPayload": {
+      "additionalProperties": false,
+      "properties": {
+        "artifact": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DataArtifactRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "binding": {
+          "$ref": "#/$defs/GraphBinding"
+        },
+        "content_hash": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content Hash"
+        },
+        "content_size": {
+          "anyOf": [
+            {
+              "maximum": 65536,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Content Size"
+        },
+        "kind": {
+          "const": "GRAPH_EVENT",
+          "default": "GRAPH_EVENT",
+          "title": "Kind",
+          "type": "string"
+        },
+        "message_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Message Id"
+        },
+        "operation": {
+          "enum": [
+            "ADMITTED",
+            "REVOKED",
+            "RECONFIGURED",
+            "MESSAGE_SENT",
+            "MESSAGE_IMPORTED"
+          ],
+          "title": "Operation",
+          "type": "string"
+        },
+        "peer_binding": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_artifact_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Artifact Digest"
+        },
+        "source_dispatch_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Dispatch Id"
+        },
+        "source_event_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Event Id"
+        },
+        "source_request_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Request Id"
+        },
+        "source_run_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Run Id"
+        },
+        "source_trace_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Trace Id"
+        }
+      },
+      "required": [
+        "schema_version",
+        "operation",
+        "binding"
+      ],
+      "title": "GraphEventPayload",
+      "type": "object"
+    },
     "JsonValue": {},
     "PlanIdentity": {
       "additionalProperties": false,
@@ -1000,6 +1286,14 @@
     "PolicyDecision": {
       "additionalProperties": false,
       "properties": {
+        "ancestor_decisions": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/AncestorDecision"
+          },
+          "title": "Ancestor Decisions",
+          "type": "array"
+        },
         "contract_id": {
           "maxLength": 128,
           "minLength": 1,
@@ -1200,6 +1494,17 @@
           "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
           "title": "Environment",
           "type": "string"
+        },
+        "graph_binding": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/GraphBinding"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
         },
         "principal": {
           "$ref": "#/$defs/PrincipalRef"
@@ -1577,6 +1882,26 @@
           "if": {
             "properties": {
               "event_type": {
+                "const": "GRAPH_EVENT"
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "properties": {
+                  "kind": {
+                    "const": "GRAPH_EVENT"
+                  }
+                }
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "event_type": {
                 "const": "RUN_STARTED"
               }
             }
@@ -1857,6 +2182,7 @@
               "APPROVAL_REQUESTED": "#/$defs/ApprovalRequestedPayload",
               "DATA_EXPOSED": "#/$defs/DataExposedPayload",
               "EFFECT_VERIFIED": "#/$defs/EffectVerifiedPayload",
+              "GRAPH_EVENT": "#/$defs/GraphEventPayload",
               "POLICY_EVALUATED": "#/$defs/PolicyEvaluatedPayload",
               "RUN_FINISHED": "#/$defs/RunFinishedPayload",
               "RUN_STARTED": "#/$defs/RunStartedPayload",
@@ -1871,6 +2197,9 @@
           "oneOf": [
             {
               "$ref": "#/$defs/RunStartedPayload"
+            },
+            {
+              "$ref": "#/$defs/GraphEventPayload"
             },
             {
               "$ref": "#/$defs/RunFinishedPayload"

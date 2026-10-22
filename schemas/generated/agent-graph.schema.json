@@ -1,0 +1,182 @@
+{
+  "$defs": {
+    "AgentNode": {
+      "additionalProperties": false,
+      "properties": {
+        "node_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Node Id",
+          "type": "string"
+        },
+        "plan_identity": {
+          "$ref": "#/$defs/PlanIdentity"
+        },
+        "principal": {
+          "$ref": "#/$defs/PrincipalRef"
+        }
+      },
+      "required": [
+        "node_id",
+        "principal",
+        "plan_identity"
+      ],
+      "title": "AgentNode",
+      "type": "object"
+    },
+    "DelegationEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "child_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Child Id",
+          "type": "string"
+        },
+        "delegation_json": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Delegation Json",
+          "type": "string"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Parent Id"
+        }
+      },
+      "required": [
+        "parent_id",
+        "child_id",
+        "delegation_json"
+      ],
+      "title": "DelegationEdge",
+      "type": "object"
+    },
+    "PlanIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "compiled_plan_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Compiled Plan Digest",
+          "type": "string"
+        },
+        "compiler_version": {
+          "title": "Compiler Version",
+          "type": "string"
+        },
+        "contract_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Contract Id",
+          "type": "string"
+        },
+        "effective_policy_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Effective Policy Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "contract_id",
+        "compiler_version",
+        "effective_policy_hash",
+        "compiled_plan_digest"
+      ],
+      "title": "PlanIdentity",
+      "type": "object"
+    },
+    "PrincipalRef": {
+      "additionalProperties": false,
+      "properties": {
+        "principal_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Principal Id",
+          "type": "string"
+        },
+        "principal_type": {
+          "$ref": "#/$defs/PrincipalType"
+        }
+      },
+      "required": [
+        "principal_id",
+        "principal_type"
+      ],
+      "title": "PrincipalRef",
+      "type": "object"
+    },
+    "PrincipalType": {
+      "enum": [
+        "USER",
+        "AGENT",
+        "SERVICE"
+      ],
+      "title": "PrincipalType",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "domain": {
+      "const": "agentsec.graph.v1",
+      "default": "agentsec.graph.v1",
+      "title": "Domain",
+      "type": "string"
+    },
+    "edges": {
+      "items": {
+        "$ref": "#/$defs/DelegationEdge"
+      },
+      "maxItems": 32,
+      "minItems": 1,
+      "title": "Edges",
+      "type": "array"
+    },
+    "generation": {
+      "minimum": 1,
+      "title": "Generation",
+      "type": "integer"
+    },
+    "nodes": {
+      "items": {
+        "$ref": "#/$defs/AgentNode"
+      },
+      "maxItems": 32,
+      "minItems": 1,
+      "title": "Nodes",
+      "type": "array"
+    },
+    "root": {
+      "$ref": "#/$defs/PrincipalRef"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "generation",
+    "root",
+    "nodes",
+    "edges"
+  ],
+  "title": "GraphSnapshot",
+  "type": "object"
+}

@@ -1,0 +1,809 @@
+{
+  "$defs": {
+    "AgentBinding": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "environment": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Environment",
+          "type": "string"
+        },
+        "owner": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PrincipalRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "trust_level": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Trust Level"
+        }
+      },
+      "required": [
+        "agent_id",
+        "environment"
+      ],
+      "title": "AgentBinding",
+      "type": "object"
+    },
+    "AgentNode": {
+      "additionalProperties": false,
+      "properties": {
+        "node_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Node Id",
+          "type": "string"
+        },
+        "plan_identity": {
+          "$ref": "#/$defs/PlanIdentity"
+        },
+        "principal": {
+          "$ref": "#/$defs/PrincipalRef"
+        }
+      },
+      "required": [
+        "node_id",
+        "principal",
+        "plan_identity"
+      ],
+      "title": "AgentNode",
+      "type": "object"
+    },
+    "ApprovalSettings": {
+      "additionalProperties": false,
+      "properties": {
+        "default_timeout_seconds": {
+          "default": 120,
+          "exclusiveMinimum": 0,
+          "title": "Default Timeout Seconds",
+          "type": "integer"
+        }
+      },
+      "title": "ApprovalSettings",
+      "type": "object"
+    },
+    "CompiledScope": {
+      "additionalProperties": false,
+      "properties": {
+        "requested_capabilities": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 3,
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Requested Capabilities"
+        },
+        "resources": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ResourceCeiling"
+              },
+              "type": "array"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Resources"
+        },
+        "task_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "requested_capabilities",
+        "resources"
+      ],
+      "title": "CompiledScope",
+      "type": "object"
+    },
+    "CompiledSecurityPlan": {
+      "additionalProperties": false,
+      "properties": {
+        "acts_on_behalf_of": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PrincipalRef"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "agent": {
+          "$ref": "#/$defs/AgentBinding"
+        },
+        "approvals": {
+          "$ref": "#/$defs/ApprovalSettings"
+        },
+        "atoms": {
+          "items": {
+            "$ref": "#/$defs/SemanticAtom"
+          },
+          "title": "Atoms",
+          "type": "array"
+        },
+        "budgets": {
+          "$ref": "#/$defs/RuntimeBudgets"
+        },
+        "compiler_version": {
+          "default": "phase6-v1",
+          "enum": [
+            "phase4-v1",
+            "phase6-v1",
+            "phase9-v1"
+          ],
+          "title": "Compiler Version",
+          "type": "string"
+        },
+        "contract_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Contract Id",
+          "type": "string"
+        },
+        "contract_schema_version": {
+          "const": "0.1",
+          "title": "Contract Schema Version",
+          "type": "string"
+        },
+        "data_rules": {
+          "items": {
+            "$ref": "#/$defs/DataRule"
+          },
+          "title": "Data Rules",
+          "type": "array"
+        },
+        "effective_policy_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Effective Policy Hash",
+          "type": "string"
+        },
+        "environment": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Environment",
+          "type": "string"
+        },
+        "max_delegated_agents": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Delegated Agents"
+        },
+        "principal": {
+          "$ref": "#/$defs/PrincipalRef"
+        },
+        "rules": {
+          "items": {
+            "$ref": "#/$defs/ToolRule"
+          },
+          "title": "Rules",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "scope": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/CompiledScope"
+            },
+            {
+              "type": "null"
+            }
+          ]
+        }
+      },
+      "required": [
+        "schema_version",
+        "contract_id",
+        "contract_schema_version",
+        "effective_policy_hash",
+        "agent",
+        "principal",
+        "environment",
+        "rules",
+        "data_rules",
+        "scope",
+        "budgets",
+        "approvals",
+        "atoms"
+      ],
+      "title": "CompiledSecurityPlan",
+      "type": "object"
+    },
+    "DataLabel": {
+      "enum": [
+        "PUBLIC",
+        "INTERNAL",
+        "SENSITIVE",
+        "SECRET",
+        "PII",
+        "CREDENTIAL",
+        "UNTRUSTED_CONTENT",
+        "USER_PROVIDED",
+        "TOOL_OUTPUT"
+      ],
+      "title": "DataLabel",
+      "type": "string"
+    },
+    "DataRule": {
+      "additionalProperties": false,
+      "properties": {
+        "allowed_capabilities": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 3,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+            "type": "string"
+          },
+          "title": "Allowed Capabilities",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "allowed_destinations": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Allowed Destinations",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "denied_capabilities": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 3,
+            "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+            "type": "string"
+          },
+          "title": "Denied Capabilities",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "denied_destinations": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Denied Destinations",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "label": {
+          "$ref": "#/$defs/DataLabel"
+        },
+        "rule_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Rule Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_id",
+        "label"
+      ],
+      "title": "DataRule",
+      "type": "object"
+    },
+    "DelegationEdge": {
+      "additionalProperties": false,
+      "properties": {
+        "child_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Child Id",
+          "type": "string"
+        },
+        "delegation_json": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Delegation Json",
+          "type": "string"
+        },
+        "parent_id": {
+          "anyOf": [
+            {
+              "maxLength": 128,
+              "minLength": 1,
+              "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Parent Id"
+        }
+      },
+      "required": [
+        "parent_id",
+        "child_id",
+        "delegation_json"
+      ],
+      "title": "DelegationEdge",
+      "type": "object"
+    },
+    "GraphSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "domain": {
+          "const": "agentsec.graph.v1",
+          "default": "agentsec.graph.v1",
+          "title": "Domain",
+          "type": "string"
+        },
+        "edges": {
+          "items": {
+            "$ref": "#/$defs/DelegationEdge"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Edges",
+          "type": "array"
+        },
+        "generation": {
+          "minimum": 1,
+          "title": "Generation",
+          "type": "integer"
+        },
+        "nodes": {
+          "items": {
+            "$ref": "#/$defs/AgentNode"
+          },
+          "maxItems": 32,
+          "minItems": 1,
+          "title": "Nodes",
+          "type": "array"
+        },
+        "root": {
+          "$ref": "#/$defs/PrincipalRef"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "generation",
+        "root",
+        "nodes",
+        "edges"
+      ],
+      "title": "GraphSnapshot",
+      "type": "object"
+    },
+    "ParticipantFacts": {
+      "additionalProperties": false,
+      "properties": {
+        "credential": {
+          "$ref": "#/$defs/VerifiedCredential"
+        },
+        "node_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Node Id",
+          "type": "string"
+        },
+        "plan": {
+          "$ref": "#/$defs/CompiledSecurityPlan"
+        }
+      },
+      "required": [
+        "node_id",
+        "plan",
+        "credential"
+      ],
+      "title": "ParticipantFacts",
+      "type": "object"
+    },
+    "PlanIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "compiled_plan_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Compiled Plan Digest",
+          "type": "string"
+        },
+        "compiler_version": {
+          "title": "Compiler Version",
+          "type": "string"
+        },
+        "contract_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Contract Id",
+          "type": "string"
+        },
+        "effective_policy_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Effective Policy Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "contract_id",
+        "compiler_version",
+        "effective_policy_hash",
+        "compiled_plan_digest"
+      ],
+      "title": "PlanIdentity",
+      "type": "object"
+    },
+    "PrincipalRef": {
+      "additionalProperties": false,
+      "properties": {
+        "principal_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Principal Id",
+          "type": "string"
+        },
+        "principal_type": {
+          "$ref": "#/$defs/PrincipalType"
+        }
+      },
+      "required": [
+        "principal_id",
+        "principal_type"
+      ],
+      "title": "PrincipalRef",
+      "type": "object"
+    },
+    "PrincipalType": {
+      "enum": [
+        "USER",
+        "AGENT",
+        "SERVICE"
+      ],
+      "title": "PrincipalType",
+      "type": "string"
+    },
+    "ResourceCeiling": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+          "title": "Capability",
+          "type": "string"
+        },
+        "resources": {
+          "items": {
+            "maxLength": 8192,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Resources",
+          "type": "array",
+          "uniqueItems": true
+        }
+      },
+      "required": [
+        "capability",
+        "resources"
+      ],
+      "title": "ResourceCeiling",
+      "type": "object"
+    },
+    "RuleDecision": {
+      "enum": [
+        "ALLOW",
+        "DENY",
+        "REQUIRE_APPROVAL"
+      ],
+      "title": "RuleDecision",
+      "type": "string"
+    },
+    "RuntimeBudgets": {
+      "additionalProperties": false,
+      "properties": {
+        "max_destructive_calls": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Destructive Calls"
+        },
+        "max_external_writes": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max External Writes"
+        },
+        "max_runtime_seconds": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Runtime Seconds"
+        },
+        "max_tool_calls": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Tool Calls"
+        }
+      },
+      "title": "RuntimeBudgets",
+      "type": "object"
+    },
+    "SemanticAtom": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter_required": {
+          "default": false,
+          "title": "Adapter Required",
+          "type": "boolean"
+        },
+        "atom_id": {
+          "title": "Atom Id",
+          "type": "string"
+        },
+        "compiled": {
+          "title": "Compiled",
+          "type": "boolean"
+        },
+        "intent_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Intent Digest",
+          "type": "string"
+        },
+        "runtime_supported": {
+          "title": "Runtime Supported",
+          "type": "boolean"
+        },
+        "source_ref": {
+          "title": "Source Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "atom_id",
+        "source_ref",
+        "compiled",
+        "runtime_supported",
+        "intent_digest"
+      ],
+      "title": "SemanticAtom",
+      "type": "object"
+    },
+    "ToolRule": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+          "title": "Capability",
+          "type": "string"
+        },
+        "decision": {
+          "$ref": "#/$defs/RuleDecision"
+        },
+        "resource": {
+          "anyOf": [
+            {
+              "maxLength": 8192,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Resource"
+        },
+        "rule_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Rule Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "rule_id",
+        "capability",
+        "decision"
+      ],
+      "title": "ToolRule",
+      "type": "object"
+    },
+    "VerifiedCredential": {
+      "additionalProperties": false,
+      "properties": {
+        "assurance": {
+          "enum": [
+            "STATIC_TRUSTED_CONFIG",
+            "SIGNED_JWT"
+          ],
+          "title": "Assurance",
+          "type": "string"
+        },
+        "capability_ceiling": {
+          "anyOf": [
+            {
+              "items": {
+                "maxLength": 128,
+                "minLength": 3,
+                "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capability Ceiling"
+        },
+        "expires_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expires At"
+        },
+        "principal": {
+          "$ref": "#/$defs/PrincipalRef"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "valid_from": {
+          "format": "date-time",
+          "title": "Valid From",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "principal",
+        "assurance",
+        "valid_from"
+      ],
+      "title": "VerifiedCredential",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "description": "Protected replay material; recorded credentials are facts, never fresh authentication.",
+  "properties": {
+    "graph": {
+      "$ref": "#/$defs/GraphSnapshot"
+    },
+    "participants": {
+      "items": {
+        "$ref": "#/$defs/ParticipantFacts"
+      },
+      "maxItems": 32,
+      "minItems": 1,
+      "title": "Participants",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "graph",
+    "participants"
+  ],
+  "title": "GraphMaterial",
+  "type": "object"
+}

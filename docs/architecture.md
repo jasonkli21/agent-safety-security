@@ -1870,3 +1870,29 @@ without an external OS control the operator must not launch an untrusted server.
 presence is a separate optional lock assertion and does not broaden the pin set. Live trust
 discovery is cumulatively bounded, subject to the SDK decoding one page before agentsec can count
 its size. See [MCP runtime](runtime-mcp.md) and [supply-chain trust](supply-chain-trust.md).
+
+
+## Phase 9 protected local graph sessions
+
+`phase9-v1` is an opt-in compiler identity; default `phase6-v1` and historical `phase4-v1`
+remain unchanged. Immutable canonical graph commitments bind exact independent participant
+plans and verified credentials. `MultiAgentSession` owns enrollment, permanent retirement,
+monotonic replacement generations and one hierarchical budget coordinator. Every enrolled
+RuntimeGateway call intersects all path grants, credentials and compiled tool/task/data
+ceilings through a common pure evaluator, and combines approvals into one exact-action broker
+step. No standalone policy request can authenticate a graph by supplying its digest.
+
+One thread/event loop owns the session; complete-path reservation/commit and final epoch/
+freshness checks are synchronous. Unique receipts compensate only pre-entry failures. The
+gateway checks again after critical dispatch evidence to catch reentrant graph revocation.
+Fixed adjacent message routes enter the sender gateway and import labels monotonically only
+after critical receiver evidence, before releasing text. Foreign lineage is referenced, never
+registered as locally verified ancestry. Protected Python wiring is not an in-process sandbox.
+
+Minimal GRAPH_EVENT lifecycle/message facts extend canonical evidence without content/grants.
+Offline graph replay reuses pure policy/ledger/provenance over one recorded epoch with explicit
+missing-material blockers and separate candidate graph comparison. Historical incident promotion
+keeps graph cases DRAFT; it does not export protected graph authority automatically. ENFORCE is
+the only supported graph mode; unimplemented mode semantics fail setup. Phase 7 isolation and
+Phase 8 trust remain restrictive and unchanged. New peer/plan enrollment, remote A2A, hosted
+services and model/cost quotas are unsupported. See [multi-agent security](multi-agent-security.md).

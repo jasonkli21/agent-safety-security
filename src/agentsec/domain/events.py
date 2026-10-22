@@ -25,6 +25,7 @@ from agentsec.domain.base import (
     VersionedModel,
 )
 from agentsec.domain.execution import ExecutionBinding
+from agentsec.domain.graph import GraphBinding
 from agentsec.domain.identity import PrincipalRef
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
 from agentsec.domain.provenance import DataArtifactRef
@@ -224,8 +225,55 @@ class EffectVerifiedPayload(SecurityModel):
     evidence_artifact_refs: Annotated[frozenset[Identifier], Field(min_length=1)]
 
 
+class GraphEventPayload(VersionedModel):
+    kind: Literal[EventType.GRAPH_EVENT] = EventType.GRAPH_EVENT
+    operation: Literal["ADMITTED", "REVOKED", "RECONFIGURED", "MESSAGE_SENT", "MESSAGE_IMPORTED"]
+    binding: GraphBinding
+    message_id: Identifier | None = None
+    peer_binding: GraphBinding | None = None
+    source_run_id: Identifier | None = None
+    source_trace_id: Identifier | None = None
+    source_event_id: Identifier | None = None
+    source_request_id: Identifier | None = None
+    source_dispatch_id: Identifier | None = None
+    content_hash: Digest | None = None
+    content_size: Annotated[int, Field(ge=0, le=65536)] | None = None
+    artifact: DataArtifactRef | None = None
+    source_artifact_digest: Digest | None = None
+
+    @model_validator(mode="after")
+    def message_shape(self) -> Self:
+        fields = (
+            self.message_id,
+            self.peer_binding,
+            self.source_run_id,
+            self.source_trace_id,
+            self.source_event_id,
+            self.source_request_id,
+            self.source_dispatch_id,
+            self.content_hash,
+            self.content_size,
+            self.artifact,
+            self.source_artifact_digest,
+        )
+        if self.artifact is not None and len(self.artifact.parent_artifact_ids) > 64:
+            raise ValueError("GRAPH_MESSAGE_REFERENCE_LIMIT")
+        if self.operation.startswith("MESSAGE_"):
+            if any(f is None for f in fields):
+                raise ValueError("GRAPH_MESSAGE_EVIDENCE_INCOMPLETE")
+            if self.peer_binding is not None and (
+                self.peer_binding.graph_digest != self.binding.graph_digest
+                or self.peer_binding.generation != self.binding.generation
+            ):
+                raise ValueError("GRAPH_MESSAGE_EPOCH_MISMATCH")
+        elif any(f is not None for f in fields):
+            raise ValueError("GRAPH_LIFECYCLE_MESSAGE_FIELDS")
+        return self
+
+
 EventPayload = Annotated[
     RunStartedPayload
+    | GraphEventPayload
     | RunFinishedPayload
     | ToolRequestedPayload
     | PolicyEvaluatedPayload

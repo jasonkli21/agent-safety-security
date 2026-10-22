@@ -146,3 +146,15 @@ source plan binding, offline substituted security replay, semantic trace diff, e
 classification, safe assertion promotion and the local/CI regression gate. Historical evidence
 remains immutable; missing or redacted material is never reconstructed. This does not extend
 model/context coverage or authorize any live execution.
+
+
+## Phase 9 local graph composition
+
+Explicit `phase9-v1` operator-created ENFORCE sessions now add bounded single-parent graphs,
+all-ancestor authority/approval/data ceilings, atomic recursive budgets and protected adjacent
+messages. Standalone `phase6-v1` behavior and historical digests retain their existing meaning.
+The gateway guard applies to direct calls and adapter rebinding. Phase 8 pins restrict tools;
+they do not authenticate peers or approve delegation. See [local multi-agent security](multi-agent-security.md)
+for ownership, evidence-before-import, finality, source replay blockers, DRAFT graph promotion,
+unsupported modes and exact limitations. Earlier one-hop/future-graph statements describe their
+original phase boundary. Independent Phase 7–8 acceptance remains unconfirmed.

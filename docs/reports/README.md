@@ -23,3 +23,4 @@ changes, verification, deviations, remaining limitations, and next-phase readine
 - [Phase 7 independent review fixes](phase-7-review-fixes-report.md)
 - [Phase 8 supply-chain trust implementation](phase-8-implementation-report.md)
 - [Phase 8 independent review fixes](phase-8-review-fixes-report.md)
+- [Phase 9 local multi-agent implementation](phase-9-implementation-report.md)

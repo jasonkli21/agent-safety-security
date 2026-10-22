@@ -1,0 +1,371 @@
+{
+  "$defs": {
+    "ApprovalRequired": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+          "title": "Capability",
+          "type": "string"
+        },
+        "type": {
+          "const": "APPROVAL_REQUIRED",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "capability"
+      ],
+      "title": "ApprovalRequired",
+      "type": "object"
+    },
+    "CapabilityNotRequested": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "maxLength": 128,
+          "minLength": 3,
+          "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+          "title": "Capability",
+          "type": "string"
+        },
+        "type": {
+          "const": "CAPABILITY_NOT_REQUESTED",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "capability"
+      ],
+      "title": "CapabilityNotRequested",
+      "type": "object"
+    },
+    "FindingCategoryPresent": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/SecurityCategory"
+        },
+        "type": {
+          "const": "FINDING_CATEGORY_PRESENT",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "category"
+      ],
+      "title": "FindingCategoryPresent",
+      "type": "object"
+    },
+    "MaxToolCalls": {
+      "additionalProperties": false,
+      "properties": {
+        "maximum": {
+          "minimum": 0,
+          "title": "Maximum",
+          "type": "integer"
+        },
+        "type": {
+          "const": "MAX_TOOL_CALLS",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "maximum"
+      ],
+      "title": "MaxToolCalls",
+      "type": "object"
+    },
+    "NoFindingCategory": {
+      "additionalProperties": false,
+      "properties": {
+        "category": {
+          "$ref": "#/$defs/SecurityCategory"
+        },
+        "type": {
+          "const": "NO_FINDING_CATEGORY",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "category"
+      ],
+      "title": "NoFindingCategory",
+      "type": "object"
+    },
+    "OutputNotContainsCanary": {
+      "additionalProperties": false,
+      "properties": {
+        "canary_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Canary Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "OUTPUT_NOT_CONTAINS_CANARY",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "canary_id"
+      ],
+      "title": "OutputNotContainsCanary",
+      "type": "object"
+    },
+    "ReasonCode": {
+      "enum": [
+        "AUTHORITY_REQUIRED",
+        "IDENTITY_MISMATCH",
+        "DELEGATION_REQUIRED",
+        "INVALID_DELEGATION",
+        "AUTHORITY_EXPIRED",
+        "OUTSIDE_AUTHORITY_SCOPE",
+        "EXPLICIT_ALLOW",
+        "EXPLICIT_DENY",
+        "DEFAULT_DENY",
+        "APPROVAL_REQUIRED",
+        "UNKNOWN_CAPABILITY",
+        "OUTSIDE_TASK_SCOPE",
+        "BUDGET_EXCEEDED",
+        "DATA_FLOW_DENIED",
+        "DATA_FLOW_CONTEXT_MISSING",
+        "INVALID_REQUEST",
+        "POLICY_ENGINE_ERROR"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    },
+    "RunTerminatedReason": {
+      "additionalProperties": false,
+      "properties": {
+        "reason": {
+          "$ref": "#/$defs/ReasonCode"
+        },
+        "type": {
+          "const": "RUN_TERMINATED_REASON",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "reason"
+      ],
+      "title": "RunTerminatedReason",
+      "type": "object"
+    },
+    "SecurityCategory": {
+      "enum": [
+        "PROMPT_INJECTION",
+        "GOAL_HIJACKING",
+        "UNAUTHORIZED_TOOL_USE",
+        "EXCESSIVE_AGENCY",
+        "ARGUMENT_VIOLATION",
+        "APPROVAL_BYPASS",
+        "SECRET_EXFILTRATION",
+        "PII_EXPOSURE",
+        "MEMORY_POISONING",
+        "TOOL_POISONING",
+        "SUPPLY_CHAIN_CHANGE",
+        "RESOURCE_EXHAUSTION",
+        "DELEGATION_ESCALATION",
+        "POLICY_BYPASS",
+        "TRACE_INTEGRITY_FAILURE"
+      ],
+      "title": "SecurityCategory",
+      "type": "string"
+    },
+    "ToolCalled": {
+      "additionalProperties": false,
+      "properties": {
+        "tool_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Tool Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "TOOL_CALLED",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "tool_id"
+      ],
+      "title": "ToolCalled",
+      "type": "object"
+    },
+    "ToolNotCalled": {
+      "additionalProperties": false,
+      "properties": {
+        "tool_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Tool Id",
+          "type": "string"
+        },
+        "type": {
+          "const": "TOOL_NOT_CALLED",
+          "title": "Type",
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "tool_id"
+      ],
+      "title": "ToolNotCalled",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "expectations": {
+      "items": {
+        "discriminator": {
+          "mapping": {
+            "APPROVAL_REQUIRED": "#/$defs/ApprovalRequired",
+            "CAPABILITY_NOT_REQUESTED": "#/$defs/CapabilityNotRequested",
+            "FINDING_CATEGORY_PRESENT": "#/$defs/FindingCategoryPresent",
+            "MAX_TOOL_CALLS": "#/$defs/MaxToolCalls",
+            "NO_FINDING_CATEGORY": "#/$defs/NoFindingCategory",
+            "OUTPUT_NOT_CONTAINS_CANARY": "#/$defs/OutputNotContainsCanary",
+            "RUN_TERMINATED_REASON": "#/$defs/RunTerminatedReason",
+            "TOOL_CALLED": "#/$defs/ToolCalled",
+            "TOOL_NOT_CALLED": "#/$defs/ToolNotCalled"
+          },
+          "propertyName": "type"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/ToolNotCalled"
+          },
+          {
+            "$ref": "#/$defs/ToolCalled"
+          },
+          {
+            "$ref": "#/$defs/CapabilityNotRequested"
+          },
+          {
+            "$ref": "#/$defs/OutputNotContainsCanary"
+          },
+          {
+            "$ref": "#/$defs/ApprovalRequired"
+          },
+          {
+            "$ref": "#/$defs/MaxToolCalls"
+          },
+          {
+            "$ref": "#/$defs/RunTerminatedReason"
+          },
+          {
+            "$ref": "#/$defs/NoFindingCategory"
+          },
+          {
+            "$ref": "#/$defs/FindingCategoryPresent"
+          }
+        ]
+      },
+      "title": "Expectations",
+      "type": "array"
+    },
+    "node_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Node Id",
+      "type": "string"
+    },
+    "reason": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Reason",
+      "type": "string"
+    },
+    "regression_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Regression Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_bundle_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Source Bundle Digest",
+      "type": "string"
+    },
+    "source_graph_digest": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "title": "Source Graph Digest"
+    },
+    "source_incident_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Source Incident Id",
+      "type": "string"
+    },
+    "source_session_evidence_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Source Session Evidence Digest",
+      "type": "string"
+    },
+    "state": {
+      "enum": [
+        "ACTIVE",
+        "DRAFT"
+      ],
+      "title": "State",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "regression_id",
+    "source_incident_id",
+    "source_bundle_digest",
+    "source_session_evidence_digest",
+    "source_graph_digest",
+    "node_id",
+    "state",
+    "reason",
+    "expectations"
+  ],
+  "title": "GraphRegressionCase",
+  "type": "object"
+}

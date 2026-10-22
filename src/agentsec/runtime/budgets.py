@@ -6,6 +6,7 @@ from time import monotonic
 from uuid import uuid4
 
 from agentsec.contracts.models import Budgets
+from agentsec.domain.graph import GraphBinding
 from agentsec.domain.taxonomy import SideEffectClass
 from agentsec.domain.tools import ToolDescriptor
 from agentsec.runtime.models import RuntimeFailure
@@ -25,6 +26,7 @@ class BudgetLedger:
         self._lock = Lock()
         self._pending: dict[str, tuple[int, int, int]] = {}
         self._used = (0, 0, 0)
+        self._receipts: dict[str, tuple[int, int, int]] = {}
 
     def _check(self, delta: tuple[int, int, int]) -> None:
         if (
@@ -42,7 +44,14 @@ class BudgetLedger:
             if limit is not None and total > limit:
                 raise RuntimeFailure("BUDGET_EXCEEDED")
 
-    def reserve(self, tool: ToolDescriptor, *, enforce: bool = True) -> tuple[str, bool]:
+    def reserve(
+        self,
+        tool: ToolDescriptor,
+        *,
+        enforce: bool = True,
+        action_digest: str = "",
+        graph_binding: GraphBinding | None = None,
+    ) -> tuple[str, bool]:
         delta = (
             1,
             int(tool.side_effect_class == SideEffectClass.EXTERNAL_WRITE),
@@ -65,6 +74,7 @@ class BudgetLedger:
             if enforce:
                 self._check((0, 0, 0))
             delta = self._pending.pop(token)
+            self._receipts[token] = delta
             self._used = (
                 self._used[0] + delta[0],
                 self._used[1] + delta[1],
@@ -75,11 +85,25 @@ class BudgetLedger:
         with self._lock:
             self._pending.pop(token, None)
 
-    def refund(self, tool: ToolDescriptor) -> None:
-        """Only before dispatcher entry when critical evidence failed (no await)."""
+    def validate_commit(self, token: str, *, enforce: bool = True) -> None:
         with self._lock:
-            self._used = (
-                self._used[0] - 1,
-                self._used[1] - int(tool.side_effect_class == SideEffectClass.EXTERNAL_WRITE),
-                self._used[2] - int(tool.destructive),
-            )
+            if token not in self._receipts:
+                raise RuntimeFailure("INVALID_BUDGET_RESERVATION")
+            if enforce:
+                self._check((0, 0, 0))
+
+    def refund(self, token: str) -> None:
+        """Compensate one exact commit only before dispatcher entry."""
+        with self._lock:
+            delta = self._receipts.pop(token, None)
+            if delta is not None:
+                self._used = (
+                    self._used[0] - delta[0],
+                    self._used[1] - delta[1],
+                    self._used[2] - delta[2],
+                )
+
+    def forget(self, token: str) -> None:
+        """Dispatcher entry makes this commit nonrefundable."""
+        with self._lock:
+            self._receipts.pop(token, None)

@@ -44,6 +44,7 @@ from agentsec.domain.taxonomy import (
 from agentsec.domain.tools import ToolDescriptor
 from agentsec.identity.authority import authority_failure
 from agentsec.identity.static import StaticIdentityProvider
+from agentsec.multi_agent.ports import GraphGuard
 from agentsec.policy.coverage import coverage_gaps
 from agentsec.policy.native import NativePolicyEngine
 from agentsec.policy.ports import PolicyEngine
@@ -115,10 +116,18 @@ class RuntimeGateway:
         authority: AuthorityContext | None = None,
         identity_error: str | None = None,
         trust_guard: TrustGuard | None = None,
+        graph_guard: GraphGuard | None = None,
     ) -> None:
         self.__trust_guard = trust_guard
+        self.__graph_guard = graph_guard
+        if graph_guard is not None and (mode != EnforcementMode.ENFORCE or not events.required):
+            raise RuntimeFailure("GRAPH_MODE_UNSUPPORTED")
         self._contract = contract.model_copy(deep=True)
-        compiled = compile_contract(self._contract)
+        compiled = (
+            compile_contract(self._contract, multi_agent=True)
+            if graph_guard is not None
+            else compile_contract(self._contract)
+        )
         if plan is not None and plan != compiled:
             raise RuntimeFailure("STALE_COMPILED_PLAN")
         self._plan = compiled
@@ -137,17 +146,23 @@ class RuntimeGateway:
             )
         )
         self._identity_error = identity_error
-        failure = authority_failure(
-            self._authority,
-            compiled.principal,
-            compiled.acts_on_behalf_of,
-            compiled.task_scope,
-            events.clock(),
+        failure = (
+            None
+            if graph_guard is not None
+            else authority_failure(
+                self._authority,
+                compiled.principal,
+                compiled.acts_on_behalf_of,
+                compiled.task_scope,
+                events.clock(),
+            )
         )
         if mode == EnforcementMode.ENFORCE and (failure or identity_error):
             raise RuntimeFailure(
                 identity_error or (failure.value if failure else "AUTHORITY_INVALID")
             )
+        if graph_guard is not None:
+            graph_guard.snapshot(events.clock())
         grant = self._authority.delegation if self._authority else None
         summary = AuthoritySummary(
             schema_version="0.1",
@@ -245,6 +260,8 @@ class RuntimeGateway:
 
     def finish(self) -> None:
         self._closed = True
+        if self.__graph_guard is not None:
+            self.__graph_guard.close()
         self.events.emit(RunFinishedPayload(kind=EventType.RUN_FINISHED))
 
     async def call(
@@ -265,6 +282,11 @@ class RuntimeGateway:
     ) -> ToolResponse:
         if self._closed:
             raise RuntimeFailure("SESSION_CLOSED")
+        graph_binding = (
+            self.__graph_guard.snapshot(self.events.clock()) if self.__graph_guard else None
+        )
+        if self.__graph_guard is not None and graph_binding is not None:
+            self.__graph_guard.classifications(graph_binding, data_destination, output_data_labels)
         context = self.provenance.snapshot()
         enforce = self.mode == EnforcementMode.ENFORCE
         if not bound and enforce:
@@ -286,6 +308,7 @@ class RuntimeGateway:
             self.admit_trust(candidate) if candidate else (None, None)
         )
         action = NormalizedAction(
+            graph_binding=graph_binding,
             schema_version="0.1",
             trust_snapshot_digest=trust_snapshot,
             execution_binding_digest=content_digest(execution_binding)
@@ -312,6 +335,7 @@ class RuntimeGateway:
         digest = action_digest(action)
         # Resource values and argument keys can carry secrets: evidence gets only a digest.
         request = PolicyRequest(
+            graph_binding=graph_binding,
             schema_version="0.1",
             request_id=str(uuid4()),
             principal=self._authority.credential.principal if self._authority else plan.principal,
@@ -396,7 +420,11 @@ class RuntimeGateway:
                     )
                 else:
                     decision = PolicyDecision.model_validate_json(
-                        self.policy.decide(request, self._plan).model_dump_json()
+                        (
+                            self.__graph_guard.decide(request, self.events.clock())
+                            if self.__graph_guard
+                            else self.policy.decide(request, self._plan)
+                        ).model_dump_json()
                     )
                 if (
                     decision.request_id != request.request_id
@@ -444,8 +472,15 @@ class RuntimeGateway:
                 )
         token: str | None = None
         approval: ApprovalRequest | None = None
+        approval_timeout = (
+            self.__graph_guard.approval_timeout(graph_binding)
+            if self.__graph_guard and graph_binding
+            else self._plan.approvals.default_timeout_seconds
+        )
         try:
-            token, exceeded = self.budgets.reserve(tool, enforce=enforce)
+            token, exceeded = self.budgets.reserve(
+                tool, enforce=enforce, action_digest=digest, graph_binding=graph_binding
+            )
             if exceeded and self.mode != EnforcementMode.DISABLED:
                 self.signal(SecurityCategory.RESOURCE_EXHAUSTION, "BUDGET_EXCEEDED")
             if (
@@ -464,8 +499,7 @@ class RuntimeGateway:
                     ),
                     reason_codes=decision.reason_codes,
                     created_at=now,
-                    expires_at=now
-                    + timedelta(seconds=self._plan.approvals.default_timeout_seconds),
+                    expires_at=now + timedelta(seconds=approval_timeout),
                 )
                 self.approvals.create(approval)
                 self.events.emit(
@@ -485,7 +519,7 @@ class RuntimeGateway:
                                 digest,
                             ),
                         ),
-                        timeout=self._plan.approvals.default_timeout_seconds,
+                        timeout=approval_timeout,
                     )
                     self.approvals.record(result)
                 except RuntimeFailure:
@@ -498,7 +532,9 @@ class RuntimeGateway:
                     ApprovalDecidedPayload(kind=EventType.APPROVAL_DECIDED, decision=result)
                 )
                 self.approvals.redeem(approval.approval_id, digest)
-            if enforce:
+            if enforce and self.__graph_guard is not None and graph_binding is not None:
+                self.__graph_guard.final(graph_binding, self.events.clock(), capability, resource)
+            if enforce and self.__graph_guard is None:
                 failure = authority_failure(
                     self._authority,
                     plan.principal,
@@ -543,9 +579,25 @@ class RuntimeGateway:
                         approval_id=approval.approval_id if approval else None,
                     )
                 )
-            except RuntimeFailure:
-                self.budgets.refund(tool)
+                # An evidence callback is synchronous but may consume time or revoke state.
+                if (
+                    enforce
+                    and self.__trust_guard is not None
+                    and trust_snapshot is not None
+                    and candidate is not None
+                ):
+                    final = self.__trust_guard.final(candidate, trust_snapshot, self.events.clock())
+                    if enforce and not final.admitted:
+                        raise RuntimeFailure("TRUST_ADMISSION_REJECTED")
+                self.budgets.validate_commit(token, enforce=enforce)
+                if self.__graph_guard is not None and graph_binding is not None:
+                    self.__graph_guard.final(
+                        graph_binding, self.events.clock(), capability, resource
+                    )
+            except BaseException:
+                self.budgets.refund(token)
                 raise
+            self.budgets.forget(token)
             token = None
             try:
                 response = await dispatch(deepcopy(arguments))
@@ -555,6 +607,10 @@ class RuntimeGateway:
                 )
                 raise
             except RuntimeFailure as exc:
+                if self.__graph_guard is not None:
+                    self.signal(
+                        SecurityCategory.TRACE_INTEGRITY_FAILURE, "DISPATCH_FAILED_EFFECT_UNKNOWN"
+                    )
                 if exc.code in {
                     "ISOLATION_CLEANUP_UNCONFIRMED",
                     "PROCESS_CLEANUP_UNCONFIRMED",
@@ -563,6 +619,10 @@ class RuntimeGateway:
                     raise
                 raise RuntimeFailure("UPSTREAM_FAILURE") from exc
             except Exception as exc:
+                if self.__graph_guard is not None:
+                    self.signal(
+                        SecurityCategory.TRACE_INTEGRITY_FAILURE, "DISPATCH_FAILED_EFFECT_UNKNOWN"
+                    )
                 raise RuntimeFailure("UPSTREAM_FAILURE") from exc
             artifact = self.provenance.derive(
                 DataOrigin(

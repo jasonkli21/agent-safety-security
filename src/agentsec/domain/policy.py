@@ -21,12 +21,14 @@ from agentsec.domain.base import (
     Timestamp,
     VersionedModel,
 )
+from agentsec.domain.graph import AncestorDecision, GraphBinding
 from agentsec.domain.identity import AgentIdentity, PrincipalRef, TaskScope
 from agentsec.domain.provenance import DataArtifactRef, canonical_artifacts
 from agentsec.domain.taxonomy import PolicyOutcome, ReasonCode
 
 
 class PolicyRequest(VersionedModel):
+    graph_binding: GraphBinding | None = None
     authority: AuthorityContext | None = None
     request_id: Identifier
     principal: PrincipalRef
@@ -57,12 +59,23 @@ class PolicyRequest(VersionedModel):
     @model_serializer(mode="wrap")
     def compatible_wire(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
         data: dict[str, object] = handler(self)
+        if self.graph_binding is None:
+            data.pop("graph_binding", None)
         if self.authority is None:
             data.pop("authority", None)
         return data
 
 
 class PolicyDecision(VersionedModel):
+    ancestor_decisions: tuple[AncestorDecision, ...] = ()
+
+    @model_serializer(mode="wrap")
+    def compatible_wire(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
+        data: dict[str, object] = handler(self)
+        if not self.ancestor_decisions:
+            data.pop("ancestor_decisions", None)
+        return data
+
     decision_id: Identifier
     request_id: Identifier
     outcome: PolicyOutcome

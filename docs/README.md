@@ -19,3 +19,9 @@ The PRD should remain relatively stable. Architecture changes only for enduring 
 
 - [Supply-chain trust](supply-chain-trust.md) — Phase 8 offline inventory, pins, signatures and runtime admission.
 - [Phase 8 implementation report](reports/phase-8-implementation-report.md) — verification and pending independent review.
+
+
+Phase 9 local multi-agent security: [guide](multi-agent-security.md),
+[implementation report](reports/phase-9-implementation-report.md).
+Run `.venv/bin/python examples/multi_agent/local_session.py` for the credential-free three-agent
+slice. Independent Phase 7–8 acceptance and Phase 9 review remain open.

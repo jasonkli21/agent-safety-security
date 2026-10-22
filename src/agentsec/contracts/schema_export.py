@@ -17,6 +17,7 @@ from agentsec.domain.authority import AuthorityContext, VerifiedCredential
 from agentsec.domain.events import SecurityEvent
 from agentsec.domain.execution import ExecutionBinding
 from agentsec.domain.findings import Finding
+from agentsec.domain.graph import GraphBinding, GraphSnapshot
 from agentsec.domain.identity import Delegation
 from agentsec.domain.policy import PolicyDecision, PolicyRequest
 from agentsec.domain.provenance import DataArtifactRef
@@ -33,6 +34,10 @@ from agentsec.domain.tools import ToolDescriptor
 from agentsec.eval.fixtures import TargetFixture
 from agentsec.eval.models import EvaluationResult, EvaluationSummary
 from agentsec.isolation.backends import DockerProfile
+from agentsec.multi_agent.authority import GraphMaterial
+from agentsec.multi_agent.conformance import GraphConformanceReport
+from agentsec.multi_agent.regression import GraphRegressionCase, GraphRegressionResult
+from agentsec.multi_agent.replay import GraphReplayInput, GraphReplayResult
 from agentsec.runtime.bindings import ProtectedTool
 from agentsec.supply_chain.models import (
     DependencyManifest,
@@ -46,6 +51,14 @@ from agentsec.supply_chain.models import (
 )
 
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
+    "graph-regression-case": GraphRegressionCase,
+    "graph-regression-result": GraphRegressionResult,
+    "agent-graph": GraphSnapshot,
+    "graph-binding": GraphBinding,
+    "graph-material": GraphMaterial,
+    "graph-conformance": GraphConformanceReport,
+    "graph-replay-input": GraphReplayInput,
+    "graph-replay-result": GraphReplayResult,
     "trust-inputs": TrustInputs,
     "trust-inventory": Inventory,
     "trust-lock": TrustLock,

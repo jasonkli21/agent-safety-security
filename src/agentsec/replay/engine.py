@@ -112,6 +112,11 @@ def run_program(
 
     limitations = set(assessment.limitations)
     blockers = set(assessment.blockers)
+    if current.compiler_version == "phase9-v1" or any(
+        isinstance(e.payload, ToolRequestedPayload) and e.payload.request.graph_binding is not None
+        for e in program.events
+    ):
+        blockers.add("GRAPH_SESSION_REPLAY_REQUIRED")
     if any(
         isinstance(e.payload, ToolRequestedPayload) and e.payload.trust_snapshot_digest
         for e in program.events

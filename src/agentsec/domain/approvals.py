@@ -19,6 +19,7 @@ from agentsec.domain.base import (
     Timestamp,
     VersionedModel,
 )
+from agentsec.domain.graph import GraphBinding
 from agentsec.domain.identity import PrincipalRef
 from agentsec.domain.provenance import DataArtifactRef, canonical_artifacts
 from agentsec.domain.serialization import content_digest
@@ -26,6 +27,7 @@ from agentsec.domain.taxonomy import ApprovalOutcome, ApprovalScope, ReasonCode
 
 
 class NormalizedAction(VersionedModel):
+    graph_binding: GraphBinding | None = None
     """Use complete arguments, never a lossy/redacted PolicyRequest summary."""
 
     trust_snapshot_digest: Digest | None = None
@@ -52,6 +54,8 @@ class NormalizedAction(VersionedModel):
     @model_serializer(mode="wrap")
     def compatible_wire(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
         data: dict[str, object] = handler(self)
+        if self.graph_binding is None:
+            data.pop("graph_binding", None)
         if self.trust_snapshot_digest is None:
             data.pop("trust_snapshot_digest", None)
         if self.authority_digest is None:

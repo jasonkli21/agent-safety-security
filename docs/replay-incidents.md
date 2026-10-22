@@ -206,3 +206,15 @@ set contains every deployment-required candidate; locks express that separately 
 required-presence IDs. Replay remains offline and does not attest process startup or endpoint
 contact. See [supply-chain trust](supply-chain-trust.md) for exact mode behavior and proof limits.
 Independent Phase 7 acceptance is still unconfirmed.
+
+
+## Phase 9 local graph composition
+
+Explicit `phase9-v1` operator-created ENFORCE sessions now add bounded single-parent graphs,
+all-ancestor authority/approval/data ceilings, atomic recursive budgets and protected adjacent
+messages. Standalone `phase6-v1` behavior and historical digests retain their existing meaning.
+The gateway guard applies to direct calls and adapter rebinding. Phase 8 pins restrict tools;
+they do not authenticate peers or approve delegation. See [local multi-agent security](multi-agent-security.md)
+for ownership, evidence-before-import, finality, source replay blockers, DRAFT graph promotion,
+unsupported modes and exact limitations. Earlier one-hop/future-graph statements describe their
+original phase boundary. Independent Phase 7–8 acceptance remains unconfirmed.

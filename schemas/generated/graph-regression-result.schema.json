@@ -1,0 +1,129 @@
+{
+  "$defs": {
+    "AssertionResult": {
+      "additionalProperties": false,
+      "properties": {
+        "assertion_index": {
+          "minimum": 0,
+          "title": "Assertion Index",
+          "type": "integer"
+        },
+        "assertion_type": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Assertion Type",
+          "type": "string"
+        },
+        "evidence_artifact_refs": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Evidence Artifact Refs",
+          "type": "array"
+        },
+        "evidence_event_refs": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Evidence Event Refs",
+          "type": "array"
+        },
+        "matched_observation_refs": {
+          "default": [],
+          "items": {
+            "maxLength": 128,
+            "minLength": 1,
+            "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+            "type": "string"
+          },
+          "title": "Matched Observation Refs",
+          "type": "array"
+        },
+        "message": {
+          "maxLength": 8192,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/EvaluationStatus"
+        }
+      },
+      "required": [
+        "assertion_index",
+        "assertion_type",
+        "status",
+        "message"
+      ],
+      "title": "AssertionResult",
+      "type": "object"
+    },
+    "EvaluationStatus": {
+      "enum": [
+        "PASS",
+        "INCONCLUSIVE",
+        "FAIL",
+        "ERROR"
+      ],
+      "title": "EvaluationStatus",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "assertions": {
+      "default": [],
+      "items": {
+        "$ref": "#/$defs/AssertionResult"
+      },
+      "title": "Assertions",
+      "type": "array"
+    },
+    "blockers": {
+      "default": [],
+      "items": {
+        "type": "string"
+      },
+      "title": "Blockers",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "regression_id": {
+      "maxLength": 128,
+      "minLength": 1,
+      "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+      "title": "Regression Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "status": {
+      "enum": [
+        "PASS",
+        "FAIL",
+        "BLOCKED"
+      ],
+      "title": "Status",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "regression_id",
+    "status"
+  ],
+  "title": "GraphRegressionResult",
+  "type": "object"
+}

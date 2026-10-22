@@ -1,0 +1,86 @@
+{
+  "$defs": {
+    "GraphProbeResult": {
+      "additionalProperties": false,
+      "properties": {
+        "node_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Node Id",
+          "type": "string"
+        },
+        "obligation": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Obligation",
+          "type": "string"
+        },
+        "reason": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Reason",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "NOT_RUN"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "node_id",
+        "obligation",
+        "status",
+        "reason"
+      ],
+      "title": "GraphProbeResult",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "claim": {
+      "const": "synthetic graph authority only",
+      "default": "synthetic graph authority only",
+      "title": "Claim",
+      "type": "string"
+    },
+    "graph_digest": {
+      "title": "Graph Digest",
+      "type": "string"
+    },
+    "probes": {
+      "items": {
+        "$ref": "#/$defs/GraphProbeResult"
+      },
+      "title": "Probes",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "graph_digest",
+    "probes"
+  ],
+  "title": "GraphConformanceReport",
+  "type": "object"
+}

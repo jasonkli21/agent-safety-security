@@ -6,6 +6,7 @@ from agentsec.domain.events import (
     ApprovalRequestedPayload,
     DataExposedPayload,
     EffectVerifiedPayload,
+    GraphEventPayload,
     PolicyEvaluatedPayload,
     RunStartedPayload,
     ToolDispatchedPayload,
@@ -145,6 +146,24 @@ def validate_evaluation_trajectory(observation: EvaluationObservation) -> None:
                         require(parent_labels <= artifact.labels)
                     returned_artifacts[artifact.artifact_id] = artifact
                 returns[p.dispatch_id] = p
+        elif isinstance(p, GraphEventPayload) and p.operation == "MESSAGE_IMPORTED":
+            require(p.artifact is not None)
+            assert p.artifact is not None
+            artifact = p.artifact
+            require(artifact.artifact_id not in returned_artifacts)
+            if provenance_complete:
+                require(artifact.parent_artifact_ids <= returned_artifacts.keys())
+                labels = {
+                    label
+                    for parent in artifact.parent_artifact_ids
+                    for label in returned_artifacts[parent].labels
+                }
+                require(labels <= artifact.labels)
+            returned_artifacts[artifact.artifact_id] = artifact
+            for parent_id in artifact.parent_artifact_ids:
+                exposed_frontier.pop(parent_id, None)
+            exposed_frontier[artifact.artifact_id] = artifact
+            exposed_artifact_ids.add(artifact.artifact_id)
         elif isinstance(p, DataExposedPayload):
             require(p.dispatch_id in returns and p.dispatch_id not in exposures)
             returned = returns[p.dispatch_id]

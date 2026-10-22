@@ -79,18 +79,23 @@ class SemanticAtom(SecurityModel):
 
 
 class CompiledSecurityPlan(VersionedModel):
-    compiler_version: Literal["phase4-v1", "phase6-v1"] = "phase6-v1"
+    compiler_version: Literal["phase4-v1", "phase6-v1", "phase9-v1"] = "phase6-v1"
     acts_on_behalf_of: PrincipalRef | None = None
+    max_delegated_agents: Count | None = None
 
     @model_validator(mode="after")
     def historical_shape(self) -> "CompiledSecurityPlan":
         if self.compiler_version == "phase4-v1" and self.acts_on_behalf_of is not None:
             raise ValueError("HISTORICAL_AUTHORITY_UNSUPPORTED")
+        if self.compiler_version != "phase9-v1" and self.max_delegated_agents is not None:
+            raise ValueError("GRAPH_BUDGET_REQUIRES_PHASE9")
         return self
 
     @model_serializer(mode="wrap")
     def compatible_wire(self, handler: SerializerFunctionWrapHandler) -> dict[str, object]:
         data: dict[str, object] = handler(self)
+        if self.compiler_version != "phase9-v1":
+            data.pop("max_delegated_agents", None)
         if self.compiler_version == "phase4-v1":
             data.pop("acts_on_behalf_of", None)
         return data

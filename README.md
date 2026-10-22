@@ -2,7 +2,7 @@
 
 A local-first security lifecycle for tool-using AI agents: define explicit authority, test it adversarially, enforce it at runtime, and turn observed failures into regressions.
 
-> **Current status:** Phase 8 local supply-chain inventory, operator-reviewed pins, optional Ed25519 verification and restrictive runtime trust admission are implemented. See the [trust guide](docs/supply-chain-trust.md) and [implementation report](docs/reports/phase-8-implementation-report.md). Phase 7 fixes still await independent acceptance; Phase 8 awaits independent review.
+> **Current status:** Phase 9 local multi-agent graphs, transitive authority, recursive budgets and protected message provenance are implemented. See the [multi-agent guide](docs/multi-agent-security.md) and [implementation report](docs/reports/phase-9-implementation-report.md). Independent Phase 7–8 acceptance remains unconfirmed; Phase 9 awaits independent review.
 
 ## Product thesis
 
@@ -190,3 +190,9 @@ Inventory inspection/scanning/diffs are offline; locks remain protected operator
 use pinned Ed25519 public keys with the optional `trust` extra. Metadata pins, inspected file bytes
 and publisher signatures do not prove loaded or remote running code. See the
 [observe/review/pin/protect workflow and precise limits](docs/supply-chain-trust.md).
+
+
+Phase 9 local multi-agent security: [guide](docs/multi-agent-security.md),
+[implementation report](docs/reports/phase-9-implementation-report.md).
+Run `.venv/bin/python examples/multi_agent/local_session.py` for the credential-free three-agent
+slice. Independent Phase 7–8 acceptance and Phase 9 review remain open.

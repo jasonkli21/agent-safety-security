@@ -70,6 +70,24 @@ def run_probe(plan: CompiledSecurityPlan, probe: PolicyProbe, engine: PolicyEngi
 def run_conformance(
     plan: CompiledSecurityPlan, engine: PolicyEngine | None = None
 ) -> ConformanceReport:
+    if plan.compiler_version == "phase9-v1":
+        return ConformanceReport(
+            schema_version="0.1",
+            effective_policy_hash=plan.effective_policy_hash,
+            plan_identity=plan.identity,
+            probes=(
+                ProbeResult(
+                    schema_version="0.1",
+                    probe_id="graph-session-required",
+                    status="NOT_RUN",
+                    expected=PolicyOutcome.DENY,
+                    obligation_kind="graph_authority",
+                    not_derivable_reason=(
+                        "Use graph_conformance with complete protected graph material"
+                    ),
+                ),
+            ),
+        )
     return ConformanceReport(
         schema_version="0.1",
         effective_policy_hash=plan.effective_policy_hash,

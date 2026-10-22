@@ -222,9 +222,11 @@ def source_plan(program: ReplayProgram, contract: AgentSecurityContract) -> Comp
         if start.plan_identity
         else ("phase6-v1" if start.authority_summary is not None else "phase4-v1")
     )
-    if version not in {"phase4-v1", "phase6-v1"}:
+    if version not in {"phase4-v1", "phase6-v1", "phase9-v1"}:
         raise ReplayError("UNSUPPORTED_SOURCE_COMPILER")
-    return compile_contract(contract, historical=version == "phase4-v1")
+    return compile_contract(
+        contract, historical=version == "phase4-v1", multi_agent=version == "phase9-v1"
+    )
 
 
 def recovered_request(payload: ToolRequestedPayload, program: ReplayProgram) -> PolicyRequest:
@@ -252,6 +254,8 @@ def assess(program: ReplayProgram, contract: AgentSecurityContract) -> ReplayAss
             raise ReplayError("SOURCE_PLAN_MISMATCH")
         binding = SourceBinding.EXACT
     blockers: set[str] = set()
+    if plan.compiler_version == "phase9-v1":
+        blockers.add("GRAPH_SESSION_REPLAY_REQUIRED")
     limitations = {"NO_MODEL_REPLAY", "NO_RAW_RESPONSES", "OPERATOR_TOOL_METADATA"}
     if not complete:
         limitations.add("INCOMPLETE_SOURCE_STREAM")

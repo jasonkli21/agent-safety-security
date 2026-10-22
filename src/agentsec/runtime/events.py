@@ -20,6 +20,7 @@ class RuntimeEvents:
     ) -> None:
         self.sink, self.clock, self.required = sink, clock, required
         self.run_id, self.trace_id = str(uuid4()), str(uuid4())
+        self.last_event: SecurityEvent | None = None
         self.sequence = 0
         self.failed = False
         self.on_failure = on_failure
@@ -40,6 +41,7 @@ class RuntimeEvents:
         self.sequence += 1
         try:
             self.sink.append(event)
+            self.last_event = event
         except Exception as exc:
             self.failed = True
             try:

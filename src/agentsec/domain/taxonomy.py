@@ -80,6 +80,7 @@ class SecurityCategory(StrEnum):
 
 
 class EventType(StrEnum):
+    GRAPH_EVENT = "GRAPH_EVENT"
     RUN_STARTED = "RUN_STARTED"
     RUN_FINISHED = "RUN_FINISHED"
     TOOL_REQUESTED = "TOOL_REQUESTED"

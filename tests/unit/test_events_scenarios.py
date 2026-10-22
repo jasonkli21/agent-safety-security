@@ -32,6 +32,18 @@ def test_evidence_run_roundtrip(name):
 def test_all_event_payloads(event_type):
     existing = {e["event_type"]: e for e in EVENTS}
     extra = {
+        "GRAPH_EVENT": {
+            "schema_version": "0.1",
+            "operation": "ADMITTED",
+            "binding": {
+                "schema_version": "0.1",
+                "node_id": "a",
+                "path": ["a"],
+                "graph_digest": "sha256:" + "a" * 64,
+                "generation": 1,
+                "authority_path_digest": "sha256:" + "b" * 64,
+            },
+        },
         "SECURITY_SIGNAL": {
             "category": "PROMPT_INJECTION",
             "severity": 2,

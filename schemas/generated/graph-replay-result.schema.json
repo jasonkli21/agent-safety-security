@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "blockers": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Blockers",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "candidate_graph_comparison": {
+      "enum": [
+        "UNKNOWN",
+        "UNCHANGED",
+        "CHANGED",
+        "INCOMPLETE"
+      ],
+      "title": "Candidate Graph Comparison",
+      "type": "string"
+    },
+    "checked_deliveries": {
+      "title": "Checked Deliveries",
+      "type": "integer"
+    },
+    "checked_requests": {
+      "title": "Checked Requests",
+      "type": "integer"
+    },
+    "fidelity": {
+      "enum": [
+        "SECURITY_SEMANTIC",
+        "INCOMPLETE"
+      ],
+      "title": "Fidelity",
+      "type": "string"
+    },
+    "limitations": {
+      "default": [
+        "NO_CONTENT_OR_MODEL_REPLAY",
+        "NO_LIVE_EFFECTS",
+        "NO_RUNTIME_ATTESTATION",
+        "RECORDED_FACTS_NOT_AUTHENTICATED",
+        "SINGLE_RECORDED_GRAPH_EPOCH"
+      ],
+      "items": {
+        "type": "string"
+      },
+      "title": "Limitations",
+      "type": "array",
+      "uniqueItems": true
+    },
+    "schema_version": {
+      "const": "0.1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "source_evidence_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "Source Evidence Digest",
+      "type": "string"
+    }
+  },
+  "required": [
+    "schema_version",
+    "source_evidence_digest",
+    "fidelity",
+    "blockers",
+    "candidate_graph_comparison",
+    "checked_requests",
+    "checked_deliveries"
+  ],
+  "title": "GraphReplayResult",
+  "type": "object"
+}

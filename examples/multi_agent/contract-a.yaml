@@ -1,0 +1,24 @@
+schema_version: "0.1"
+metadata:
+  contract_id: graph-a
+  name: Local coordinator
+agent:
+  agent_id: a
+  name: Coordinator
+  environment: local
+identity:
+  principal: {principal_id: a, principal_type: AGENT}
+  acts_on_behalf_of: {principal_id: user, principal_type: USER}
+environment: {mode: local}
+task_scope:
+  task_id: local-graph
+  description: Protected synthetic multi-agent demonstration
+tools:
+  rules:
+    - {rule_id: read, capability: filesystem.read, decision: ALLOW}
+    - {rule_id: write, capability: filesystem.write, decision: DENY}
+    - {rule_id: message, capability: agent.message.send, decision: ALLOW}
+budgets:
+  max_tool_calls: 5
+  max_external_writes: 3
+  max_delegated_agents: 2
