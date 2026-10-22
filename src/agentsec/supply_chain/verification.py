@@ -64,8 +64,12 @@ def assess(
         matched = "MATCH" if pin.fingerprint == candidate.fingerprint else "MISMATCH"
         if matched == "MISMATCH":
             reasons.append("TRUST_PIN_MISMATCH")
-        if pin.require_artifact and candidate.artifact_digest is None:
-            reasons.append("TRUST_ARTIFACT_UNOBSERVED")
+        if pin.require_artifact:
+            if candidate.artifact_digest is None:
+                reasons.append("TRUST_ARTIFACT_UNOBSERVED")
+            # A candidate-ID-to-path mapping proves only that some bytes were observed.
+            # No supported adapter binds those bytes to its executing callable/process.
+            reasons.append("TRUST_ARTIFACT_ASSOCIATION_UNVERIFIABLE")
         if pin.require_dependencies:
             # A manifest digest never proves complete resolved dependency bytes.
             reasons.append("TRUST_DEPENDENCY_COVERAGE_INCOMPLETE")

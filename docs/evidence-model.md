@@ -137,7 +137,8 @@ resource/data coverage checks are shared with MCP. Compiler and authored hashes 
 
 The optional operator-owned supply-chain guard restricts protected implementations through
 RuntimeGateway; it never grants contract or delegated authority. Metadata pins and Ed25519
-signatures do not attest runtime code. Existing approval, evidence, provenance, TLS and isolation
-boundaries remain active. See [supply-chain trust](supply-chain-trust.md) for exact mode behavior,
-route identities, offline replay limits and commands. Independent Phase 7 acceptance is still
-unconfirmed; Phase 8 implementation is awaiting independent review.
+signatures do not attest runtime code. Absence of `TOOL_DISPATCHED` says nothing about effects
+during external MCP process startup or endpoint contact, which occur before tool admission. Existing
+approval, evidence, provenance, TLS and isolation boundaries remain active. See
+[supply-chain trust](supply-chain-trust.md) for exact mode behavior and proof limits. Independent
+Phase 7 acceptance is still unconfirmed.

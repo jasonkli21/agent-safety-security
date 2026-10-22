@@ -58,6 +58,13 @@ The phase is successful if a developer can inspect an actual candidate inventory
 7. **Runtime trust admission** for opted-in protected routes via `RuntimeGateway` and existing adapters: ENFORCE fail-closed on mandatory missing/changed/unverifiable trust evidence, truthfully report SHADOW/DISABLED, and bind approved snapshot to exact action/approval/dispatch.
 8. Minimal **offline CLI** and examples for `inspect → pin/review → verify → diff → scan → protect`, plus focused docs, schemas, tests and implementation report.
 
+**Implemented launch-boundary scope:** this phase does not attest an MCP server executable before
+startup. Trust-enabled ENFORCE stdio requires the operator to provide an external, operator-managed
+launch boundary before agentsec connects; HTTP endpoint contact also precedes tool admission. The
+config flag records that deployment prerequisite, not evidence that agentsec verified it. Do not
+claim Phase 8 prevents pre-discovery startup effects or provides a first-class server provenance
+graph.
+
 ### 3.2 Explicitly deferred
 
 - Phase 9 multi-agent principals, graph traversal, recursive delegation, agent-to-agent message chain trust and recursive budgets.

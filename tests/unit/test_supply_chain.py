@@ -185,6 +185,19 @@ def test_unobservable_requirements_reject(requirement, reason):
     assert reason in result.reason_codes
 
 
+def test_observed_unrelated_file_does_not_satisfy_artifact_requirement(tmp_path):
+    c = candidate()
+    artifact = tmp_path / "unrelated.txt"
+    artifact.write_text("not the implementation")
+    observed = c.model_copy(
+        update={"artifact_digest": artifact_digest(artifact), "implementation_proof": "LOCAL_BYTES"}
+    )
+    result = assess(observed, lock_for(observed, require_artifact=True), NOW)
+    assert result.artifact == "LOCAL_BYTES"
+    assert not result.admitted
+    assert "TRUST_ARTIFACT_ASSOCIATION_UNVERIFIABLE" in result.reason_codes
+
+
 def signed_fixture(c):
     crypto = pytest.importorskip("cryptography.hazmat.primitives.asymmetric.ed25519")
     private = crypto.Ed25519PrivateKey.generate()
@@ -310,6 +323,9 @@ def test_declared_dependencies_are_incomplete_offline_and_redacted(tmp_path):
     assert manifest.completeness == "DECLARED_ONLY"
     assert len(manifest.dependencies) == 2
     assert "SECRET" not in canonical_json(manifest)
+    private = next(d for d in manifest.dependencies if d.source_kind == "direct_url")
+    assert private.name == "private" and private.source_digest
+    assert next(d for d in manifest.dependencies if d.name == "safe").specifier == ">=1"
     assert all(
         d.provenance == "declared" and d.artifact_digest is None for d in manifest.dependencies
     )
@@ -317,6 +333,32 @@ def test_declared_dependencies_are_incomplete_offline_and_redacted(tmp_path):
     assert not guard.check(candidate(), NOW)[1].admitted
     with pytest.raises(ValidationError):
         DependencyManifest(schema_version="0.1", source="remote_index", dependencies=())
+
+
+def test_dependency_names_aggregate_conflicting_ranges_without_urls(tmp_path):
+    path = tmp_path / "pyproject.toml"
+    path.write_text(
+        '[project]\ndependencies=["Demo_Pkg>=1", "demo-pkg<2", '
+        '"demo-pkg @ https://user:secret@example.invalid/pkg"]\n'
+    )
+    deps = declared_dependencies(path).dependencies
+    assert len(deps) == 1
+    assert deps[0].name == "demo-pkg"
+    assert deps[0].conflicting_declarations
+    assert deps[0].source_kind == "direct_url" and deps[0].source_digest
+    assert "secret" not in canonical_json(deps)
+
+
+def test_required_candidates_are_unique_and_must_be_pinned():
+    c = candidate()
+    with pytest.raises(ValidationError):
+        TrustLock.model_validate(
+            lock_for(c).model_dump() | {"required_candidates": (content_digest("missing"),)}
+        )
+    required = TrustLock.model_validate(
+        lock_for(c).model_dump() | {"required_candidates": (c.candidate_id,)}
+    )
+    assert required.required_candidates == (c.candidate_id,)
 
 
 def test_scanner_is_advisory_and_privacy_minimized():
@@ -482,6 +524,29 @@ def test_cli_offline_workflow_and_safe_failures(tmp_path):
     data = json.loads(proposal.output)
     data["status"] = "REVIEWED"  # explicit operator review, no automatic CLI promotion
     lock_path.write_text(json.dumps(data))
+    assert (
+        runner.invoke(app, ["trust", "verify", str(inventory), "--lock", str(lock_path)]).exit_code
+        == 0
+    )
+    incomplete = json.loads(lock_path.read_text())
+    missing_candidate = (
+        load_json(inventory, Inventory)
+        .candidates[0]
+        .model_copy(update={"candidate_id": content_digest("required-but-absent")})
+    )
+    missing_pin = TrustPin(
+        schema_version="0.1",
+        candidate_id=missing_candidate.candidate_id,
+        fingerprint=missing_candidate.fingerprint,
+    )
+    incomplete["pins"].append(missing_pin.model_dump(mode="json"))
+    incomplete["required_candidates"] = [missing_candidate.candidate_id]
+    lock_path.write_text(json.dumps(incomplete))
+    missing = runner.invoke(app, ["trust", "verify", str(inventory), "--lock", str(lock_path)])
+    assert missing.exit_code == 1
+    assert "TRUST_REQUIRED_CANDIDATE_MISSING" in missing.output
+    incomplete["required_candidates"] = []  # old locks and optional subsets remain valid
+    lock_path.write_text(json.dumps(incomplete))
     assert (
         runner.invoke(app, ["trust", "verify", str(inventory), "--lock", str(lock_path)]).exit_code
         == 0

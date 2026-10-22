@@ -6,6 +6,7 @@ import sys
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from types import SimpleNamespace
 
 import anyio
 import pytest
@@ -21,7 +22,7 @@ from agentsec.adapters.mcp.config import McpGatewayConfig
 from agentsec.adapters.mcp.coverage import configured_resource_coverage_gaps
 from agentsec.adapters.mcp.discovery import discover
 from agentsec.adapters.mcp.server import create_server
-from agentsec.adapters.mcp.upstream import process_parameters
+from agentsec.adapters.mcp.upstream import list_all_tools, process_parameters
 from agentsec.cli.main import app
 from agentsec.contracts.loader import load_artifact, load_contract, validate_data
 from agentsec.domain.approvals import ApprovalDecision
@@ -1332,3 +1333,91 @@ def test_strict_trust_cli_stdio_static_reviewed_example(tmp_path):
         assert dispatched[0].trust_assessment.admitted
 
     asyncio.run(scenario())
+
+
+def test_trust_enforce_requires_stdio_launch_boundary_before_connect(tmp_path, monkeypatch):
+    config = load_artifact(ROOT / "examples/mcp/gateway.yaml", McpGatewayConfig).model_dump(
+        mode="json"
+    )
+    config["upstream"].pop("launch_boundary")
+    config_path = tmp_path / "gateway.yaml"
+    import yaml
+
+    config_path.write_text(yaml.safe_dump(config))
+    result = CliRunner().invoke(
+        app,
+        [
+            "protect",
+            "mcp",
+            "--contract",
+            str(ROOT / "examples/mcp/contract.yaml"),
+            "--config",
+            str(config_path),
+            "--trust-lock",
+            str(ROOT / "examples/trust/mcp-lock.json"),
+            "--check",
+        ],
+    )
+    assert result.exit_code == 1
+    assert "TRUST_STDIO_LAUNCH_BOUNDARY_REQUIRED" in result.output
+
+    from agentsec.cli.protect import run
+    from agentsec.supply_chain.guard import TrustGuard
+    from agentsec.supply_chain.models import TrustLock
+
+    connected = False
+
+    @asynccontextmanager
+    async def counted_connect(upstream):
+        nonlocal connected
+        connected = True
+        yield object()
+
+    monkeypatch.setattr("agentsec.adapters.mcp.upstream.connect", counted_connect)
+    guard = TrustGuard(
+        TrustLock(schema_version="0.1", status="REVIEWED", generation="test", pins=())
+    )
+    with pytest.raises(RuntimeFailure, match="TRUST_STDIO_LAUNCH_BOUNDARY_REQUIRED"):
+        asyncio.run(
+            run(
+                contract(),
+                validate_data(McpGatewayConfig, config),
+                InMemoryEventSink(),
+                trust_guard=guard,
+            )
+        )
+    assert not connected
+
+
+def test_trust_discovery_bounds_cumulative_tool_count():
+    tool = types.Tool(name="tool", inputSchema={"type": "object"})
+
+    class PagedClient:
+        def __init__(self, pages):
+            self.pages = pages
+            self.calls = 0
+
+        async def list_tools(self, *, cursor, cache_mode):
+            page = self.pages[self.calls]
+            self.calls += 1
+            return page
+
+    async def operation():
+        ok = PagedClient(
+            [
+                SimpleNamespace(tools=[tool], next_cursor="next"),
+                SimpleNamespace(tools=[tool], next_cursor=None),
+            ]
+        )
+        assert len(await list_all_tools(ok, trust_limits=True)) == 2
+        oversized = PagedClient(
+            [
+                SimpleNamespace(tools=[tool] * 2048, next_cursor="next"),
+                SimpleNamespace(tools=[tool], next_cursor=None),
+            ]
+        )
+        with pytest.raises(RuntimeFailure, match="TRUST_DISCOVERY_LIMIT_EXCEEDED"):
+            await list_all_tools(oversized, trust_limits=True)
+        assert oversized.calls == 2
+
+    asyncio.run(operation())

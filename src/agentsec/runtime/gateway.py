@@ -204,6 +204,10 @@ class RuntimeGateway:
     def trust_enabled(self) -> bool:
         return self.__trust_guard is not None and self.mode != EnforcementMode.DISABLED
 
+    @property
+    def trust_required_candidates(self) -> tuple[str, ...]:
+        return self.__trust_guard.required_candidates if self.__trust_guard is not None else ()
+
     def trust_candidate(
         self,
         tool: ToolDescriptor,

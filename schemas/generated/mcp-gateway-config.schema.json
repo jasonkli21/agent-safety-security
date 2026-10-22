@@ -379,6 +379,19 @@
           "title": "Env",
           "type": "object"
         },
+        "launch_boundary": {
+          "anyOf": [
+            {
+              "const": "operator_managed",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Launch Boundary"
+        },
         "transport": {
           "const": "stdio",
           "title": "Transport",

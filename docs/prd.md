@@ -810,6 +810,9 @@ This is the first major differentiation milestone.
 - signature verification hooks;
 - static tool-risk scanning.
 
+Implementation coverage and current proof limits: [Phase 8 implementation report](reports/phase-8-implementation-report.md)
+and [Phase 8 independent review fixes](reports/phase-8-review-fixes-report.md).
+
 ### Phase 9 — Multi-Agent Security
 
 - delegation graph;

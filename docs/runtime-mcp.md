@@ -61,7 +61,16 @@ remain unchanged; the runtime example deliberately uses the subset.
 
 ## Discovery and schemas
 
-The gateway discovers all paginated tools once before serving. It stores canonical serialized
+For stdio, the SDK starts and initializes the upstream process before tool discovery. Tool-level
+trust admission therefore cannot prevent executable startup side effects. Trust-enabled ENFORCE
+requires the explicit `upstream.launch_boundary: operator_managed` deployment assertion before
+`connect`; operators must provide the external OS/deployment control. The field is not executable
+hashing or process identity proof. HTTP contacts its endpoint before tool discovery as well.
+
+The gateway discovers all paginated tools once before serving. With trust enabled, pagination is
+bounded incrementally to 128 pages, 2,048 tools and 8 MiB serialized metadata. The SDK has already
+decoded an individual page before these checks, so body limits at that stage remain transport/SDK
+responsibility. It stores canonical serialized
 snapshots and returns copies, preserving names, descriptions and schemas. Input/output schema
 hashes and description hashes participate in the complete action digest; optional pins use
 those same hashes. No live refresh occurs. Restart to adopt new metadata; approvals cannot

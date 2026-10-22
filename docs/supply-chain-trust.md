@@ -10,7 +10,10 @@ Run from the repository root. No tool is invoked by `trust inspect`, `scan`, `di
 or `verify`. MCP inspection consumes a previously captured **complete** `ListToolsResult` JSON;
 it does not connect to a server. A capture with a pagination cursor is rejected. Obtain complete
 observations using your operator-controlled discovery process; runtime startup already traverses
-MCP pagination. Installing `.[mcp,trust]` enables MCP and the optional cryptographic verifier.
+MCP pagination. When trust is enabled, runtime bounds discovery to 128 pages, 2,048 tools and 8 MiB
+of serialized tool metadata. The SDK decodes a page before agentsec can measure it, so a single
+message body limit remains the SDK/transport's responsibility. Installing `.[mcp,trust]` enables
+MCP and the optional cryptographic verifier.
 
 ```bash
 .venv/bin/agentsec trust inspect --protected-tool examples/trust/native-tool.json
@@ -18,8 +21,10 @@ MCP pagination. Installing `.[mcp,trust]` enables MCP and the optional cryptogra
   --mcp-tools examples/trust/mcp-tools.json
 .venv/bin/agentsec trust scan examples/trust/mcp-inventory.json \
   --lock examples/trust/mcp-lock.json
+.venv/bin/agentsec trust inspect --mcp-config examples/mcp/gateway.yaml \
+  --mcp-tools examples/trust/mcp-tools.json > /private/tmp/mcp-current.json
 .venv/bin/agentsec trust diff examples/trust/mcp-inventory.json \
-  examples/trust/mcp-inventory.json --format text
+  /private/tmp/mcp-current.json --format text
 .venv/bin/agentsec trust propose examples/trust/native-inventory.json --generation review-2
 .venv/bin/agentsec trust verify examples/trust/native-inventory.json \
   --lock examples/trust/native-lock.json
@@ -29,7 +34,13 @@ MCP pagination. Installing `.[mcp,trust]` enables MCP and the optional cryptogra
 ```
 
 The last command serves the synthetic MCP gateway on stdio; configure it as your host's server
-command. The example native program dispatches a synthetic search, removes its reviewed pin,
+command. Trust-enabled ENFORCE stdio configs require `upstream.launch_boundary: operator_managed`.
+This is an operator assertion that an external deployment boundary controls the executable before
+launch. Agentsec checks it before the SDK starts the process; it does not hash, authenticate or bind
+executable bytes to the process. Without an external OS/deployment control, do not launch an
+untrusted stdio program in this mode. Tool admission occurs only after process initialization and
+discovery. HTTP similarly contacts its endpoint before tool admission, without proving server
+identity. The example native program dispatches a synthetic search, removes its reviewed pin,
 and shows rejection on the next call. The committed example locks are deliberately reviewed
 **synthetic fixtures**, not a production trust recommendation. They never update themselves.
 Changed command paths, transport, metadata or configuration require fresh observations and review.
@@ -40,11 +51,18 @@ against an independently provisioned baseline. Review the source registration, e
 implementation separately; a content-free inventory cannot explain arbitrary implementation
 semantics. Only an operator may change `status` from `PROPOSED` to `REVIEWED` and provision the
 resulting lock out of the agent's write scope. There is deliberately no automatic promotion
-command or discovery-to-admission path. `verify` exits nonzero on failed admission or no candidates.
+command or discovery-to-admission path. `verify` exits nonzero on failed admission, no candidates,
+or absence of a candidate in the lock's optional `required_candidates` set. Pins are allowed-if-
+present by default for compatibility. Strict live MCP startup enforces this set before serving;
+required presence never adds a pin or grants authority.
 CLI verification compares captured observations with reviewed expectations; it does not rehash
 files named by an earlier capture or establish new running-code proof. Runtime configured artifact
-wiring rehashes the actual local file. JSON output is deterministic within the same signature validity window. `diff --format text`
+wiring rehashes the actual local file. JSON output is deterministic within the same signature
+validity window. `diff --format text`
 provides safe field names and digest identities without exposing raw metadata.
+Retain the full approved inventory beside the lock. The lock stores fingerprints rather than
+per-field baselines, so compare that retained inventory with a fresh capture to diagnose schema,
+description, route, artifact or classification drift.
 
 ## Protected Python wiring and adapter routes
 
@@ -113,9 +131,11 @@ On macOS, use canonical `/private/tmp/...` rather than the `/tmp` symlink. A pri
 parent-directory replacement is outside the guarantee. Reads never execute files, import packages,
 start shells, install/download packages, resolve references or contact a registry.
 
-`trust inspect --pyproject /absolute/pyproject.toml` emits a `DECLARED_ONLY` manifest. Requirement
-strings (including private URLs) are represented by opaque declaration digests, including optional
-dependency declarations. It performs no resolution and hashes no installed distributions. Use
+`trust inspect --pyproject /absolute/pyproject.toml` emits a `DECLARED_ONLY` manifest with
+normalized package names, extras, version specifiers and source kind. Private direct-reference URLs
+are not printed; only their digest is included. Declarations for one package are aggregated and
+marked when their constraints or sources differ. Markers and complete declaration text remain
+digest-only. It performs no resolution and hashes no installed distributions. Use
 `--dependencies manifest.json` with tool inspection to bind the reviewed manifest digest. Declared,
 resolved and artifact-hashed facts have distinct schema fields; this importer emits only declared
 facts. Missing observations appear as INCOMPLETE in diffs, even for identical metadata. A manifest
@@ -127,9 +147,12 @@ For runtime local observations, `--trust-inputs inputs.json` accepts a protected
 manifest, and signatures. Python wiring accepts the equivalent immutable signature tuple,
 operator artifact mapping and manifest. The guard rehashes configured files at registration,
 preapproval and final dispatch checks. Paths never enter inventories, assessments or evidence.
-`require_artifact=true` requires configured local bytes matching the full reviewed fingerprint;
-it says nothing about loaded/running code. An operator cannot satisfy running-code attestation
-by attaching an unrelated file, revision string or Docker tag.
+`artifact_digest` and `LOCAL_BYTES` retain their historical meanings: bytes at an operator-selected
+path were observed and rechecked. A candidate-ID-to-path mapping does not prove those bytes belong
+to the route or callable. Accordingly `require_artifact=true` rejects with
+`TRUST_ARTIFACT_ASSOCIATION_UNVERIFIABLE` even when bytes match. It cannot satisfy implementation
+provenance. An operator cannot satisfy running-code attestation by attaching an unrelated file,
+revision string or Docker tag.
 
 Docker image tags and configured runtime flags remain configuration observations. No Docker
 image/daemon interrogation, image download, image byte verification or runsc attestation is added.

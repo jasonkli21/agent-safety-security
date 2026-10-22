@@ -21,6 +21,9 @@ from agentsec.identity.config import IdentityConfig
 class StdioUpstream(SecurityModel):
     transport: Literal["stdio"]
     command: NonEmpty
+    # Operator assertion that a separate OS/deployment boundary controls this executable
+    # before agentsec starts it. This is not a hash or code attestation.
+    launch_boundary: Literal["operator_managed"] | None = None
     args: tuple[str, ...] = ()
     cwd: NonEmpty | None = None
     env: dict[str, str] = Field(default_factory=dict)

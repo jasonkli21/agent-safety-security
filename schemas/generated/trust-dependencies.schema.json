@@ -16,10 +16,36 @@
           "default": null,
           "title": "Artifact Digest"
         },
+        "conflicting_declarations": {
+          "default": false,
+          "title": "Conflicting Declarations",
+          "type": "boolean"
+        },
         "declaration_digest": {
           "pattern": "^sha256:[0-9a-f]{64}$",
           "title": "Declaration Digest",
           "type": "string"
+        },
+        "extras": {
+          "default": [],
+          "items": {
+            "type": "string"
+          },
+          "title": "Extras",
+          "type": "array"
+        },
+        "marker_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Marker Digest"
         },
         "name": {
           "maxLength": 128,
@@ -41,6 +67,34 @@
         "schema_version": {
           "const": "0.1",
           "title": "Schema Version",
+          "type": "string"
+        },
+        "source_digest": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Digest"
+        },
+        "source_kind": {
+          "default": "registry",
+          "enum": [
+            "registry",
+            "direct_url",
+            "unsupported"
+          ],
+          "title": "Source Kind",
+          "type": "string"
+        },
+        "specifier": {
+          "default": "",
+          "title": "Specifier",
           "type": "string"
         }
       },

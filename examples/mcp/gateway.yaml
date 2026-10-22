@@ -4,6 +4,8 @@ server_id: synthetic-tools
 mode: ENFORCE
 upstream:
   transport: stdio
+  # The deployment must independently control the executable before agentsec starts it.
+  launch_boundary: operator_managed
   command: .venv/bin/python
   args: [examples/mcp/upstream_server.py]
   env: {}

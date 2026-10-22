@@ -48,6 +48,11 @@ class TrustGuard:
         self.__lock = TrustLock.model_validate_json(lock.model_dump_json())
         self.__epoch += 1
 
+    @property
+    def required_candidates(self) -> tuple[str, ...]:
+        self.__assert_owner()
+        return self.__lock.required_candidates
+
     def __assert_owner(self) -> None:
         if get_ident() != self.__owner:
             raise RuntimeFailure("TRUST_THREAD_MISMATCH")

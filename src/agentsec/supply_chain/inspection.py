@@ -2,6 +2,7 @@
 
 import hashlib
 import os
+import re
 import stat
 import tomllib
 from pathlib import Path
@@ -113,17 +114,66 @@ def declared_dependencies(path: Path) -> DependencyManifest:
         declarations = [*declarations, *(d for group in optional.values() for d in group)]
         if len(declarations) > 2048 or any(not isinstance(d, str) for d in declarations):
             raise ValueError
-        # Opaque declaration identities avoid parsing requirements incompletely or leaking URLs.
-        dependencies = tuple(
-            Dependency(
-                schema_version="0.1",
-                name="decl-" + content_digest(d)[7:],
-                declaration_digest=content_digest(d),
+        parsed: dict[str, list[tuple[str, tuple[str, ...], str, str | None, str | None, str]]] = {}
+        pattern = re.compile(r"^([A-Za-z0-9][A-Za-z0-9._-]*)(?:\[([A-Za-z0-9._,-]+)\])?(.*)$")
+        for raw in sorted(set(declarations)):
+            body, separator, marker = raw.partition(";")
+            match = pattern.fullmatch(body.strip())
+            if match is None:
+                raise ValueError
+            raw_name, raw_extras, tail = match.groups()
+            name = re.sub(r"[-_.]+", "-", raw_name).lower()
+            extras = tuple(sorted(set((raw_extras or "").split(",")) - {""}))
+            tail = tail.strip()
+            url = None
+            if tail.startswith("@") and tail[1:].strip():
+                url = tail[1:].strip()
+                specifier, source_kind = "", "direct_url"
+            elif re.fullmatch(
+                r"(?:[<>=!~]{1,2}[A-Za-z0-9.*+_-]+(?:\s*,\s*[<>=!~]{1,2}[A-Za-z0-9.*+_-]+)*)?", tail
+            ):
+                specifier, source_kind = tail.replace(" ", ""), "registry"
+            else:
+                raise ValueError
+            parsed.setdefault(name, []).append(
+                (
+                    specifier,
+                    extras,
+                    source_kind,
+                    content_digest(marker.strip()) if separator and marker.strip() else None,
+                    content_digest(url) if url else None,
+                    raw,
+                )
             )
-            for d in sorted(set(declarations))
-        )
+        dependencies = []
+        for name, declarations_for_name in sorted(parsed.items()):
+            specs = sorted({item[0] for item in declarations_for_name})
+            source_kinds = {item[2] for item in declarations_for_name}
+            source_digests = {item[4] for item in declarations_for_name if item[4]}
+            markers = sorted({item[3] for item in declarations_for_name if item[3]})
+            dependencies.append(
+                Dependency(
+                    schema_version="0.1",
+                    name=name,
+                    declaration_digest=content_digest(
+                        sorted({item[5] for item in declarations_for_name})
+                    ),
+                    specifier=" || ".join(specs),
+                    extras=tuple(
+                        sorted({extra for item in declarations_for_name for extra in item[1]})
+                    ),
+                    marker_digest=content_digest(markers) if markers else None,
+                    source_kind="direct_url" if "direct_url" in source_kinds else "registry",
+                    source_digest=content_digest(sorted(source_digests))
+                    if source_digests
+                    else None,
+                    conflicting_declarations=(
+                        len(specs) > 1 or len(source_kinds) > 1 or len(source_digests) > 1
+                    ),
+                )
+            )
         return DependencyManifest(
-            schema_version="0.1", source="local_pyproject", dependencies=dependencies
+            schema_version="0.1", source="local_pyproject", dependencies=tuple(dependencies)
         )
     except (ValueError, TypeError, AttributeError, UnicodeError) as exc:
         raise RuntimeFailure("TRUST_DEPENDENCIES_INVALID") from exc

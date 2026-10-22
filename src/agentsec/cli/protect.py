@@ -8,7 +8,7 @@ from typing import Annotated
 
 import typer
 
-from agentsec.adapters.mcp.config import McpGatewayConfig
+from agentsec.adapters.mcp.config import McpGatewayConfig, StdioUpstream
 from agentsec.adapters.mcp.coverage import configured_resource_coverage_gaps
 from agentsec.contracts.errors import ArtifactValidationError
 from agentsec.contracts.loader import load_artifact, load_contract
@@ -54,6 +54,14 @@ async def run(
         required=config.mode == EnforcementMode.ENFORCE,
         on_failure=lambda: typer.echo("EVIDENCE_WRITE_FAILURE", err=True),
     )
+    if (
+        trust_guard is not None
+        and config.mode == EnforcementMode.ENFORCE
+        and isinstance(config.upstream, StdioUpstream)
+        and config.upstream.launch_boundary != "operator_managed"
+    ):
+        # This check runs before connect() can ask the SDK to spawn the candidate.
+        raise RuntimeFailure("TRUST_STDIO_LAUNCH_BOUNDARY_REQUIRED")
     authority = None
     identity_error = None
     try:
@@ -126,6 +134,13 @@ def protect_mcp(
         )
         loaded_contract = load_contract(contract)
         loaded_config = load_artifact(config, McpGatewayConfig)
+        if (
+            trust_lock
+            and loaded_config.mode == EnforcementMode.ENFORCE
+            and isinstance(loaded_config.upstream, StdioUpstream)
+            and loaded_config.upstream.launch_boundary != "operator_managed"
+        ):
+            raise RuntimeFailure("TRUST_STDIO_LAUNCH_BOUNDARY_REQUIRED")
         configured_provider(loaded_config.identity, loaded_contract.identity.principal)
         # Configuration coverage only: JWT proof is deliberately not required by --check.
         from agentsec.identity.static import StaticIdentityProvider

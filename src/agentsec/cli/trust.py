@@ -143,6 +143,20 @@ def verify_inventory(
         if not candidates.candidates:
             raise RuntimeFailure("TRUST_CANDIDATE_UNOBSERVED")
         baseline = load_json(lock, TrustLock)
+        observed_ids = {c.candidate_id for c in candidates.candidates}
+        missing_required = set(baseline.required_candidates) - observed_ids
+        if missing_required:
+            typer.echo(
+                canonical_json(
+                    {
+                        "schema_version": "0.1",
+                        "complete": False,
+                        "reason": "TRUST_REQUIRED_CANDIDATE_MISSING",
+                        "missing_required_candidates": tuple(sorted(missing_required)),
+                    }
+                )
+            )
+            raise typer.Exit(1)
         proof = load_json(signature, Signature) if signature else None
         results = tuple(
             assess(

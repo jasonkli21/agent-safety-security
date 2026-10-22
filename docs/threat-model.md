@@ -92,7 +92,9 @@ remain outside ordinary agent write access when runtime enforcement is added.
 
 The optional operator-owned supply-chain guard restricts protected implementations through
 RuntimeGateway; it never grants contract or delegated authority. Metadata pins and Ed25519
-signatures do not attest runtime code. Existing approval, evidence, provenance, TLS and isolation
-boundaries remain active. See [supply-chain trust](supply-chain-trust.md) for exact mode behavior,
-route identities, offline replay limits and commands. Independent Phase 7 acceptance is still
-unconfirmed; Phase 8 implementation is awaiting independent review.
+signatures do not attest runtime code. Current residual threat: a substituted local MCP executable
+may have startup effects before tool discovery. Trust-enabled ENFORCE requires an externally
+controlled launch boundary, which agentsec does not verify. Arbitrary observed file bytes are not
+bound to a callable/process. Required candidate presence is explicit and optional. See
+[supply-chain trust](supply-chain-trust.md) for exact proof limits. Independent Phase 7 acceptance
+is still unconfirmed.

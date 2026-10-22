@@ -1862,3 +1862,11 @@ bind exact trust generation, and offline replay compares candidate observations 
 route fidelity without re-verifying signatures or accessing files/tools. Historical hashes and
 serialized omissions remain intact. See [supply-chain trust](supply-chain-trust.md). Independent
 Phase 7 acceptance remains unconfirmed, and Phase 8 needs independent review before release.
+
+For MCP, process/endpoint contact and initialization precede tool discovery. Trust-enabled
+ENFORCE stdio therefore requires an explicit operator-managed launch boundary before the SDK can
+spawn the executable. This is a deployment prerequisite, not an agentsec executable attestation;
+without an external OS control the operator must not launch an untrusted server. Required tool
+presence is a separate optional lock assertion and does not broaden the pin set. Live trust
+discovery is cumulatively bounded, subject to the SDK decoding one page before agentsec can count
+its size. See [MCP runtime](runtime-mcp.md) and [supply-chain trust](supply-chain-trust.md).

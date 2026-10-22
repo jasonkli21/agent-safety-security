@@ -49,8 +49,23 @@ async def create_server(
     if config.mode != runtime.mode:
         raise RuntimeFailure("MODE_MISMATCH")
     discovered, gaps = discover(
-        await list_all_tools(client), config, trust_limits=runtime.trust_enabled
+        await list_all_tools(client, trust_limits=runtime.trust_enabled),
+        config,
+        trust_limits=runtime.trust_enabled,
     )
+    if runtime.trust_enabled and runtime.mode == EnforcementMode.ENFORCE:
+        required = set(runtime.trust_required_candidates)
+        observed = {
+            runtime.trust_candidate(
+                entry.descriptor,
+                trust_route(entry, config),
+                entry.binding.data_sink_destination if entry.binding else None,
+                entry.binding.output_data_labels if entry.binding else None,
+            ).candidate_id
+            for entry in discovered.values()
+        }
+        if required - observed:
+            raise RuntimeFailure("TRUST_REQUIRED_CANDIDATE_MISSING")
     registry = MappingProxyType(discovered)
     request_ids = McpRequestIdentityGuard()
     enforce = config.mode == EnforcementMode.ENFORCE

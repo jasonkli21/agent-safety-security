@@ -12,6 +12,12 @@ from agentsec.domain.taxonomy import SideEffectClass
 class Dependency(VersionedModel):
     name: Identifier
     declaration_digest: Digest
+    specifier: str = ""
+    extras: tuple[str, ...] = ()
+    marker_digest: Digest | None = None
+    source_kind: Literal["registry", "direct_url", "unsupported"] = "registry"
+    source_digest: Digest | None = None
+    conflicting_declarations: bool = False
     provenance: Literal["declared", "resolved", "artifact_hashed"] = "declared"
     artifact_digest: Digest | None = None
 
@@ -19,6 +25,8 @@ class Dependency(VersionedModel):
     def truthful(self) -> Self:
         if (self.provenance == "artifact_hashed") != (self.artifact_digest is not None):
             raise ValueError("TRUST_DEPENDENCY_PROOF_INVALID")
+        if (self.source_kind == "direct_url") != (self.source_digest is not None):
+            raise ValueError("TRUST_DEPENDENCY_SOURCE_INVALID")
         return self
 
 
@@ -120,14 +128,24 @@ class TrustLock(VersionedModel):
     status: Literal["PROPOSED", "REVIEWED"]
     generation: Identifier
     pins: tuple[TrustPin, ...] = Field(max_length=2048)
+    # Empty preserves historical allow-if-present semantics. These IDs assert inventory
+    # completeness only; they never add a pin or grant dispatch authority.
+    required_candidates: tuple[Digest, ...] = Field(default=(), max_length=2048)
     keys: tuple[TrustedKey, ...] = Field(default=(), max_length=128)
 
     @model_validator(mode="after")
     def unique(self) -> Self:
         ids = [p.candidate_id for p in self.pins]
         keys = [k.key_id for k in self.keys]
-        if len(ids) != len(set(ids)) or len(keys) != len(set(keys)):
+        if (
+            len(ids) != len(set(ids))
+            or len(keys) != len(set(keys))
+            or len(self.required_candidates) != len(set(self.required_candidates))
+        ):
             raise ValueError("TRUST_LOCK_DUPLICATE")
+        if set(self.required_candidates) - set(ids):
+            raise ValueError("TRUST_REQUIRED_CANDIDATE_UNPINNED")
+        object.__setattr__(self, "required_candidates", tuple(sorted(self.required_candidates)))
         if any(p.required_signer not in keys for p in self.pins if p.required_signer):
             raise ValueError("TRUST_SIGNER_UNCONFIGURED")
         object.__setattr__(self, "pins", tuple(sorted(self.pins, key=lambda p: p.candidate_id)))
