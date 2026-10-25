@@ -1,9 +1,11 @@
 """MCP-aware checks for policy inputs that must come from tool arguments."""
 
+from __future__ import annotations
+
 from collections.abc import Iterable, Mapping
+from typing import TYPE_CHECKING
 
 from agentsec.adapters.mcp.config import ToolBinding
-from agentsec.adapters.mcp.discovery import DiscoveredTool
 from agentsec.compiler import CompiledSecurityPlan
 from agentsec.compiler.reporting import AdapterAtomProof, AdapterProof
 from agentsec.contracts.models import AgentSecurityContract
@@ -11,6 +13,9 @@ from agentsec.domain.serialization import content_digest
 from agentsec.domain.taxonomy import DataLabel
 from agentsec.runtime.coverage import ResourceCoverage
 from agentsec.runtime.coverage import binding_coverage as _binding_coverage
+
+if TYPE_CHECKING:
+    from agentsec.adapters.mcp.discovery import DiscoveredTool
 
 
 def configured_resource_coverage_gaps(

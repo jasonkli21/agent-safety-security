@@ -3,6 +3,8 @@
 from typing import Literal
 
 Code = Literal[
+    "SIGNATURE_INVALID",
+    "TRUST_UNAVAILABLE",
     "TOKEN_MISSING",
     "TOKEN_INVALID",
     "DENIED",
@@ -16,6 +18,8 @@ Code = Literal[
     "TIMEOUT",
 ]
 STATUS: dict[Code, int] = {
+    "SIGNATURE_INVALID": 422,
+    "TRUST_UNAVAILABLE": 403,
     "TOKEN_MISSING": 401,
     "TOKEN_INVALID": 401,
     "DENIED": 403,

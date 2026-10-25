@@ -74,3 +74,17 @@ Retention purge removes expired receipts only in the selected org. Idempotency t
 governance audit survive. The 1,000 lifetime record ceiling also bounds tombstones and transition
 retry records; reaching it fails closed and requires a future reviewed archival/migration design,
 not deletion/reuse of IDs. This reference is for bounded demonstrations, not a long-running fleet.
+
+## Enterprise reference demo
+
+```sh
+.venv/bin/python examples/team/enterprise_demo.py
+```
+
+Two temporary tenants use separate synthetic issuer/offline signing keys. The demo imports a
+signed candidate as DRAFT, rejects wrong destination, compares a finite restriction plus UNKNOWN,
+requires recipient review/publish, triages a case, expires independent risk acceptance, verifies
+minimized SIEM bytes, rejects tampering, measures a consistent backup and closes enterprise storage
+before the autonomous local graph demo. No live service, model, credentials or external network.
+See the [private reference recipe](private-reference.md) for CLI arguments, recovery, key rotation,
+SIEM mapping/deduplication and support/SLO measurements. Public deployment and SLA are unsupported.

@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "algorithm": {
+      "const": "Ed25519",
+      "default": "Ed25519",
+      "title": "Algorithm",
+      "type": "string"
+    },
+    "byte_length": {
+      "maximum": 1048576,
+      "minimum": 0,
+      "title": "Byte Length",
+      "type": "integer"
+    },
+    "count": {
+      "maximum": 1000,
+      "minimum": 0,
+      "title": "Count",
+      "type": "integer"
+    },
+    "end": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "title": "End",
+      "type": "integer"
+    },
+    "file_digest": {
+      "pattern": "^sha256:[0-9a-f]{64}$",
+      "title": "File Digest",
+      "type": "string"
+    },
+    "format": {
+      "const": "agentsec-siem-jsonl-v1",
+      "default": "agentsec-siem-jsonl-v1",
+      "title": "Format",
+      "type": "string"
+    },
+    "high_water": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "title": "High Water",
+      "type": "integer"
+    },
+    "issued_at": {
+      "format": "date-time",
+      "title": "Issued At",
+      "type": "string"
+    },
+    "key_id": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Key Id",
+      "type": "string"
+    },
+    "local_policy_key": {
+      "const": "siem",
+      "default": "siem",
+      "title": "Local Policy Key",
+      "type": "string"
+    },
+    "origin": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Origin",
+      "type": "string"
+    },
+    "policy_key": {
+      "const": "siem",
+      "default": "siem",
+      "title": "Policy Key",
+      "type": "string"
+    },
+    "purpose": {
+      "const": "export",
+      "default": "export",
+      "title": "Purpose",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "enterprise-v1",
+      "default": "enterprise-v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "start_after": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "title": "Start After",
+      "type": "integer"
+    },
+    "target": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Target",
+      "type": "string"
+    }
+  },
+  "required": [
+    "origin",
+    "target",
+    "key_id",
+    "issued_at",
+    "start_after",
+    "end",
+    "high_water",
+    "count",
+    "byte_length",
+    "file_digest"
+  ],
+  "title": "ExportManifest",
+  "type": "object"
+}

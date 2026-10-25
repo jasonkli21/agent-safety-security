@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "enabled": {
+      "default": true,
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "key_id": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Key Id",
+      "type": "string"
+    },
+    "local_policy_key": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Local Policy Key",
+      "type": "string"
+    },
+    "not_before": {
+      "format": "date-time",
+      "title": "Not Before",
+      "type": "string"
+    },
+    "origin": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Origin",
+      "type": "string"
+    },
+    "policy_key": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Policy Key",
+      "type": "string"
+    },
+    "public_key_pem": {
+      "maxLength": 512,
+      "minLength": 1,
+      "title": "Public Key Pem",
+      "type": "string"
+    },
+    "purpose": {
+      "enum": [
+        "federation",
+        "export"
+      ],
+      "title": "Purpose",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "enterprise-v1",
+      "default": "enterprise-v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "target": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Target",
+      "type": "string"
+    }
+  },
+  "required": [
+    "origin",
+    "target",
+    "policy_key",
+    "local_policy_key",
+    "key_id",
+    "purpose",
+    "public_key_pem",
+    "not_before",
+    "expires_at"
+  ],
+  "title": "Pin",
+  "type": "object"
+}

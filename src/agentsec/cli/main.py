@@ -7,6 +7,7 @@ from typing import Annotated
 import typer
 
 from agentsec.cli.contract import register_contract_commands
+from agentsec.cli.enterprise import app as enterprise_app
 from agentsec.cli.evaluation import app as eval_app
 from agentsec.cli.graph import app as graph_app
 from agentsec.cli.protect import app as protect_app
@@ -25,6 +26,7 @@ contract_app = typer.Typer(no_args_is_help=True)
 scenario_app = typer.Typer(no_args_is_help=True)
 schema_app = typer.Typer(no_args_is_help=True)
 examples_app = typer.Typer(no_args_is_help=True)
+team_app.add_typer(enterprise_app, name="enterprise")
 app.add_typer(team_app, name="team")
 app.add_typer(graph_app, name="graph")
 app.add_typer(trust_app, name="trust")

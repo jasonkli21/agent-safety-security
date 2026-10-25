@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "approve",
+        "reject",
+        "revoke"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "expected_version": {
+      "maximum": 1000000,
+      "minimum": 0,
+      "title": "Expected Version",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "enterprise-v1",
+      "default": "enterprise-v1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "action",
+    "expected_version"
+  ],
+  "title": "RiskTransition",
+  "type": "object"
+}

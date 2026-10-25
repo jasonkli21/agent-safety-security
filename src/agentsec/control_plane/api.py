@@ -24,6 +24,14 @@ from agentsec.control_plane.models import (
 )
 from agentsec.control_plane.service import TeamService
 from agentsec.domain.serialization import canonical_json
+from agentsec.enterprise.models import (
+    CaseInput,
+    CaseTransition,
+    RiskInput,
+    RiskTransition,
+    SimulationInput,
+)
+from agentsec.enterprise.service import EnterpriseService
 
 
 async def body[M: BaseModel](request: Request, model: type[M]) -> M:
@@ -47,6 +55,7 @@ async def body[M: BaseModel](request: Request, model: type[M]) -> M:
 
 def create_app(service: TeamService) -> Starlette:
     verifier = TeamVerifier(service.config)
+    enterprise = EnterpriseService(service)
 
     def token(request: Request) -> VerifiedIdentity:
         values = request.headers.getlist("authorization")
@@ -84,7 +93,12 @@ def create_app(service: TeamService) -> Starlette:
                     "revisions": "revision",
                     "reports": "receipt",
                 }
-                if resource in collections:
+                if len(parts) == 3 and parts[0] == "enterprise" and parts[1] in {"cases", "risks"}:
+                    if request.query_params:
+                        raise TeamError("INVALID_INPUT")
+                    operation = enterprise.case if parts[1] == "cases" else enterprise.risk
+                    result = await run_in_threadpool(operation, identity, org, parts[2])
+                elif resource in collections:
                     result = await run_in_threadpool(
                         service.list_records, identity, org, collections[resource], offset, limit
                     )
@@ -115,7 +129,45 @@ def create_app(service: TeamService) -> Starlette:
             elif request.method == "POST":
                 if request.query_params:
                     raise TeamError("INVALID_INPUT")
-                if resource == "members":
+                if resource == "enterprise/cases":
+                    result = await run_in_threadpool(
+                        enterprise.open_case, identity, org, await body(request, CaseInput)
+                    )
+                elif resource == "enterprise/risks":
+                    result = await run_in_threadpool(
+                        enterprise.request_risk, identity, org, await body(request, RiskInput)
+                    )
+                elif resource == "enterprise/simulate":
+                    result = await run_in_threadpool(
+                        enterprise.simulate, identity, org, await body(request, SimulationInput)
+                    )
+                elif (
+                    len(parts) == 4
+                    and parts[0] == "enterprise"
+                    and parts[3] == "transitions"
+                    and parts[1] == "cases"
+                ):
+                    result = await run_in_threadpool(
+                        enterprise.transition_case,
+                        identity,
+                        org,
+                        parts[2],
+                        await body(request, CaseTransition),
+                    )
+                elif (
+                    len(parts) == 4
+                    and parts[0] == "enterprise"
+                    and parts[3] == "transitions"
+                    and parts[1] == "risks"
+                ):
+                    result = await run_in_threadpool(
+                        enterprise.transition_risk,
+                        identity,
+                        org,
+                        parts[2],
+                        await body(request, RiskTransition),
+                    )
+                elif resource == "members":
                     result = await run_in_threadpool(
                         service.member, identity, org, await body(request, Member)
                     )

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "action": {
+      "enum": [
+        "triage",
+        "mitigate",
+        "resolve",
+        "close",
+        "reopen",
+        "dismiss"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "expected_version": {
+      "maximum": 1000000,
+      "minimum": 0,
+      "title": "Expected Version",
+      "type": "integer"
+    },
+    "resolution": {
+      "anyOf": [
+        {
+          "enum": [
+            "MITIGATED",
+            "FALSE_POSITIVE",
+            "DUPLICATE",
+            "ACCEPTED_RISK"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Resolution"
+    },
+    "schema_version": {
+      "const": "enterprise-v1",
+      "default": "enterprise-v1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "action",
+    "expected_version"
+  ],
+  "title": "CaseTransition",
+  "type": "object"
+}

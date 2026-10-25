@@ -1,0 +1,334 @@
+{
+  "$defs": {
+    "ExportCursor": {
+      "additionalProperties": false,
+      "properties": {
+        "after": {
+          "default": 0,
+          "maximum": 1000000000,
+          "minimum": 0,
+          "title": "After",
+          "type": "integer"
+        },
+        "format": {
+          "const": "agentsec-siem-jsonl-v1",
+          "default": "agentsec-siem-jsonl-v1",
+          "title": "Format",
+          "type": "string"
+        },
+        "org": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Org",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "enterprise-v1",
+          "default": "enterprise-v1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "org"
+      ],
+      "title": "ExportCursor",
+      "type": "object"
+    },
+    "SecurityRecord": {
+      "additionalProperties": false,
+      "properties": {
+        "action": {
+          "enum": [
+            "bootstrap",
+            "member",
+            "agent",
+            "reporter",
+            "draft",
+            "submit",
+            "approve",
+            "reject",
+            "publish",
+            "withdraw",
+            "supersede",
+            "report",
+            "metadata-purge",
+            "federation-import",
+            "case-open",
+            "case-triage",
+            "case-mitigate",
+            "case-resolve",
+            "case-close",
+            "case-reopen",
+            "case-dismiss",
+            "risk-request",
+            "risk-approve",
+            "risk-reject",
+            "risk-revoke"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "actor": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Actor",
+          "type": "string"
+        },
+        "assurance": {
+          "enum": [
+            "GOVERNANCE_RECORD",
+            "REPORTED_UNVERIFIED"
+          ],
+          "title": "Assurance",
+          "type": "string"
+        },
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "case_state": {
+          "anyOf": [
+            {
+              "enum": [
+                "OPEN",
+                "TRIAGED",
+                "MITIGATING",
+                "RESOLVED",
+                "CLOSED",
+                "DISMISSED"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Case State"
+        },
+        "ci": {
+          "anyOf": [
+            {
+              "enum": [
+                "UNKNOWN",
+                "PASS",
+                "FAIL",
+                "ERROR",
+                "INCONCLUSIVE"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ci"
+        },
+        "denied": {
+          "anyOf": [
+            {
+              "maximum": 1000000,
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Denied"
+        },
+        "effect_evidence": {
+          "anyOf": [
+            {
+              "enum": [
+                "NONE",
+                "REPORTED_UNVERIFIED"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Effect Evidence"
+        },
+        "fingerprint": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Fingerprint",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "GOVERNANCE",
+            "CASE",
+            "RISK",
+            "REPORT"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "observation": {
+          "default": "PRESENT",
+          "enum": [
+            "PRESENT",
+            "MISSING"
+          ],
+          "title": "Observation",
+          "type": "string"
+        },
+        "org": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Org",
+          "type": "string"
+        },
+        "policy_alignment": {
+          "anyOf": [
+            {
+              "enum": [
+                "UNKNOWN",
+                "REPORTED_MATCH",
+                "MISMATCH"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Policy Alignment"
+        },
+        "posture_status": {
+          "anyOf": [
+            {
+              "enum": [
+                "UNKNOWN",
+                "STALE",
+                "BLOCKED",
+                "HEALTHY_REPORTED"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Posture Status"
+        },
+        "risk_disposition": {
+          "anyOf": [
+            {
+              "enum": [
+                "REQUESTED",
+                "ACTIVE",
+                "REJECTED",
+                "REVOKED",
+                "EXPIRED",
+                "STALE"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Risk Disposition"
+        },
+        "schema_version": {
+          "const": "enterprise-v1",
+          "default": "enterprise-v1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "sequence": {
+          "maximum": 1000000000,
+          "minimum": 1,
+          "title": "Sequence",
+          "type": "integer"
+        },
+        "severity": {
+          "anyOf": [
+            {
+              "enum": [
+                "LOW",
+                "MEDIUM",
+                "HIGH",
+                "CRITICAL"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Severity"
+        },
+        "target": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Target",
+          "type": "string"
+        },
+        "version": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "org",
+        "sequence",
+        "fingerprint",
+        "at",
+        "actor",
+        "target",
+        "action",
+        "version",
+        "kind",
+        "assurance"
+      ],
+      "title": "SecurityRecord",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "cursor": {
+      "$ref": "#/$defs/ExportCursor"
+    },
+    "high_water": {
+      "maximum": 1000000000,
+      "minimum": 0,
+      "title": "High Water",
+      "type": "integer"
+    },
+    "records": {
+      "items": {
+        "$ref": "#/$defs/SecurityRecord"
+      },
+      "maxItems": 1000,
+      "title": "Records",
+      "type": "array"
+    },
+    "schema_version": {
+      "const": "enterprise-v1",
+      "default": "enterprise-v1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "records",
+    "cursor",
+    "high_water"
+  ],
+  "title": "ExportPage",
+  "type": "object"
+}

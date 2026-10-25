@@ -1,0 +1,146 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agent_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Agent Id"
+    },
+    "assignee": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Assignee",
+      "type": "string"
+    },
+    "case_id": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Case Id",
+      "type": "string"
+    },
+    "category": {
+      "enum": [
+        "POLICY",
+        "IDENTITY",
+        "DATA_FLOW",
+        "SUPPLY_CHAIN",
+        "EVIDENCE"
+      ],
+      "title": "Category",
+      "type": "string"
+    },
+    "created_at": {
+      "format": "date-time",
+      "title": "Created At",
+      "type": "string"
+    },
+    "creator": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Creator",
+      "type": "string"
+    },
+    "receipt_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Receipt Id"
+    },
+    "resolution": {
+      "anyOf": [
+        {
+          "enum": [
+            "MITIGATED",
+            "FALSE_POSITIVE",
+            "DUPLICATE",
+            "ACCEPTED_RISK"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Resolution"
+    },
+    "resolver": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Resolver"
+    },
+    "schema_version": {
+      "const": "enterprise-v1",
+      "default": "enterprise-v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "severity": {
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "CRITICAL"
+      ],
+      "title": "Severity",
+      "type": "string"
+    },
+    "state": {
+      "default": "OPEN",
+      "enum": [
+        "OPEN",
+        "TRIAGED",
+        "MITIGATING",
+        "RESOLVED",
+        "CLOSED",
+        "DISMISSED"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "updated_at": {
+      "format": "date-time",
+      "title": "Updated At",
+      "type": "string"
+    },
+    "version": {
+      "default": 1,
+      "maximum": 1000000,
+      "minimum": 0,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "case_id",
+    "category",
+    "severity",
+    "assignee",
+    "creator",
+    "created_at",
+    "updated_at"
+  ],
+  "title": "IncidentCase",
+  "type": "object"
+}

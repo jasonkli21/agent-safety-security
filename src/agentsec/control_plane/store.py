@@ -13,7 +13,18 @@ from agentsec.control_plane.errors import TeamError
 from agentsec.control_plane.models import Binding
 
 Kind = Literal[
-    "member", "agent", "reporter", "revision", "publication", "receipt", "retry", "tombstone"
+    "member",
+    "agent",
+    "reporter",
+    "revision",
+    "publication",
+    "receipt",
+    "retry",
+    "tombstone",
+    "case",
+    "risk",
+    "enterprise_retry",
+    "federation",
 ]
 DDL = """
 CREATE TABLE orgs (org TEXT PRIMARY KEY);

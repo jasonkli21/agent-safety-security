@@ -27,7 +27,13 @@ If they appear to conflict, do not silently pick whichever is convenient. Prefer
 
 ## 3. Current phase boundary
 
-**Phase 10 optional managed team reference slice and review fixes are implemented; fresh independent review is pending.**
+**Phase 11 bounded enterprise reference is implemented; independent review is pending.**
+See `docs/enterprise-security.md`, the Phase 11 plan and implementation report. Offline signed
+federation imports only recipient DRAFTs; incident/risk workflows, finite fleet comparison and
+signed minimized SIEM exports never supply runtime authority. Existing SQLite schema v1 remains;
+no live migration, hosted service, public listener, automatic activation or SLA is authorized.
+Phase 10 optional managed team reference slice and review fixes remain implemented; fresh
+independent review is pending.
 See `docs/managed-control-plane.md`, the Phase 10 plan and implementation report. It is a
 loopback-only single-instance governance/metadata service, never runtime authority. Phase 9
 review corrections still await fresh independent review; Phase 7–9 acceptance is unconfirmed.
@@ -35,7 +41,7 @@ The review-fix baseline is `6c1a185`; its parent, `1619ac4`, contains the Phase 
 Independent Phase 7–8 acceptance remains unconfirmed; review fixes do not constitute release
 acceptance. Scope, limitations and corrected findings are in `docs/multi-agent-security.md`, the
 Phase 9 plan, implementation report and review-fixes report. Phases 0–8 boundaries remain protected. Hosted control-plane services
-remain out of scope beyond the explicitly optional loopback-only reference slice. Protected operator-created ENFORCE sessions support bounded single-parent
+remain out of scope beyond the explicitly optional Phase 10–11 loopback/offline reference slices. Protected operator-created ENFORCE sessions support bounded single-parent
 local graphs, all-ancestor restrictive authority, exact combined approvals, shared ancestry
 budgets and fixed adjacent messaging with monotonic provenance. Standalone Phase 6 parent chains
 and delegated-agent caps remain unsupported; only explicit `phase9-v1` graph enrollment enables
@@ -56,7 +62,7 @@ identity. Explicit source labels/static sink categories are trusted configuratio
 can relabel context. Generated conformance proves synthetic policy/evidence behavior, not model
 robustness, semantic content detection or complete model-internal taint. Unsupported graph combinations remain explicit. Replay is offline security-semantic substitution, never live tool or model execution. Source
 evidence and replay identities stay separate; material redaction is a blocker. Promotion requires
-explicit safe assertions and never edits security contracts. Beyond the explicit optional Phase 10 reference slice, do not add hosted services, UI,
+explicit safe assertions and never edits security contracts. Beyond the explicit optional Phase 10–11 reference slices, do not add hosted services, UI,
 full OAuth/OIDC lifecycle services, Cedar/OPA, general policy languages, automatic declassification or new sandbox infrastructure. Phase 7 composes with Docker/gVisor;
 RuntimeGateway remains the common security boundary and configured isolation never falls back to host.
 

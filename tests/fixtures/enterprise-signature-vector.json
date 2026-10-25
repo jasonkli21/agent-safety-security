@@ -1,0 +1,4 @@
+{
+  "bytes": "agentsec:enterprise-v1:export\n{\"algorithm\":\"Ed25519\",\"byte_length\":0,\"count\":0,\"end\":0,\"file_digest\":\"sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\",\"format\":\"agentsec-siem-jsonl-v1\",\"high_water\":0,\"issued_at\":\"2026-10-24T12:00:00Z\",\"key_id\":\"exporter\",\"local_policy_key\":\"siem\",\"origin\":\"alpha\",\"policy_key\":\"siem\",\"purpose\":\"export\",\"schema_version\":\"enterprise-v1\",\"start_after\":0,\"target\":\"alpha\"}",
+  "signature": "24b248bfd935924bfcfc9151341a4c4da982a99db3888882217836d80320e0d52f2773e9b5b788cfd41fbcfcaf08b803089ffb0290a4a768fdf26009ea7ce002"
+}

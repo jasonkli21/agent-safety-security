@@ -27,3 +27,6 @@ changes, verification, deviations, remaining limitations, and next-phase readine
 - [Phase 9 independent review corrections](phase-9-review-fixes-report.md)
 
 - [Phase 10 implementation report](phase-10-implementation-report.md) — optional team reference slice and F10-01–04 corrections; fresh independent review pending.
+
+- [Phase 11 implementation report](phase-11-implementation-report.md) — bounded enterprise reference;
+  independent review pending; inherited Phase 7–10 gates remain open.

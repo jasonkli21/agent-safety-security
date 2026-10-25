@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "after": {
+      "default": 0,
+      "maximum": 1000000000,
+      "minimum": 0,
+      "title": "After",
+      "type": "integer"
+    },
+    "format": {
+      "const": "agentsec-siem-jsonl-v1",
+      "default": "agentsec-siem-jsonl-v1",
+      "title": "Format",
+      "type": "string"
+    },
+    "org": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Org",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "enterprise-v1",
+      "default": "enterprise-v1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "org"
+  ],
+  "title": "ExportCursor",
+  "type": "object"
+}

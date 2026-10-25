@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agents": {
+      "items": {
+        "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+        "type": "string"
+      },
+      "maxItems": 100,
+      "minItems": 1,
+      "title": "Agents",
+      "type": "array"
+    },
+    "candidate": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Candidate",
+      "type": "string"
+    },
+    "expected_generation": {
+      "maximum": 1000000,
+      "minimum": 0,
+      "title": "Expected Generation",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "enterprise-v1",
+      "default": "enterprise-v1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "candidate",
+    "expected_generation",
+    "agents"
+  ],
+  "title": "SimulationInput",
+  "type": "object"
+}

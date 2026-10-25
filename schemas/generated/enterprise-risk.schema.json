@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "approver": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Approver"
+    },
+    "decided_at": {
+      "anyOf": [
+        {
+          "format": "date-time",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Decided At"
+    },
+    "expires_at": {
+      "format": "date-time",
+      "title": "Expires At",
+      "type": "string"
+    },
+    "reason": {
+      "enum": [
+        "COMPENSATING_CONTROL",
+        "TIME_BOUND_REMEDIATION",
+        "BUSINESS_CONTINUITY"
+      ],
+      "title": "Reason",
+      "type": "string"
+    },
+    "requested_at": {
+      "format": "date-time",
+      "title": "Requested At",
+      "type": "string"
+    },
+    "requester": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Requester",
+      "type": "string"
+    },
+    "risk_id": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Risk Id",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "enterprise-v1",
+      "default": "enterprise-v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "state": {
+      "default": "REQUESTED",
+      "enum": [
+        "REQUESTED",
+        "APPROVED",
+        "REJECTED",
+        "REVOKED"
+      ],
+      "title": "State",
+      "type": "string"
+    },
+    "target_id": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Target Id",
+      "type": "string"
+    },
+    "target_kind": {
+      "enum": [
+        "case",
+        "revision"
+      ],
+      "title": "Target Kind",
+      "type": "string"
+    },
+    "target_version": {
+      "maximum": 1000000,
+      "minimum": 1,
+      "title": "Target Version",
+      "type": "integer"
+    },
+    "version": {
+      "default": 1,
+      "maximum": 1000000,
+      "minimum": 0,
+      "title": "Version",
+      "type": "integer"
+    }
+  },
+  "required": [
+    "risk_id",
+    "target_kind",
+    "target_id",
+    "target_version",
+    "reason",
+    "expires_at",
+    "requester",
+    "requested_at"
+  ],
+  "title": "RiskAcceptance",
+  "type": "object"
+}

@@ -45,6 +45,27 @@ from agentsec.domain.replay import (
 )
 from agentsec.domain.scenarios import Scenario
 from agentsec.domain.tools import ToolDescriptor
+from agentsec.enterprise.models import (
+    CaseInput,
+    CaseTransition,
+    ExportCursor,
+    ExportManifest,
+    ExportPage,
+    FederatedPolicyBundle,
+    FederationPayload,
+    FleetSimulation,
+    ImportRequest,
+    IncidentCase,
+    Pin,
+    RiskAcceptance,
+    RiskInput,
+    RiskTransition,
+    RiskView,
+    SecurityRecord,
+    SignedExport,
+    SimulationInput,
+    TrustConfig,
+)
 from agentsec.eval.fixtures import TargetFixture
 from agentsec.eval.models import EvaluationResult, EvaluationSummary
 from agentsec.isolation.backends import DockerProfile
@@ -65,6 +86,25 @@ from agentsec.supply_chain.models import (
 )
 
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
+    "enterprise-pin": Pin,
+    "enterprise-trust-config": TrustConfig,
+    "enterprise-federation-payload": FederationPayload,
+    "enterprise-federation-bundle": FederatedPolicyBundle,
+    "enterprise-import-request": ImportRequest,
+    "enterprise-case-input": CaseInput,
+    "enterprise-case": IncidentCase,
+    "enterprise-case-transition": CaseTransition,
+    "enterprise-risk-input": RiskInput,
+    "enterprise-risk": RiskAcceptance,
+    "enterprise-risk-transition": RiskTransition,
+    "enterprise-risk-view": RiskView,
+    "enterprise-simulation-input": SimulationInput,
+    "enterprise-simulation": FleetSimulation,
+    "enterprise-export-cursor": ExportCursor,
+    "enterprise-security-record": SecurityRecord,
+    "enterprise-export-page": ExportPage,
+    "enterprise-export-manifest": ExportManifest,
+    "enterprise-signed-export": SignedExport,
     "team-config": TeamConfig,
     "team-binding": Binding,
     "team-member": Member,

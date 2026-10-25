@@ -134,3 +134,16 @@ limits and protected storage. Local-only HTTP is for synthetic fixtures. No tele
 default. Outage, absent IdP/network, corrupt DB and malformed remote responses fail team operations;
 existing local contracts, approvals, gateway and graph continue autonomously. CLI/JSON replaces
 frontend dashboard, SSO login UX and hosted alerts. No cloud provisioning is included.
+
+## Phase 11 additive enterprise layer
+
+The [enterprise reference](enterprise-security.md) adds new enterprise-v1 record kinds to the
+existing generic org-qualified records table. SQLite remains user_version=1; no DDL upgrade or
+unattended migration occurs. Existing Phase 10 routes and review/publish semantics are unchanged.
+New case/risk/simulation endpoints share JWT/current membership checks; offline federation import
+requires HUMAN draft permission, and bulk SIEM export requires HUMAN OWNER permission. Neither is
+implied by VIEWER source access. Protected offline pins/signing keys are separate from JWT trust.
+Signed origin does not upgrade REPORTED_UNVERIFIED counters, posture or effect evidence. The
+enterprise risk disposition is separate from all underlying flags and CI outcomes. Recovery must
+preserve federation replay high water; restoring older governance history is a security decision.
+Independent Phase 7–11 acceptance remains open.

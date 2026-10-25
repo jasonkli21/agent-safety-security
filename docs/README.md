@@ -38,3 +38,14 @@ slice. Independent Phase 7–8 acceptance remains open; fresh Phase 9 review is 
 The optional loopback-only service supplies governance and minimized, unverified posture. The
 first independent review's four findings have fixes; fresh Phase 10 review is pending. Local
 Phase 0–9 enforcement remains offline-capable; independent acceptance gates remain open.
+
+## Phase 11 enterprise reference
+
+- [Enterprise trust, roles, wire formats and limits](enterprise-security.md)
+- [Phase 11 plan](plans/phase-11-implementation-plan.md)
+- [Phase 11 implementation report](reports/phase-11-implementation-report.md)
+- [Private operations and support recipe](../examples/team/private-reference.md)
+
+Offline signatures authenticate bytes/key, never reporter truth or running code. Risk acceptance
+annotates governance only. Federation never activates policy. Independent Phase 7–11 acceptance
+remains open; production hosting, public listeners, live SIEM and commercial SLA are unsupported.

@@ -1923,3 +1923,19 @@ generation before compare-and-set commit. Restored databases and existing WAL/SH
 admitted only after POSIX owner, regular-file and private-mode checks. Advisory posture separately
 reports policy alignment and effect-evidence dimensions; reporter declarations never attest loaded
 policy or verified effects.
+
+
+## Phase 11 decision: offline enterprise observations do not become authority
+
+The optional enterprise package composes existing team authorization and scoped SQLite records
+without changing the schema version or core domain types. Offline domain-separated Ed25519
+signatures bind independently pinned peer/purpose/scope. Federation verifies and recompiles before
+recipient-owned immutable DRAFT import; replay high water survives key rotation. Recipient review
+and publication remain separate, with no activation path into RuntimeGateway. Case/risk CAS
+transitions are metadata-only governance, and risk dispositions never alter policy/CI/posture.
+Finite fleet simulation snapshots publication/inventory, assesses outside the global write lock
+and rechecks authorization and snapshot. UNKNOWN/UNCLASSIFIED states preserve missing evidence.
+Tenant audit projections produce bounded offline SIEM pages; signatures bind exact output bytes,
+while reporter claims retain REPORTED_UNVERIFIED assurance. Private signing keys never enter
+SQLite/HTTP. See [enterprise security](enterprise-security.md). This is a single-node loopback/offline
+reference, not public hosting, runtime attestation, remote authority, HA or a commercial SLA.

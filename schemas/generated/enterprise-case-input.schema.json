@@ -1,0 +1,77 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agent_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Agent Id"
+    },
+    "assignee": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Assignee",
+      "type": "string"
+    },
+    "case_id": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Case Id",
+      "type": "string"
+    },
+    "category": {
+      "enum": [
+        "POLICY",
+        "IDENTITY",
+        "DATA_FLOW",
+        "SUPPLY_CHAIN",
+        "EVIDENCE"
+      ],
+      "title": "Category",
+      "type": "string"
+    },
+    "receipt_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Receipt Id"
+    },
+    "schema_version": {
+      "const": "enterprise-v1",
+      "default": "enterprise-v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "severity": {
+      "enum": [
+        "LOW",
+        "MEDIUM",
+        "HIGH",
+        "CRITICAL"
+      ],
+      "title": "Severity",
+      "type": "string"
+    }
+  },
+  "required": [
+    "case_id",
+    "category",
+    "severity",
+    "assignee"
+  ],
+  "title": "CaseInput",
+  "type": "object"
+}
