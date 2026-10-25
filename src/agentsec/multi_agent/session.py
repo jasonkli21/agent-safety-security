@@ -64,6 +64,9 @@ class MultiAgentSession:
         self._messages: set[str] = set()
         self._inboxes: dict[str, list[str]] = {}
         self._gateways: dict[str, RuntimeGateway] = {}
+        self._event_owners: dict[RuntimeEvents, str] = {}
+        self._run_owners: dict[str, str] = {}
+        self._trace_owners: dict[str, str] = {}
         self._budgets = HierarchicalBudgets(lambda: self._material, self._owner, budget_clock)
 
     def _owner(self) -> None:
@@ -104,10 +107,20 @@ class MultiAgentSession:
         self._owner()
         if node_id in self._active or node_id in self._gateways or node_id in self._retired:
             raise RuntimeFailure("GRAPH_NODE_ALREADY_ACTIVATED")
-        events.clock = self._clock
         path = self._material.graph.path(node_id)
         if not set(path[:-1]) <= self._active:
             raise RuntimeFailure("GRAPH_ANCESTOR_INACTIVE")
+        if events in self._event_owners:
+            raise RuntimeFailure("GRAPH_EVENT_RECORDER_REUSED")
+        if events.run_id in self._run_owners:
+            raise RuntimeFailure("GRAPH_RUN_ID_REUSED")
+        if events.trace_id in self._trace_owners:
+            raise RuntimeFailure("GRAPH_TRACE_ID_REUSED")
+        events.bind_graph_owner(self, node_id)
+        events.clock = self._clock
+        self._event_owners[events] = node_id
+        self._run_owners[events.run_id] = node_id
+        self._trace_owners[events.trace_id] = node_id
         self._budgets.admit(node_id)
         self._active.add(node_id)
         fact = self._material.participant(node_id)
@@ -160,12 +173,14 @@ class MultiAgentSession:
         material = GraphMaterial(schema_version="0.1", graph=graph, participants=facts)
         previous = self._material
         self._material = material
+        self._budgets.invalidate_stale()
         remaining = {n.node_id for n in material.graph.nodes}
         try:
             for node in tuple(self._active):
                 if node not in remaining:
                     self._active.discard(node)
                     self._retired.add(node)
+                    self._budgets.invalidate_node(node)
                 self._gateways[node].events.emit(
                     GraphEventPayload(
                         schema_version="0.1",
@@ -185,6 +200,7 @@ class MultiAgentSession:
         was_active = node_id in self._active
         self._active.discard(node_id)
         self._retired.add(node_id)
+        self._budgets.invalidate_node(node_id)
         if was_active and node_id in self._gateways:
             self._gateways[node_id].events.emit(
                 GraphEventPayload(

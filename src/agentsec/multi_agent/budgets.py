@@ -116,6 +116,28 @@ class HierarchicalBudgets:
         with self._lock:
             self._pending.pop(token, None)
 
+    def invalidate_node(self, node_id: str) -> None:
+        """Release pending receipts whose protected path includes a retired node."""
+        self._owner()
+        with self._lock:
+            for token, receipt in tuple(self._pending.items()):
+                if node_id in receipt.binding.path:
+                    del self._pending[token]
+
+    def invalidate_stale(self) -> None:
+        """Release pending receipts bound to a superseded graph generation."""
+        self._owner()
+        material = self._material()
+        with self._lock:
+            for token, receipt in tuple(self._pending.items()):
+                try:
+                    current = material.binding(receipt.binding.node_id)
+                except (RuntimeFailure, StopIteration, ValueError):
+                    del self._pending[token]
+                else:
+                    if current != receipt.binding:
+                        del self._pending[token]
+
     def refund(self, token: str) -> None:
         self._owner()
         with self._lock:

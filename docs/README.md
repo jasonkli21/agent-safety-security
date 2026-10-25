@@ -22,6 +22,7 @@ The PRD should remain relatively stable. Architecture changes only for enduring 
 
 
 Phase 9 local multi-agent security: [guide](multi-agent-security.md),
-[implementation report](reports/phase-9-implementation-report.md).
+[implementation report](reports/phase-9-implementation-report.md),
+[review-fixes report](reports/phase-9-review-fixes-report.md).
 Run `.venv/bin/python examples/multi_agent/local_session.py` for the credential-free three-agent
-slice. Independent Phase 7–8 acceptance and Phase 9 review remain open.
+slice. Independent Phase 7–8 acceptance remains open; fresh Phase 9 review is pending.

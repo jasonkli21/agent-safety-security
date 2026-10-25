@@ -2,6 +2,7 @@
 
 import asyncio
 import http.client
+import re
 import ssl
 import time
 from typing import Literal, Self
@@ -181,16 +182,40 @@ def protect_http(gateway: RuntimeGateway, tool: ProtectedTool, config: HttpActio
 def _tls_context(config: HttpAction) -> ssl.SSLContext | None:
     if urlsplit(config.origin).scheme != "https":
         return None
+    ca_pem = config.tls_ca_pem
+    if ca_pem is None:
+        raise RuntimeFailure("HTTP_TLS_CONFIGURATION_INVALID")
     try:
-        # Avoid create_default_context(): it consults SSLKEYLOGFILE and default CA
-        # paths that can be selected through SSL_CERT_FILE/SSL_CERT_DIR.
+        # Some Python/OpenSSL builds seed PROTOCOL_TLS_CLIENT with ambient roots.
+        # Prefer the client protocol, but fall back to an empty generic context if needed.
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_CLIENT)
+        if context.cert_store_stats()["x509_ca"] != 0:
+            context = ssl.SSLContext(ssl.PROTOCOL_TLS)
+        if context.cert_store_stats()["x509_ca"] != 0:
+            raise RuntimeFailure("HTTP_TLS_AMBIENT_CA_STORE")
         context.minimum_version = ssl.TLSVersion.TLSv1_2
         context.verify_mode = ssl.CERT_REQUIRED
         context.check_hostname = True
         # The runtime accepts None to disable key logging; the type stub omits None.
         context.keylog_filename = None  # type: ignore[assignment]
-        context.load_verify_locations(cadata=config.tls_ca_pem)
+        context.load_verify_locations(cadata=ca_pem)
+        certificates = re.findall(
+            r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",
+            ca_pem,
+            flags=re.DOTALL,
+        )
+        remainder = re.sub(
+            r"-----BEGIN CERTIFICATE-----.*?-----END CERTIFICATE-----",
+            "",
+            ca_pem,
+            flags=re.DOTALL,
+        )
+        if not certificates or remainder.strip():
+            raise RuntimeFailure("HTTP_TLS_CA_BUNDLE_INVALID")
+        expected = {ssl.PEM_cert_to_DER_cert(certificate) for certificate in certificates}
+        actual = set(context.get_ca_certs(binary_form=True))
+        if not expected or actual != expected:
+            raise RuntimeFailure("HTTP_TLS_CA_STORE_MISMATCH")
         return context
     except (OSError, ssl.SSLError, ValueError) as exc:
         raise RuntimeFailure("HTTP_TLS_CONFIGURATION_INVALID") from exc

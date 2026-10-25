@@ -71,6 +71,12 @@ a live-path check prevents descendants acting even when their own gateway remain
 Already-entered actions may still finish; revocation does not undo effects. A dispatch event
 records entry intent and may precede a final reentrant rejection; it is not effect verification.
 
+Each participant gets its own `RuntimeEvents` wrapper and unique run/trace identity; wrappers may
+share an event sink. Reusing a wrapper, duplicating a run/trace identity, or mutating a bound
+identity fails before further evidence is written. Source replay binds each admitted node to one
+run, rejects duplicate starts/revocations and permanent-retirement re-admission, and checks that
+all participants and ancestors remain live at message send and import.
+
 ## Budgets
 
 One session-owned `HierarchicalBudgets` coordinator atomically reserves the child's complete
@@ -85,7 +91,10 @@ Post-entry failures retain accounting and carry uncertainty.
 `max_delegated_agents` counts distinct descendant principal IDs ever admitted under each ancestor
 in this local session. Failed later startup does not reset admission history. Retired nodes cannot
 reactivate, graph replacement cannot replace a principal, and counters persist across graph
-replacement. There is no global quota across processes or new sessions.
+replacement. Revocation and graph replacement eagerly release pending receipts whose bound path
+is no longer live; late approvals still fail the final freshness check. Receipts for live paths
+remain reserved, and committed or entered effects remain charged. There is no global quota across
+processes or new sessions.
 
 ## Message route and provenance
 
@@ -137,7 +146,12 @@ prove equality commitments, not what was said or whether a model consumed it.
 
 Supported replay is one recorded graph epoch. Missing ancestors, changed path commitments,
 forged sender/delivery/labels, missing exact approval actions, unresolved reservation lifecycle,
-material redaction, unknown monotonic duration or epoch changes yield INCOMPLETE with blockers.
+retired or inactive participants, duplicate/re-admitted lifecycle events, contradictory per-run
+timestamps, material redaction, unknown monotonic duration or epoch changes yield INCOMPLETE with
+blockers. Request, decision, approval, dispatch, return and exposure facts must retain causal order;
+approval decisions must fall inside their recorded approval window. Cross-run message timestamps
+are checked as facts from this single local session clock, not authenticated time or cross-host
+clock proof.
 Compiled task scope can be recovered only from separately supplied matching protected material;
 its full request digest must match. Candidate graph comparison is separately UNKNOWN/CHANGED/
 UNCHANGED/INCOMPLETE and becomes INCOMPLETE when source fidelity is blocked.

@@ -24,10 +24,24 @@ class RuntimeEvents:
         self.sequence = 0
         self.failed = False
         self.on_failure = on_failure
+        self._graph_owner: tuple[object, str] | None = None
+        self._graph_run_identity: tuple[str, str] | None = None
+
+    def bind_graph_owner(self, owner: object, node_id: str) -> None:
+        """Bind this recorder to one protected graph participant and stable run identity."""
+        if self._graph_owner is not None:
+            raise RuntimeFailure("GRAPH_EVENT_RECORDER_REUSED")
+        self._graph_owner = (owner, node_id)
+        self._graph_run_identity = (self.run_id, self.trace_id)
 
     def emit(self, payload: EventPayload) -> None:
         if self.failed and self.required:
             raise RuntimeFailure("EVIDENCE_WRITE_FAILURE")
+        if self._graph_run_identity is not None and self._graph_run_identity != (
+            self.run_id,
+            self.trace_id,
+        ):
+            raise RuntimeFailure("GRAPH_EVENT_IDENTITY_MUTATED")
         event = SecurityEvent(
             schema_version="0.1",
             event_id=str(uuid4()),

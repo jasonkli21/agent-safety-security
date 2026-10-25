@@ -1891,7 +1891,12 @@ registered as locally verified ancestry. Protected Python wiring is not an in-pr
 
 Minimal GRAPH_EVENT lifecycle/message facts extend canonical evidence without content/grants.
 Offline graph replay reuses pure policy/ledger/provenance over one recorded epoch with explicit
-missing-material blockers and separate candidate graph comparison. Historical incident promotion
+missing-material blockers and separate candidate graph comparison. Replay enforces one run per
+participant, permanent retirement, live ancestry at message release, per-run monotonic event time,
+and request/approval/dispatch/return causality. Runtime revocation and generation replacement
+release pending receipts on paths invalidated by the change while preserving committed effects.
+Participant event wrappers bind to unique, stable run/trace identities; sinks may still be shared.
+Historical incident promotion
 keeps graph cases DRAFT; it does not export protected graph authority automatically. ENFORCE is
 the only supported graph mode; unimplemented mode semantics fail setup. Phase 7 isolation and
 Phase 8 trust remain restrictive and unchanged. New peer/plan enrollment, remote A2A, hosted

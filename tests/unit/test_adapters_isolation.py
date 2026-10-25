@@ -10,6 +10,7 @@ from datetime import timedelta
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from typing import ClassVar
+from urllib.parse import urlsplit
 
 import pytest
 from pydantic import ValidationError
@@ -391,6 +392,7 @@ def test_https_uses_only_protected_ca_without_ambient_tls_effects(
     assert context.minimum_version >= ssl.TLSVersion.TLSv1_2
     assert context.keylog_filename is None and not keylog.exists()
     assert context.cert_store_stats()["x509_ca"] == 1
+    assert set(context.get_ca_certs(binary_form=True)) == {ssl.PEM_cert_to_DER_cert(ca_pem)}
     assert ca_pem not in repr(config)
     gateway, sink = runtime(unrestricted())
     response = asyncio.run(
@@ -401,6 +403,86 @@ def test_https_uses_only_protected_ca_without_ambient_tls_effects(
     assert "P7_TLS_BODY" not in "".join(event.model_dump_json() for event in sink.events)
     with pytest.raises(ValidationError):
         http_config("https://example.invalid")
+
+
+def test_https_fails_closed_if_runtime_preloads_any_ca(monkeypatch):
+    from agentsec.adapters.http import _tls_context
+
+    ca_pem = (Path(__file__).resolve().parents[1] / "fixtures/http-test-ca.pem").read_text()
+    config = http_config("https://localhost", tls_ca_pem=ca_pem)
+    original_context = ssl.SSLContext
+
+    def preloaded_context(protocol):
+        context = original_context(protocol)
+        context.load_verify_locations(cadata=ca_pem)
+        return context
+
+    monkeypatch.setattr(ssl, "SSLContext", preloaded_context)
+    with pytest.raises(RuntimeFailure, match="HTTP_TLS_AMBIENT_CA_STORE"):
+        _tls_context(config)
+
+
+def test_https_rebuilds_empty_store_if_client_context_is_preloaded(monkeypatch):
+    from types import SimpleNamespace
+
+    import agentsec.adapters.http as http_adapter
+    from agentsec.adapters.http import _tls_context
+
+    fixture_dir = Path(__file__).resolve().parents[1] / "fixtures"
+    ca_pem = (fixture_dir / "http-test-ca.pem").read_text()
+    ambient_pem = (fixture_dir / "http-test-untrusted-ca.pem").read_text()
+    config = http_config("https://localhost", tls_ca_pem=ca_pem)
+    original_context = ssl.SSLContext
+
+    def preloaded_client_context(protocol):
+        context = original_context(protocol)
+        if protocol == ssl.PROTOCOL_TLS_CLIENT:
+            context.load_verify_locations(cadata=ambient_pem)
+        return context
+
+    monkeypatch.setattr(
+        http_adapter,
+        "ssl",
+        SimpleNamespace(
+            SSLContext=preloaded_client_context,
+            PROTOCOL_TLS_CLIENT=ssl.PROTOCOL_TLS_CLIENT,
+            PROTOCOL_TLS=ssl.PROTOCOL_TLS,
+            TLSVersion=ssl.TLSVersion,
+            CERT_REQUIRED=ssl.CERT_REQUIRED,
+            SSLError=ssl.SSLError,
+            PEM_cert_to_DER_cert=ssl.PEM_cert_to_DER_cert,
+        ),
+    )
+    context = _tls_context(config)
+    assert context is not None
+    assert set(context.get_ca_certs(binary_form=True)) == {ssl.PEM_cert_to_DER_cert(ca_pem)}
+
+
+@pytest.mark.parametrize("failure", ["wrong_ca", "wrong_hostname"])
+def test_https_rejects_untrusted_ca_and_wrong_hostname(https_server, monkeypatch, failure):
+    if failure == "wrong_ca":
+        ca_pem = (
+            Path(__file__).resolve().parents[1] / "fixtures/http-test-untrusted-ca.pem"
+        ).read_text()
+        origin = https_server
+    else:
+        ca_pem = (Path(__file__).resolve().parents[1] / "fixtures/http-test-ca.pem").read_text()
+        port = urlsplit(https_server).port
+        origin = f"https://localhost:{port}"
+
+        def local_connection(address, timeout=10, source_address=None):
+            assert address == ("localhost", port)
+            connection = socket.socket()
+            connection.settimeout(timeout)
+            _LOCAL_CONNECT(connection, ("127.0.0.1", port))
+            return connection
+
+        monkeypatch.setattr(socket, "create_connection", local_connection)
+    config = http_config(origin, tls_ca_pem=ca_pem)
+    gateway, _ = runtime(unrestricted())
+    with pytest.raises(RuntimeFailure, match="UPSTREAM_FAILURE"):
+        asyncio.run(protect_http(gateway, protected(), config).invoke({"message": "no"}))
+    assert Handler.hits == []
 
 
 def process_request(**updates):

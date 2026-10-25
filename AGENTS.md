@@ -27,11 +27,11 @@ If they appear to conflict, do not silently pick whichever is convenient. Prefer
 
 ## 3. Current phase boundary
 
-**Phase 9 local multi-agent security is implemented and awaiting independent review.**
-The baseline is `1619ac4` (Phase 8 review corrections). Independent Phase 7–8 acceptance
-remains unconfirmed; the explicit user request authorizes Phase 9 implementation, not release
-acceptance. Scope and limitations are in `docs/multi-agent-security.md`, the Phase 9 plan and
-implementation report. Phases 0–8 boundaries remain protected. Hosted control-plane services
+**Phase 9 local multi-agent security is implemented; review corrections are awaiting fresh independent review.**
+The review-fix baseline is `6c1a185`; its parent, `1619ac4`, contains the Phase 8 corrections.
+Independent Phase 7–8 acceptance remains unconfirmed; review fixes do not constitute release
+acceptance. Scope, limitations and corrected findings are in `docs/multi-agent-security.md`, the
+Phase 9 plan, implementation report and review-fixes report. Phases 0–8 boundaries remain protected. Hosted control-plane services
 remain out of scope. Protected operator-created ENFORCE sessions support bounded single-parent
 local graphs, all-ancestor restrictive authority, exact combined approvals, shared ancestry
 budgets and fixed adjacent messaging with monotonic provenance. Standalone Phase 6 parent chains

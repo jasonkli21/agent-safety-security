@@ -2,7 +2,7 @@
 
 A local-first security lifecycle for tool-using AI agents: define explicit authority, test it adversarially, enforce it at runtime, and turn observed failures into regressions.
 
-> **Current status:** Phase 9 local multi-agent graphs, transitive authority, recursive budgets and protected message provenance are implemented. See the [multi-agent guide](docs/multi-agent-security.md) and [implementation report](docs/reports/phase-9-implementation-report.md). Independent Phase 7–8 acceptance remains unconfirmed; Phase 9 awaits independent review.
+> **Current status:** Phase 9 local multi-agent graphs, transitive authority, recursive budgets and protected message provenance are implemented. The initial independent review corrections are complete and await fresh review. See the [multi-agent guide](docs/multi-agent-security.md), [implementation report](docs/reports/phase-9-implementation-report.md) and [review-fixes report](docs/reports/phase-9-review-fixes-report.md). Independent Phase 7–8 acceptance remains unconfirmed.
 
 ## Product thesis
 
@@ -195,4 +195,4 @@ and publisher signatures do not prove loaded or remote running code. See the
 Phase 9 local multi-agent security: [guide](docs/multi-agent-security.md),
 [implementation report](docs/reports/phase-9-implementation-report.md).
 Run `.venv/bin/python examples/multi_agent/local_session.py` for the credential-free three-agent
-slice. Independent Phase 7–8 acceptance and Phase 9 review remain open.
+slice. Independent Phase 7–8 acceptance remains open; fresh Phase 9 review is pending.

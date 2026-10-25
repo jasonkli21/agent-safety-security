@@ -99,11 +99,13 @@ configuration must bind that field to the same value or the route is not covered
 URL userinfo/fragments, scheme-relative paths, control characters, ambiguous headers and
 proxy/host/framing overrides are rejected.
 
-For HTTPS, provide a protected PEM CA bundle as `tls_ca_pem`. The adapter builds an explicit
-TLS 1.2+ client context with hostname and certificate verification enabled. It does not load
-system/environment CA paths and does not enable `SSLKEYLOGFILE`; changing `SSL_CERT_FILE`,
-`SSL_CERT_DIR` or `SSLKEYLOGFILE` cannot change this route's TLS trust or create a key log. The
-CA bundle content is part of the protected route digest and never enters evidence.
+For HTTPS, provide a protected PEM CA bundle as `tls_ca_pem`. The adapter builds an empty
+TLS 1.2+ client context, enables hostname and certificate verification, then checks that the
+context's trust anchors exactly match the supplied bundle. It fails closed if the runtime seeds
+ambient roots or the resulting store differs. It does not load system/environment CA paths and
+does not enable `SSLKEYLOGFILE`; changing `SSL_CERT_FILE`, `SSL_CERT_DIR` or `SSLKEYLOGFILE`
+cannot change this route's TLS trust or create a key log. The CA bundle content is part of the
+protected route digest and never enters evidence.
 
 The standard-library `http.client` transport does not consult HTTP proxy environment variables,
 redirects, retry loops, cookie jars or authentication discovery. Redirect responses fail without

@@ -39,6 +39,7 @@ def setup(
     resources=None,
     root_runtime=None,
     root_timeout=120,
+    activate=True,
 ):
     now = now or [NOW]
     parents = {"a": None, "b": "a", "c": "a" if sibling else "b"}
@@ -125,7 +126,8 @@ def setup(
     sinks, gateways = {}, {}
     for n in parents:
         sinks[n] = InMemoryEventSink()
-        gateways[n] = session.activate(n, RuntimeEvents(sinks[n], clock))
+        if activate:
+            gateways[n] = session.activate(n, RuntimeEvents(sinks[n], clock))
     return session, gateways, sinks, contracts
 
 
@@ -161,6 +163,62 @@ def test_three_principal_chain_read_and_ancestor_deny():
         assert session.material.graph.digest == request.request.graph_binding.graph_digest
 
     asyncio.run(run())
+
+
+def test_graph_activation_requires_unique_runtime_event_identity():
+    from agentsec.domain.events import RunFinishedPayload, RunStartedPayload
+    from agentsec.domain.taxonomy import EventType
+    from agentsec.multi_agent.replay import GraphReplayInput, replay_graph
+
+    session, _, _, _ = setup(activate=False)
+    sink = InMemoryEventSink()
+
+    def clock():
+        return NOW
+
+    first = RuntimeEvents(sink, clock)
+    gateway_a = session.activate("a", first)
+    assert sum(isinstance(event.payload, RunStartedPayload) for event in sink.events) == 1
+
+    with pytest.raises(RuntimeFailure, match="GRAPH_EVENT_RECORDER_REUSED"):
+        session.activate("b", first)
+    duplicate_run = RuntimeEvents(sink, clock)
+    duplicate_run.run_id = first.run_id
+    with pytest.raises(RuntimeFailure, match="GRAPH_RUN_ID_REUSED"):
+        session.activate("b", duplicate_run)
+    duplicate_trace = RuntimeEvents(sink, clock)
+    duplicate_trace.trace_id = first.trace_id
+    with pytest.raises(RuntimeFailure, match="GRAPH_TRACE_ID_REUSED"):
+        session.activate("b", duplicate_trace)
+    assert sum(isinstance(event.payload, RunStartedPayload) for event in sink.events) == 1
+
+    second, third = RuntimeEvents(sink, clock), RuntimeEvents(sink, clock)
+    gateway_b = session.activate("b", second)
+    gateway_c = session.activate("c", third)
+    gateway_c.finish()
+    gateway_b.finish()
+    gateway_a.finish()
+
+    starts = [event for event in sink.events if isinstance(event.payload, RunStartedPayload)]
+    assert len(starts) == 3
+    assert len({event.run_id for event in starts}) == 3
+    assert len({event.trace_id for event in starts}) == 3
+    source = GraphReplayInput(
+        schema_version="0.1",
+        events=tuple(sink.events),
+        material=session.material,
+        source_evidence_digest=content_digest(tuple(sink.events)),
+    )
+    assert replay_graph(source).fidelity == "SECURITY_SEMANTIC"
+
+    mutation_session, _, _, _ = setup(activate=False)
+    mutation_sink = InMemoryEventSink()
+    mutation_events = RuntimeEvents(mutation_sink, clock)
+    mutation_session.activate("a", mutation_events)
+    mutation_events.trace_id = first.trace_id
+    with pytest.raises(RuntimeFailure, match="GRAPH_EVENT_IDENTITY_MUTATED"):
+        mutation_events.emit(RunFinishedPayload(kind=EventType.RUN_FINISHED))
+    assert len(mutation_sink.events) == 2
 
 
 def test_graph_permutation_alias_and_legacy_plan_identity():
@@ -231,6 +289,7 @@ def test_ancestor_approval_and_epoch_aba_rejection():
         assert not any(isinstance(e.payload, ToolDispatchedPayload) for e in sinks["c"].events)
         graph = session.material.graph
         session.replace_graph(graph.model_copy(update={"generation": 2}))
+        assert not session._budgets._pending
         session.replace_graph(graph.model_copy(update={"generation": 3}))
         release.set()
         with pytest.raises(RuntimeFailure, match="GRAPH_BINDING_STALE"):
@@ -240,6 +299,139 @@ def test_ancestor_approval_and_epoch_aba_rejection():
         assert not session._budgets._used
         assert not any(isinstance(e.payload, ToolDispatchedPayload) for e in sinks["c"].events)
         assert (await call(gateways["c"])).success
+
+    asyncio.run(run())
+
+
+def test_revocation_eagerly_releases_only_invalid_pending_paths():
+    async def run():
+        entered, release = asyncio.Event(), asyncio.Event()
+
+        class Waiting(Broker):
+            calls = 0
+
+            async def decide(self, request, presentation):
+                self.calls += 1
+                if self.calls == 1:
+                    entered.set()
+                    await release.wait()
+                return await super().decide(request, presentation)
+
+        session, gateways, sinks, _ = setup(
+            parent_decision="REQUIRE_APPROVAL",
+            budget=1,
+            sibling=True,
+            broker=Waiting(),
+        )
+        pending_b = asyncio.create_task(call(gateways["b"]))
+        await entered.wait()
+        assert len(session._budgets._pending) == 1
+        with pytest.raises(RuntimeFailure, match="BUDGET_EXCEEDED"):
+            await call(gateways["c"])
+
+        session.revoke("b")
+        assert not session._budgets._pending
+        assert (await call(gateways["c"])).success
+        release.set()
+        with pytest.raises(RuntimeFailure, match="GRAPH_ANCESTOR_INACTIVE"):
+            await pending_b
+
+        dispatched = {
+            node: sum(isinstance(event.payload, ToolDispatchedPayload) for event in sink.events)
+            for node, sink in sinks.items()
+        }
+        assert dispatched == {"a": 0, "b": 0, "c": 1}
+        assert session._budgets._used["a"] == [1, 0, 0]
+        assert not session._budgets._pending
+
+    asyncio.run(run())
+
+
+def test_ancestor_revocation_invalidates_every_descendant_approval():
+    async def run():
+        entered_count, release = 0, asyncio.Event()
+        both_entered = asyncio.Event()
+
+        class Waiting(Broker):
+            async def decide(self, request, presentation):
+                nonlocal entered_count
+                entered_count += 1
+                if entered_count == 2:
+                    both_entered.set()
+                await release.wait()
+                return await super().decide(request, presentation)
+
+        session, gateways, sinks, _ = setup(
+            parent_decision="REQUIRE_APPROVAL",
+            budget=2,
+            sibling=True,
+            broker=Waiting(),
+        )
+        pending = [asyncio.create_task(call(gateways[node])) for node in ("b", "c")]
+        await both_entered.wait()
+        assert len(session._budgets._pending) == 2
+        session.revoke("a")
+        assert not session._budgets._pending
+        release.set()
+        for task in pending:
+            with pytest.raises(RuntimeFailure, match="GRAPH_ANCESTOR_INACTIVE"):
+                await task
+        assert not any(
+            isinstance(event.payload, ToolDispatchedPayload)
+            for node in ("b", "c")
+            for event in sinks[node].events
+        )
+        assert all(usage == [0, 0, 0] for usage in session._budgets._used.values())
+        assert not session._budgets._pending
+
+    asyncio.run(run())
+
+
+def test_graph_replacement_releases_receipt_for_removed_participant():
+    async def run():
+        entered, release = asyncio.Event(), asyncio.Event()
+
+        class Waiting(Broker):
+            calls = 0
+
+            async def decide(self, request, presentation):
+                self.calls += 1
+                if self.calls == 1:
+                    entered.set()
+                    await release.wait()
+                return await super().decide(request, presentation)
+
+        session, gateways, sinks, _ = setup(
+            parent_decision="REQUIRE_APPROVAL",
+            budget=1,
+            sibling=True,
+            broker=Waiting(),
+        )
+        pending_b = asyncio.create_task(call(gateways["b"]))
+        await entered.wait()
+        assert len(session._budgets._pending) == 1
+        graph = session.material.graph
+        replacement = graph.model_copy(
+            update={
+                "generation": graph.generation + 1,
+                "nodes": tuple(node for node in graph.nodes if node.node_id != "b"),
+                "edges": tuple(edge for edge in graph.edges if edge.child_id != "b"),
+            }
+        )
+        session.replace_graph(replacement)
+        assert not session._budgets._pending
+        assert (await call(gateways["c"])).success
+        release.set()
+        with pytest.raises(RuntimeFailure, match="GRAPH_NODE_REMOVED"):
+            await pending_b
+        assert (
+            sum(isinstance(event.payload, ToolDispatchedPayload) for event in sinks["c"].events)
+            == 1
+        )
+        assert not any(
+            isinstance(event.payload, ToolDispatchedPayload) for event in sinks["b"].events
+        )
+        assert not session._budgets._pending
 
     asyncio.run(run())
 
@@ -296,6 +488,15 @@ def test_evidence_failure_before_dispatch_compensates_exactly():
 def test_messages_monotonic_labels_and_receiver_evidence_before_release():
     async def run():
         session, gateways, sinks, _ = setup()
+        events = [event for node in ("a", "b", "c") for event in sinks[node].events]
+        for sink in sinks.values():
+            original = sink.append
+
+            def collect(event, original=original):
+                original(event)
+                events.append(event)
+
+            sink.append = collect
         await call(gateways["a"], labels=frozenset({DataLabel.SECRET, DataLabel.PII}))
         route = MessageRoute(session, "a", "b")
         assert (await route.send("untrusted secret body")).success
@@ -333,6 +534,39 @@ def test_messages_monotonic_labels_and_receiver_evidence_before_release():
             await second.send("must be withheld")
         assert session.receive("c") == ()
         assert gateways["c"].provenance.snapshot() == previous
+        from agentsec.multi_agent.replay import GraphReplayInput, replay_graph
+
+        events = tuple(events)
+        source = GraphReplayInput(
+            schema_version="0.1",
+            events=events,
+            material=session.material,
+            source_evidence_digest=content_digest(events),
+            tools=(tool(), route.tool.descriptor, second.tool.descriptor),
+        )
+        replay = replay_graph(source)
+        assert replay.fidelity == "INCOMPLETE"
+        assert "UNCONFIRMED_MESSAGE_DELIVERY" in replay.blockers
+        assert replay.checked_deliveries == 2
+
+    asyncio.run(run())
+
+
+@pytest.mark.parametrize("revoked_node", ["a", "b"])
+def test_message_route_cannot_dispatch_through_revoked_path(revoked_node):
+    async def run():
+        session, _, sinks, _ = setup()
+        route = MessageRoute(session, "b", "c")
+        session.revoke(revoked_node)
+        with pytest.raises(RuntimeFailure, match="GRAPH_ANCESTOR_INACTIVE"):
+            await route.send("must not enter the route")
+        route_tool_id = route.tool.descriptor.tool_id
+        assert not any(
+            isinstance(event.payload, ToolDispatchedPayload)
+            and event.payload.tool_id == route_tool_id
+            for event in sinks["b"].events
+        )
+        assert not session._inboxes.get("c")
 
     asyncio.run(run())
 
@@ -662,7 +896,7 @@ def test_message_replay_checks_causality_labels_and_duplicate_import():
     from agentsec.multi_agent.replay import GraphReplayInput, replay_graph
 
     async def run():
-        session, gateways, sinks, _ = setup()
+        session, gateways, sinks, contracts = setup()
         events = [e for node in ("a", "b", "c") for e in sinks[node].events]
         for sink in sinks.values():
             original = sink.append
@@ -673,8 +907,9 @@ def test_message_replay_checks_causality_labels_and_duplicate_import():
 
             sink.append = collect
         await call(gateways["a"], labels=frozenset({DataLabel.SECRET}))
-        route = MessageRoute(session, "a", "b")
+        route = MessageRoute(session, "b", "c")
         await route.send("never persisted")
+        session.revoke("c")
         for n in ("c", "b", "a"):
             gateways[n].finish()
         source = GraphReplayInput(
@@ -713,6 +948,249 @@ def test_message_replay_checks_causality_labels_and_duplicate_import():
             }
         )
         assert "GRAPH_MESSAGE_LABEL_OR_CONTENT_MISMATCH" in replay_graph(forged).blockers
+
+        imported_event = next(
+            event
+            for event in events
+            if isinstance(event.payload, GraphEventPayload)
+            and event.payload.operation == "MESSAGE_IMPORTED"
+        )
+        revoked_b = next(
+            event
+            for event in events
+            if isinstance(event.payload, GraphEventPayload)
+            and event.payload.operation == "REVOKED"
+            and event.payload.binding.node_id == "c"
+        )
+
+        def source_with(events):
+            copied = tuple(events)
+            return source.model_copy(
+                update={
+                    "events": copied,
+                    "source_evidence_digest": content_digest(copied),
+                }
+            )
+
+        moved_b = []
+        for event in events:
+            if event.event_id == revoked_b.event_id:
+                continue
+            if event.event_id == imported_event.event_id:
+                moved_b.extend(
+                    (
+                        revoked_b.model_copy(update={"sequence": imported_event.sequence}),
+                        imported_event.model_copy(update={"sequence": revoked_b.sequence}),
+                    )
+                )
+            else:
+                moved_b.append(event)
+        revoked_receiver = source_with(moved_b)
+        revoked_result = replay_graph(revoked_receiver)
+        assert revoked_result.fidelity == "INCOMPLETE"
+        assert "GRAPH_ANCESTOR_INACTIVE" in revoked_result.blockers
+        assert revoked_result.checked_deliveries == 0
+
+        revoked_a = next(
+            event
+            for event in events
+            if isinstance(event.payload, GraphEventPayload)
+            and event.payload.operation == "REVOKED"
+            and event.payload.binding.node_id == "a"
+        )
+        moved_ancestor = [event for event in events if event.event_id != revoked_a.event_id]
+        imported_index = next(
+            i for i, event in enumerate(moved_ancestor) if event.event_id == imported_event.event_id
+        )
+        moved_ancestor.insert(imported_index, revoked_a)
+        ancestor_result = replay_graph(source_with(moved_ancestor))
+        assert ancestor_result.fidelity == "INCOMPLETE"
+        assert "GRAPH_ANCESTOR_INACTIVE" in ancestor_result.blockers
+        assert ancestor_result.checked_deliveries == 0
+
+        duplicate_revoke = []
+        for event in events:
+            if event.run_id == revoked_b.run_id and event.sequence > revoked_b.sequence:
+                duplicate_revoke.append(event.model_copy(update={"sequence": event.sequence + 1}))
+                continue
+            duplicate_revoke.append(event)
+            if event.event_id == revoked_b.event_id:
+                duplicate_revoke.append(
+                    revoked_b.model_copy(
+                        update={
+                            "event_id": f"{revoked_b.event_id}-duplicate",
+                            "sequence": revoked_b.sequence + 1,
+                        }
+                    )
+                )
+        duplicate_result = replay_graph(source_with(duplicate_revoke))
+        assert "GRAPH_INVALID_REVOCATION" in duplicate_result.blockers
+
+        start_b = next(
+            event
+            for event in events
+            if event.run_id == revoked_b.run_id and event.event_type.value == "RUN_STARTED"
+        )
+        admitted_b = next(
+            event
+            for event in events
+            if event.run_id == revoked_b.run_id
+            and isinstance(event.payload, GraphEventPayload)
+            and event.payload.operation == "ADMITTED"
+        )
+        from agentsec.domain.events import RunStartedPayload
+
+        re_admission = source_with(
+            (
+                *events,
+                start_b.model_copy(
+                    update={
+                        "event_id": "retired-c-start",
+                        "run_id": "retired-c-run",
+                        "trace_id": "retired-c-trace",
+                        "sequence": 0,
+                    }
+                ),
+                admitted_b.model_copy(
+                    update={
+                        "event_id": "retired-c-admitted",
+                        "run_id": "retired-c-run",
+                        "trace_id": "retired-c-trace",
+                        "sequence": 1,
+                    }
+                ),
+            )
+        )
+        assert isinstance(start_b.payload, RunStartedPayload)
+        assert "GRAPH_DUPLICATE_ADMISSION" in replay_graph(re_admission).blockers
+
+        missing_import = source_with(
+            event for event in events if event.event_id != imported_event.event_id
+        )
+        assert "UNCONFIRMED_MESSAGE_DELIVERY" in replay_graph(missing_import).blockers
+
+        from agentsec.domain.scenarios import ToolNotCalled
+        from agentsec.incident.classify import classify
+        from agentsec.multi_agent.regression import promote_graph, run_graph_case
+        from agentsec.replay.bundle import create_bundle
+
+        invalid_b_events = tuple(e for e in revoked_receiver.events if e.run_id == revoked_b.run_id)
+        bundle = create_bundle(
+            invalid_b_events,
+            contracts["c"],
+            tools=(tool(),),
+            expectations=(ToolNotCalled(type="TOOL_NOT_CALLED", tool_id=tool().tool_id),),
+        )
+        case = promote_graph(bundle, classify(bundle), revoked_receiver, "c")
+        assert case.state == "DRAFT"
+        assert run_graph_case(case, revoked_receiver).status == "BLOCKED"
+
+    asyncio.run(run())
+
+
+def test_graph_replay_rejects_impossible_event_and_approval_times():
+    from agentsec.domain.approvals import NormalizedAction
+    from agentsec.multi_agent.replay import GraphReplayInput, replay_graph
+
+    async def capture(*, parent_decision="ALLOW"):
+        session, gateways, sinks, _ = setup(parent_decision=parent_decision)
+        events = [event for node in ("a", "b", "c") for event in sinks[node].events]
+        for sink in sinks.values():
+            original = sink.append
+
+            def collect(event, original=original):
+                original(event)
+                events.append(event)
+
+            sink.append = collect
+        await call(gateways["c"])
+        for node in ("c", "b", "a"):
+            gateways[node].finish()
+        descriptor = tool()
+        actions = ()
+        if parent_decision == "REQUIRE_APPROVAL":
+            plan = session.material.participant("c").plan
+            actions = (
+                NormalizedAction(
+                    schema_version="0.1",
+                    graph_binding=session.material.binding("c"),
+                    principal=gateways["c"]._authority.credential.principal,
+                    agent_id=plan.agent.agent_id,
+                    environment=plan.environment,
+                    task_id=plan.scope.task_id if plan.scope else None,
+                    capability=READ,
+                    tool_id=descriptor.tool_id,
+                    data_destination="local",
+                    arguments={},
+                    tool_schema_hash=descriptor.schema_hash,
+                    tool_description_hash=descriptor.description_hash,
+                    effective_policy_hash=plan.effective_policy_hash,
+                    authority_digest=gateways["c"]._authority.authority_digest,
+                ),
+            )
+        source = GraphReplayInput(
+            schema_version="0.1",
+            events=tuple(events),
+            material=session.material,
+            source_evidence_digest=content_digest(tuple(events)),
+            actions=actions,
+            tools=(descriptor,),
+        )
+        return source
+
+    async def run():
+        ordinary = await capture()
+        assert len({event.occurred_at for event in ordinary.events}) == 1
+        assert replay_graph(ordinary).fidelity == "SECURITY_SEMANTIC"
+
+        request_event = next(
+            event for event in ordinary.events if isinstance(event.payload, ToolRequestedPayload)
+        )
+        shifted = tuple(
+            event.model_copy(update={"occurred_at": event.occurred_at + timedelta(seconds=30)})
+            if event.event_id == request_event.event_id
+            else event
+            for event in ordinary.events
+        )
+        shifted_source = ordinary.model_copy(
+            update={
+                "events": shifted,
+                "source_evidence_digest": content_digest(shifted),
+            }
+        )
+        shifted_result = replay_graph(shifted_source)
+        assert shifted_result.fidelity == "INCOMPLETE"
+        assert "GRAPH_EVENT_TIME_NONMONOTONIC" in shifted_result.blockers
+
+        approved = await capture(parent_decision="REQUIRE_APPROVAL")
+        assert replay_graph(approved).fidelity == "SECURITY_SEMANTIC"
+        approval_event = next(
+            event for event in approved.events if event.event_type.value == "APPROVAL_DECIDED"
+        )
+        approval_request = next(
+            event.payload.approval
+            for event in approved.events
+            if event.event_type.value == "APPROVAL_REQUESTED"
+        )
+        expired_decision = approval_event.payload.decision.model_copy(
+            update={"decided_at": approval_request.expires_at}
+        )
+        expired_payload = approval_event.payload.model_copy(update={"decision": expired_decision})
+        expired_events = tuple(
+            event.model_copy(update={"payload": expired_payload})
+            if event.event_id == approval_event.event_id
+            else event
+            for event in approved.events
+        )
+        expired_source = approved.model_copy(
+            update={
+                "events": expired_events,
+                "source_evidence_digest": content_digest(expired_events),
+            }
+        )
+        expired_result = replay_graph(expired_source)
+        assert expired_result.fidelity == "INCOMPLETE"
+        assert "GRAPH_APPROVAL_TIME_INVALID" in expired_result.blockers
 
     asyncio.run(run())
 

@@ -152,5 +152,8 @@ messages. Standalone `phase6-v1` behavior and historical digests retain their ex
 The gateway guard applies to direct calls and adapter rebinding. Phase 8 pins restrict tools;
 they do not authenticate peers or approve delegation. See [local multi-agent security](multi-agent-security.md)
 for ownership, evidence-before-import, finality, source replay blockers, DRAFT graph promotion,
-unsupported modes and exact limitations. Earlier one-hop/future-graph statements describe their
-original phase boundary. Independent Phase 7–8 acceptance remains unconfirmed.
+unsupported modes and exact limitations. Each participant uses one stable run/trace identity;
+separate wrappers may share a sink. Graph replay checks lifecycle transitions, message endpoint
+liveness and temporal causality before describing source semantics. Earlier one-hop/future-graph
+statements describe their original phase boundary. Independent Phase 7–8 acceptance remains
+unconfirmed.
