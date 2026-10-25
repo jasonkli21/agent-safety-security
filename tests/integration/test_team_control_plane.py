@@ -556,6 +556,461 @@ def test_posture_unknown_shadow_draft_stale(env):
     assert call(client, "viewer", "posture").json()["agents"][0]["status"] in {"STALE", "BLOCKED"}
 
 
+def test_posture_requires_reported_policy_alignment_and_keeps_effects_unverified(env):
+    service, client = env
+    assert draft(client).status_code == 200
+    assert approve(client).status_code == 200
+    published = transition(client, "owner", "r1", "publish", 3).json()
+    assert (
+        call(
+            client,
+            "owner",
+            "agents",
+            Agent(
+                agent_id="agent",
+                environment="test",
+                repository="repo",
+                owner_id="owner",
+                policy_revision="r1",
+                expected_plan=published["assessment"]["compiled_plan_digest"],
+            ),
+        ).status_code
+        == 200
+    )
+    for name, source in (("reporter", "RUNTIME"), ("ci", "CI")):
+        assert (
+            call(
+                client,
+                "owner",
+                "reporters",
+                Reporter(identity_id=name, agent_id="agent", source=source),
+            ).status_code
+            == 200
+        )
+    assert (
+        call(
+            client,
+            "reporter",
+            "reports",
+            report(mode="ENFORCE", completeness="REPORTED_COMPLETE", policy_revision="r1"),
+        ).status_code
+        == 200
+    )
+    assert (
+        call(
+            client,
+            "ci",
+            "reports",
+            report(
+                run_id=UUID(int=2),
+                source="CI",
+                completeness="REPORTED_COMPLETE",
+                coverage="SYNTHETIC_PASS",
+                ci="PASS",
+                regression="PASS",
+                replay="PASS",
+            ),
+        ).status_code
+        == 200
+    )
+    row = call(client, "viewer", "posture").json()["agents"][0]
+    assert row["status"] == "HEALTHY_REPORTED"
+    assert row["policy_alignment"] == "REPORTED_MATCH"
+    assert row["effect_evidence"] == "NONE"  # A read-only run is not a verified effect.
+    assert row["last_runtime"]["assurance"] == "REPORTED_UNVERIFIED"
+    service.store.close()
+
+
+def test_posture_blocks_mismatch_unknown_replay_and_unverified_dispatch(env):
+    _, client = env
+    enroll(client)
+    assert (
+        call(
+            client,
+            "reporter",
+            "reports",
+            report(
+                mode="ENFORCE",
+                completeness="REPORTED_COMPLETE",
+                counters={"requested": 1, "dispatched": 1},
+            ),
+        ).status_code
+        == 200
+    )
+    assert (
+        call(
+            client,
+            "ci",
+            "reports",
+            report(
+                run_id=UUID(int=2),
+                source="CI",
+                completeness="REPORTED_COMPLETE",
+                coverage="SYNTHETIC_PASS",
+                ci="PASS",
+                regression="PASS",
+                replay="UNKNOWN",
+            ),
+        ).status_code
+        == 200
+    )
+    row = call(client, "viewer", "posture").json()["agents"][0]
+    assert row["status"] == "UNKNOWN"
+    assert "POLICY_UNKNOWN" in row["flags"]
+    assert "GAPS" in row["flags"]
+    assert row["effect_evidence"] == "NONE"
+
+
+def test_posture_marks_superseded_expected_revision_as_mismatch(env):
+    _, client = env
+    first = draft(client, "r1").json()
+    assert approve(client, "r1").status_code == 200
+    assert transition(client, "owner", "r1", "publish", 3).status_code == 200
+    assert (
+        call(
+            client,
+            "owner",
+            "agents",
+            Agent(
+                agent_id="agent",
+                environment="test",
+                repository="repo",
+                owner_id="owner",
+                policy_revision="r1",
+                expected_plan=first["assessment"]["compiled_plan_digest"],
+            ),
+        ).status_code
+        == 200
+    )
+    for name, source in (("reporter", "RUNTIME"), ("ci", "CI")):
+        assert (
+            call(
+                client,
+                "owner",
+                "reporters",
+                Reporter(identity_id=name, agent_id="agent", source=source),
+            ).status_code
+            == 200
+        )
+    second = draft(client, "r2", base=1)
+    assert second.status_code == 200
+    assert approve(client, "r2").status_code == 200
+    assert transition(client, "owner", "r2", "publish", 3).status_code == 200
+    assert (
+        call(
+            client,
+            "reporter",
+            "reports",
+            report(mode="ENFORCE", completeness="REPORTED_COMPLETE", policy_revision="r1"),
+        ).status_code
+        == 200
+    )
+    assert (
+        call(
+            client,
+            "ci",
+            "reports",
+            report(
+                run_id=UUID(int=2),
+                source="CI",
+                completeness="REPORTED_COMPLETE",
+                coverage="SYNTHETIC_PASS",
+                ci="PASS",
+                regression="PASS",
+                replay="PASS",
+            ),
+        ).status_code
+        == 200
+    )
+    row = call(client, "viewer", "posture").json()["agents"][0]
+    assert row["policy_alignment"] == "MISMATCH"
+    assert row["status"] == "UNKNOWN"
+    assert "POLICY_MISMATCH" in row["flags"]
+
+
+def test_bootstrap_rejects_unconfigured_issuer_and_rolls_back(env):
+    service, _ = env
+    wrong = Binding(
+        identity_id="wrong-owner",
+        issuer="https://unconfigured.invalid",
+        subject="wrong-owner",
+        kind=IdentityKind.HUMAN,
+    )
+    with pytest.raises(TeamError, match="DENIED"):
+        service.bootstrap("gamma", wrong)
+    assert (
+        service.store.connection.execute("SELECT 1 FROM orgs WHERE org='gamma'").fetchone() is None
+    )
+    with pytest.raises(TeamError, match="INVALID_INPUT"):
+        service.bootstrap("NOT_VALID", service.store.binding_by_id("owner"))
+
+
+def test_team_init_preflights_owner_and_cleans_failed_new_database(tmp_path, monkeypatch):
+    from typer.testing import CliRunner
+
+    from agentsec.cli.main import app
+
+    config_path, owner_path, db_path = (
+        tmp_path / "config.json",
+        tmp_path / "owner.json",
+        tmp_path / "team.db",
+    )
+    config_path.write_text(CONFIG.model_dump_json())
+    owner_path.write_text(
+        Binding(
+            identity_id="owner",
+            issuer="https://unconfigured.invalid",
+            subject="owner",
+            kind=IdentityKind.HUMAN,
+        ).model_dump_json()
+    )
+    runner = CliRunner()
+    invalid = runner.invoke(
+        app, ["team", "init", str(db_path), str(config_path), str(owner_path), "alpha"]
+    )
+    assert invalid.exit_code == 1
+    assert "INVALID_INPUT" in invalid.output
+    assert not db_path.exists()
+
+    owner_path.write_text(
+        Binding(
+            identity_id="owner",
+            issuer=CONFIG.issuers[0].issuer,
+            subject="owner",
+            kind=IdentityKind.SERVICE,
+        ).model_dump_json()
+    )
+    nonhuman = runner.invoke(
+        app, ["team", "init", str(db_path), str(config_path), str(owner_path), "alpha"]
+    )
+    assert nonhuman.exit_code == 1
+    assert "INVALID_INPUT" in nonhuman.output
+    assert not db_path.exists()
+
+    owner_path.write_text(
+        Binding(
+            identity_id="owner",
+            issuer=CONFIG.issuers[0].issuer,
+            subject="owner",
+            kind=IdentityKind.HUMAN,
+        ).model_dump_json()
+    )
+    bad_org = runner.invoke(
+        app, ["team", "init", str(db_path), str(config_path), str(owner_path), "bad org"]
+    )
+    assert bad_org.exit_code == 1
+    assert "INVALID_INPUT" in bad_org.output
+    assert not db_path.exists()
+
+    owner_path.write_text('{"identity_id":"owner","identity_id":"other"}')
+    malformed = runner.invoke(
+        app, ["team", "init", str(db_path), str(config_path), str(owner_path), "alpha"]
+    )
+    assert malformed.exit_code == 1
+    assert not db_path.exists()
+
+    owner_path.write_text(
+        Binding(
+            identity_id="owner",
+            issuer=CONFIG.issuers[0].issuer,
+            subject="owner",
+            kind=IdentityKind.HUMAN,
+        ).model_dump_json()
+    )
+    original = TeamService.bootstrap
+
+    def fail_bootstrap(self, org, owner):
+        raise RuntimeError("injected")
+
+    monkeypatch.setattr(TeamService, "bootstrap", fail_bootstrap)
+    failed = runner.invoke(
+        app, ["team", "init", str(db_path), str(config_path), str(owner_path), "alpha"]
+    )
+    assert failed.exit_code == 1
+    assert "TEAM_OPERATION_FAILED" in failed.output
+    assert not db_path.exists()
+    monkeypatch.setattr(TeamService, "bootstrap", original)
+    success = runner.invoke(
+        app, ["team", "init", str(db_path), str(config_path), str(owner_path), "alpha"]
+    )
+    assert success.exit_code == 0, success.output
+    service = TeamService(Store(db_path), CONFIG, lambda: NOW)
+    identity = TeamVerifier(CONFIG).verify(token("owner"), NOW)
+    assert service.posture(identity, "alpha").org_id == "alpha"
+    service.store.close()
+
+
+def test_team_init_does_not_replace_existing_database(tmp_path):
+    from typer.testing import CliRunner
+
+    from agentsec.cli.main import app
+
+    db_path = tmp_path / "existing.db"
+    original = fixture.setup(db_path).store
+    original.close()
+    before = db_path.read_bytes()
+    config_path, owner_path = tmp_path / "config.json", tmp_path / "owner.json"
+    config_path.write_text(CONFIG.model_dump_json())
+    owner_path.write_text(
+        Binding(
+            identity_id="new-owner",
+            issuer=CONFIG.issuers[0].issuer,
+            subject="new-owner",
+            kind=IdentityKind.HUMAN,
+        ).model_dump_json()
+    )
+    result = CliRunner().invoke(
+        app, ["team", "init", str(db_path), str(config_path), str(owner_path), "gamma"]
+    )
+    assert result.exit_code == 1
+    assert db_path.read_bytes() == before
+
+
+@pytest.mark.parametrize("mode", [0o644, 0o660])
+def test_store_rejects_restored_database_with_group_or_world_access(tmp_path, mode):
+    path = tmp_path / "team.db"
+    fixture.setup(path).store.close()
+    path.chmod(mode)
+    with pytest.raises(TeamError, match="STORE_UNAVAILABLE"):
+        Store(path)
+
+
+def test_store_rejects_symlink_and_accepts_private_database(tmp_path):
+    path = tmp_path / "team.db"
+    fixture.setup(path).store.close()
+    assert Store(path).connection.execute("PRAGMA user_version").fetchone()[0] == 1
+    Store(path).close()
+    alias = tmp_path / "alias.db"
+    alias.symlink_to(path)
+    with pytest.raises(TeamError, match="STORE_UNAVAILABLE"):
+        Store(alias)
+
+
+def test_store_rejects_unsafe_existing_wal_sidecar(tmp_path):
+    path = tmp_path / "team.db"
+    fixture.setup(path).store.close()
+    wal = Path(str(path) + "-wal")
+    wal.write_bytes(b"synthetic")
+    wal.chmod(0o644)
+    with pytest.raises(TeamError, match="STORE_UNAVAILABLE"):
+        Store(path)
+
+
+def test_first_party_incomplete_runtime_projection_cannot_be_healthy(env):
+    from agentsec.control_plane.metadata import project_events
+
+    _, client = env
+    enroll(client)
+    runtime = project_events(
+        events=(),
+        run_id=UUID(int=101),
+        agent_id="agent",
+        environment="test",
+        repository="repo",
+        start=NOW - timedelta(seconds=2),
+        end=NOW,
+    )
+    assert call(client, "reporter", "reports", runtime).status_code == 200
+    assert (
+        call(
+            client,
+            "ci",
+            "reports",
+            report(
+                run_id=UUID(int=102),
+                source="CI",
+                completeness="REPORTED_COMPLETE",
+                coverage="SYNTHETIC_PASS",
+                ci="PASS",
+                regression="PASS",
+                replay="PASS",
+            ),
+        ).status_code
+        == 200
+    )
+    row = call(client, "viewer", "posture").json()["agents"][0]
+    assert row["status"] == "UNKNOWN"
+    assert "INCOMPLETE" in row["flags"]
+    assert row["policy_alignment"] == "UNKNOWN"
+
+
+def test_slow_policy_assessment_does_not_block_other_tenant_read(env, monkeypatch):
+    import threading
+    import time
+
+    import agentsec.control_plane.service as service_module
+
+    service, _ = env
+    started, release = threading.Event(), threading.Event()
+    original = service_module.assess
+
+    def slow(source, previous):
+        started.set()
+        assert release.wait(5)
+        return original(source, previous)
+
+    monkeypatch.setattr(service_module, "assess", slow)
+    identity = TeamVerifier(CONFIG).verify(token("editor"), NOW)
+    request = RevisionInput(
+        revision_id="slow",
+        policy_key="policy",
+        source=SOURCE,
+        upload_source=True,
+        base_generation=0,
+    )
+    with ThreadPoolExecutor(2) as pool:
+        pending = pool.submit(service.create_revision, identity, "alpha", request)
+        assert started.wait(5)
+        before = time.monotonic()
+        result = service.posture(TeamVerifier(CONFIG).verify(token("other"), NOW), "beta")
+        elapsed = time.monotonic() - before
+        release.set()
+        assert pending.result(timeout=5).revision_id == "slow"
+    assert result.org_id == "beta"
+    assert elapsed < 0.3
+
+
+def test_reviewer_revocation_during_staged_assessment_is_rechecked(env, monkeypatch):
+    import threading
+
+    import agentsec.control_plane.service as service_module
+
+    service, client = env
+    assert draft(client).status_code == 200
+    assert transition(client, "editor", "r1", "submit", 1).status_code == 200
+    started, release = threading.Event(), threading.Event()
+    original = service_module.assess
+
+    def slow(source, previous):
+        started.set()
+        assert release.wait(5)
+        return original(source, previous)
+
+    monkeypatch.setattr(service_module, "assess", slow)
+    reviewer = TeamVerifier(CONFIG).verify(token("reviewer"), NOW)
+    review = Transition(
+        action="approve",
+        expected_version=2,
+        acknowledge_initial=True,
+        acknowledge_expansion=True,
+        acknowledge_gaps=True,
+        review_reason="INITIAL_POLICY",
+    )
+    with ThreadPoolExecutor(2) as pool:
+        pending = pool.submit(service.transition, reviewer, "alpha", "r1", review)
+        assert started.wait(5)
+        owner = TeamVerifier(CONFIG).verify(token("owner"), NOW)
+        service.member(
+            owner,
+            "alpha",
+            Member(identity_id="reviewer", role=Role.REVIEWER, enabled=False, expected_version=1),
+        )
+        release.set()
+        with pytest.raises(TeamError, match="DENIED"):
+            pending.result(timeout=5)
+    assert call(client, "viewer", "revisions/r1").json()["state"] == "IN_REVIEW"
+
+
 def test_safe_http_errors_and_store_outage(env):
     service, client = env
     assert call(client, "viewer", "agents?limit=101").status_code == 422

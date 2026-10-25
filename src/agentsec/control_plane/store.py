@@ -1,6 +1,8 @@
 """Single-instance transactional SQLite with tenant-qualified storage operations."""
 
+import os
 import sqlite3
+import stat
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -139,12 +141,19 @@ class ScopedStore:
 class Store:
     def __init__(self, path: Path, *, initialize: bool = False) -> None:
         self.lock = RLock()
+        created = False
         try:
             if initialize:
                 # Explicit exclusive creation; never overwrite an existing DB.
                 with path.open("xb"):
                     pass
+                created = True
                 path.chmod(0o600)
+            else:
+                self._check_private_database(path)
+            original = path.stat(follow_symlinks=False)
+            if not stat.S_ISREG(original.st_mode):
+                raise ValueError
             self.connection = sqlite3.connect(
                 path.resolve().as_uri() + "?mode=rw",
                 uri=True,
@@ -152,6 +161,9 @@ class Store:
                 check_same_thread=False,
                 isolation_level=None,
             )
+            opened = path.stat(follow_symlinks=False)
+            if (opened.st_dev, opened.st_ino) != (original.st_dev, original.st_ino):
+                raise ValueError
             self.connection.execute("PRAGMA foreign_keys=ON")
             self.connection.execute("PRAGMA journal_mode=WAL")
             if initialize:
@@ -163,7 +175,48 @@ class Store:
             self.connection.execute("SELECT org FROM orgs LIMIT 0")
             self.connection.execute("SELECT body FROM bindings LIMIT 0")
         except (OSError, sqlite3.Error, ValueError):
+            connection = getattr(self, "connection", None)
+            if connection is not None:
+                try:
+                    connection.close()
+                except sqlite3.Error:
+                    pass
+            if created:
+                self._remove_created_files(path)
             raise TeamError("STORE_UNAVAILABLE") from None
+
+    @staticmethod
+    def _check_private_database(path: Path) -> None:
+        """Reject unsafe restored DBs before SQLite reads their contents (POSIX)."""
+        if os.name != "posix":
+            raise ValueError
+        Store._check_private_file(path, required=True)
+        for suffix in ("-wal", "-shm"):
+            Store._check_private_file(Path(str(path) + suffix), required=False)
+
+    @staticmethod
+    def _check_private_file(path: Path, *, required: bool) -> None:
+        try:
+            info = path.stat(follow_symlinks=False)
+        except FileNotFoundError:
+            if required:
+                raise
+            return
+        if not stat.S_ISREG(info.st_mode) or info.st_uid != os.geteuid() or info.st_mode & 0o077:
+            raise ValueError
+
+    @staticmethod
+    def _remove_created_files(path: Path) -> None:
+        for suffix in ("", "-wal", "-shm"):
+            try:
+                Path(str(path) + suffix).unlink()
+            except FileNotFoundError:
+                pass
+
+    def discard_new_database(self, path: Path) -> None:
+        """Remove only a database created by this Store after failed first bootstrap."""
+        self.close()
+        self._remove_created_files(path)
 
     @contextmanager
     def transaction(self) -> Iterator[None]:

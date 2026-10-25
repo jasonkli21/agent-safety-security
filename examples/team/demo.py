@@ -128,6 +128,11 @@ def main() -> None:
         print("team-v1: two tenants, independent review/publication; fetch without activation")
         print("scoped CI receipt: REPORTED_UNVERIFIED; DRAFT regression preserved")
         print("advisory posture:", posture["agents"][0]["status"], posture["agents"][0]["flags"])
+        print(
+            "policy/effect evidence:",
+            posture["agents"][0]["policy_alignment"],
+            posture["agents"][0]["effect_evidence"],
+        )
         print("cross-tenant access and revoked reporter: DENIED")
         service.store.close()
         request("viewer", "posture", expected=503)

@@ -8,6 +8,15 @@
           "title": "Agent Id",
           "type": "string"
         },
+        "effect_evidence": {
+          "default": "NONE",
+          "enum": [
+            "NONE",
+            "REPORTED_UNVERIFIED"
+          ],
+          "title": "Effect Evidence",
+          "type": "string"
+        },
         "flags": {
           "items": {
             "enum": [
@@ -16,7 +25,9 @@
               "GAPS",
               "CI_FAILURE",
               "INCOMPLETE",
-              "DISABLED"
+              "DISABLED",
+              "POLICY_UNKNOWN",
+              "POLICY_MISMATCH"
             ],
             "type": "string"
           },
@@ -55,6 +66,16 @@
             }
           ],
           "default": null
+        },
+        "policy_alignment": {
+          "default": "UNKNOWN",
+          "enum": [
+            "UNKNOWN",
+            "REPORTED_MATCH",
+            "MISMATCH"
+          ],
+          "title": "Policy Alignment",
+          "type": "string"
         },
         "schema_version": {
           "const": "team-v1",
@@ -228,6 +249,19 @@
           "format": "date-time",
           "title": "Period Start",
           "type": "string"
+        },
+        "policy_revision": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Policy Revision"
         },
         "regression": {
           "default": "UNKNOWN",

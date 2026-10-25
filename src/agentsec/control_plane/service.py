@@ -88,11 +88,20 @@ class TeamService:
         """Explicit offline operator operation. Never exposed through HTTP."""
         org = identifier(org)
         owner = checked_model(Binding, owner)
-        if owner.kind != IdentityKind.HUMAN:
+        if owner.kind != IdentityKind.HUMAN or owner.issuer not in {
+            issuer.issuer for issuer in self.config.issuers
+        }:
             raise TeamError("DENIED")
         with self.store.transaction():
-            bound = self.store.binding_by_id(owner.identity_id)
-            if bound != owner:
+            row = self.store.connection.execute(
+                "SELECT body FROM bindings WHERE identity=?", (owner.identity_id,)
+            ).fetchone()
+            if row is None:
+                self.store.connection.execute(
+                    "INSERT INTO bindings VALUES (?,?,?,?)",
+                    (owner.identity_id, owner.issuer, owner.subject, owner.model_dump_json()),
+                )
+            elif Binding.model_validate_json(str(row[0])) != owner:
                 raise TeamError("DENIED")
             self.store.connection.execute("INSERT INTO orgs VALUES (?)", (org,))
             scope = self.store.scoped(org)
@@ -222,6 +231,8 @@ class TeamService:
         self, identity: VerifiedIdentity, org: str, value: RevisionInput
     ) -> Revision:
         value = checked_model(RevisionInput, value)
+        # Take an authenticated immutable input snapshot, then do parser/compiler/eval work
+        # without holding the process-wide SQLite write lock.
         with self.authorized(identity, org, "draft") as (scope, actor):
             old = scope.get("revision", value.revision_id)
             if old:
@@ -238,7 +249,35 @@ class TeamService:
             if publication.generation != value.base_generation:
                 raise TeamError("CONFLICT")
             previous = scope.source(publication.revision_id)[0] if publication.revision_id else None
-            assessment = assess(value.source, previous)
+            author_id = actor.identity_id
+            generation = publication.generation
+        assessment = assess(value.source, previous)
+        with self.authorized(identity, org, "draft") as (scope, actor):
+            if actor.identity_id != author_id:
+                raise TeamError("DENIED")
+            concurrent = scope.get("revision", value.revision_id)
+            if concurrent is not None:
+                revision = Revision.model_validate_json(concurrent[1])
+                if (
+                    scope.source(value.revision_id)[0],
+                    revision.policy_key,
+                    revision.author,
+                    revision.base_generation,
+                ) == (value.source, value.policy_key, actor.identity_id, value.base_generation):
+                    return revision
+                raise TeamError("CONFLICT")
+            current_publication = self.publication(scope, value.policy_key)
+            current_previous = (
+                scope.source(current_publication.revision_id)[0]
+                if current_publication.revision_id
+                else None
+            )
+            if (
+                current_publication.generation != generation
+                or current_publication.generation != value.base_generation
+                or current_previous != previous
+            ):
+                raise TeamError("CONFLICT")
             revision = Revision(
                 revision_id=value.revision_id,
                 policy_key=value.policy_key,
@@ -265,6 +304,38 @@ class TeamService:
             "publish": "publish",
             "withdraw": "publish",
         }[value.action]  # type: ignore[assignment]
+        staged_assessment = None
+        staged_snapshot: tuple[str, str | None, int] | None = None
+        if value.action in {"submit", "approve", "publish"}:
+            digest = content_digest(value)
+            with self.authorized(identity, org, permission) as (scope, actor):
+                retry_id = f"{revision_id}-{value.expected_version}"
+                retry = scope.get("retry", retry_id)
+                if retry:
+                    record = Retry.model_validate_json(retry[1])
+                    if record.digest != digest or record.identity_id != actor.identity_id:
+                        raise TeamError("CONFLICT")
+                    return record.result
+                version, body = required(scope, "revision", revision_id)
+                if version != value.expected_version:
+                    raise TeamError("CONFLICT")
+                revision = Revision.model_validate_json(body)
+                allowed_states = {
+                    "submit": {"DRAFT"},
+                    "approve": {"IN_REVIEW"},
+                    "publish": {"APPROVED"},
+                }
+                if revision.state not in allowed_states[value.action]:
+                    raise TeamError("CONFLICT")
+                if value.action == "approve" and revision.author == actor.identity_id:
+                    raise TeamError("DENIED")
+                publication = self.publication(scope, revision.policy_key)
+                source, _ = scope.source(revision_id)
+                previous = (
+                    scope.source(publication.revision_id)[0] if publication.revision_id else None
+                )
+                staged_snapshot = (source, previous, publication.generation)
+            staged_assessment = assess(staged_snapshot[0], staged_snapshot[1])
         with self.authorized(identity, org, permission) as (scope, actor):
             retry_id = f"{revision_id}-{value.expected_version}"
             digest = content_digest(value)
@@ -297,7 +368,10 @@ class TeamService:
                 previous = (
                     scope.source(publication.revision_id)[0] if publication.revision_id else None
                 )
-                assessment = assess(source, previous)
+                if staged_snapshot != (source, previous, publication.generation):
+                    raise TeamError("CONFLICT")
+                assert staged_assessment is not None
+                assessment = staged_assessment
                 if assessment.model_dump_json() != locked or assessment != revision.assessment:
                     raise TeamError("POLICY_BLOCKED")
                 if (
@@ -499,7 +573,16 @@ class TeamService:
                 runtime = newest_report(reports, "RUNTIME")
                 ci = newest_report(reports, "CI")
                 flags: list[
-                    Literal["NO_REPORT", "STALE", "GAPS", "CI_FAILURE", "INCOMPLETE", "DISABLED"]
+                    Literal[
+                        "NO_REPORT",
+                        "STALE",
+                        "GAPS",
+                        "CI_FAILURE",
+                        "INCOMPLETE",
+                        "DISABLED",
+                        "POLICY_UNKNOWN",
+                        "POLICY_MISMATCH",
+                    ]
                 ] = []
                 if not agent.enabled:
                     flags.append("DISABLED")
@@ -515,14 +598,50 @@ class TeamService:
                         flags.append("STALE")
                     if value.completeness != "REPORTED_COMPLETE":
                         flags.append("INCOMPLETE")
+                effect_evidence: Literal["NONE", "REPORTED_UNVERIFIED"] = "NONE"
                 if runtime is not None:
                     if runtime.report.mode in {"SHADOW", "DISABLED"}:
                         flags.append("DISABLED")
                     elif runtime.report.mode == "UNKNOWN":
                         flags.append("GAPS")
+                    if runtime.report.counters.dispatched:
+                        if runtime.report.counters.effect_verified:
+                            effect_evidence = "REPORTED_UNVERIFIED"
+                        else:
+                            effect_evidence = "NONE"
+                            flags.append("GAPS")
+                    else:
+                        effect_evidence = "NONE"
+                else:
+                    effect_evidence = "NONE"
+
+                policy_alignment: Literal["UNKNOWN", "REPORTED_MATCH", "MISMATCH"] = "UNKNOWN"
+                if agent.policy_revision is not None:
+                    configured = scope.get("revision", agent.policy_revision)
+                    if configured is None:
+                        policy_alignment = "MISMATCH"
+                    else:
+                        expected_revision = Revision.model_validate_json(configured[1])
+                        if (
+                            expected_revision.state != "PUBLISHED"
+                            or expected_revision.assessment.compiled_plan_digest
+                            != agent.expected_plan
+                        ):
+                            policy_alignment = "MISMATCH"
+                        elif runtime is not None and runtime.report.policy_revision is not None:
+                            policy_alignment = (
+                                "REPORTED_MATCH"
+                                if runtime.report.policy_revision == agent.policy_revision
+                                else "MISMATCH"
+                            )
+                if policy_alignment == "UNKNOWN":
+                    flags.append("POLICY_UNKNOWN")
+                elif policy_alignment == "MISMATCH":
+                    flags.append("POLICY_MISMATCH")
                 if ci is not None:
                     if (
                         ci.report.replay == "BLOCKED"
+                        or ci.report.replay == "UNKNOWN"
                         or ci.report.coverage != "SYNTHETIC_PASS"
                         or ci.report.regression in {"UNKNOWN", "DRAFT"}
                         or ci.report.ci == "UNKNOWN"
@@ -533,6 +652,8 @@ class TeamService:
                         "ERROR",
                         "INCONCLUSIVE",
                     } or ci.report.regression in {"FAIL", "ERROR"}:
+                        flags.append("CI_FAILURE")
+                    if ci.report.replay == "FAIL":
                         flags.append("CI_FAILURE")
                 status: Literal["UNKNOWN", "STALE", "BLOCKED", "HEALTHY_REPORTED"] = (
                     "BLOCKED"
@@ -547,6 +668,8 @@ class TeamService:
                     AgentPosture(
                         agent_id=agent.agent_id,
                         status=status,
+                        policy_alignment=policy_alignment,
+                        effect_evidence=effect_evidence,
                         flags=tuple(dict.fromkeys(flags)),
                         last_report=last,
                         last_runtime=runtime,

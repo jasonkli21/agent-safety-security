@@ -27,7 +27,7 @@ If they appear to conflict, do not silently pick whichever is convenient. Prefer
 
 ## 3. Current phase boundary
 
-**Phase 10 optional managed team reference slice is implemented and awaiting independent review.**
+**Phase 10 optional managed team reference slice and review fixes are implemented; fresh independent review is pending.**
 See `docs/managed-control-plane.md`, the Phase 10 plan and implementation report. It is a
 loopback-only single-instance governance/metadata service, never runtime authority. Phase 9
 review corrections still await fresh independent review; Phase 7–9 acceptance is unconfirmed.
@@ -35,7 +35,7 @@ The review-fix baseline is `6c1a185`; its parent, `1619ac4`, contains the Phase 
 Independent Phase 7–8 acceptance remains unconfirmed; review fixes do not constitute release
 acceptance. Scope, limitations and corrected findings are in `docs/multi-agent-security.md`, the
 Phase 9 plan, implementation report and review-fixes report. Phases 0–8 boundaries remain protected. Hosted control-plane services
-remain out of scope. Protected operator-created ENFORCE sessions support bounded single-parent
+remain out of scope beyond the explicitly optional loopback-only reference slice. Protected operator-created ENFORCE sessions support bounded single-parent
 local graphs, all-ancestor restrictive authority, exact combined approvals, shared ancestry
 budgets and fixed adjacent messaging with monotonic provenance. Standalone Phase 6 parent chains
 and delegated-agent caps remain unsupported; only explicit `phase9-v1` graph enrollment enables

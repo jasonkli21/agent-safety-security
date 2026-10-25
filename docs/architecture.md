@@ -1916,3 +1916,10 @@ Central metadata is a new allowlist projection, never a full SecurityEvent uploa
 REPORTED_UNVERIFIED. See [managed control-plane design](managed-control-plane.md) for finite role,
 state, API, storage, outage and minimization contracts. This loopback single-instance reference
 adds no hosted SaaS, public proxy/TLS deployment or independent Phase 7–10 acceptance.
+
+Expensive governance assessment uses an authenticated immutable snapshot outside SQLite's shared
+write transaction, then rechecks source, workflow version, actor permissions and publication
+generation before compare-and-set commit. Restored databases and existing WAL/SHM sidecars are
+admitted only after POSIX owner, regular-file and private-mode checks. Advisory posture separately
+reports policy alignment and effect-evidence dimensions; reporter declarations never attest loaded
+policy or verified effects.

@@ -178,6 +178,8 @@ class Metadata(TeamModel):
     agent_id: TeamId
     environment: TeamId
     repository: TeamId
+    # Opaque operator-assigned revision label; a reporter claim, never attestation.
+    policy_revision: TeamId | None = None
     source: Literal["RUNTIME", "CI"]
     period_start: Timestamp
     period_end: Timestamp
@@ -217,7 +219,21 @@ class Receipt(TeamModel):
 class AgentPosture(TeamModel):
     agent_id: TeamId
     status: Literal["UNKNOWN", "STALE", "BLOCKED", "HEALTHY_REPORTED"]
-    flags: tuple[Literal["NO_REPORT", "STALE", "GAPS", "CI_FAILURE", "INCOMPLETE", "DISABLED"], ...]
+    policy_alignment: Literal["UNKNOWN", "REPORTED_MATCH", "MISMATCH"] = "UNKNOWN"
+    effect_evidence: Literal["NONE", "REPORTED_UNVERIFIED"] = "NONE"
+    flags: tuple[
+        Literal[
+            "NO_REPORT",
+            "STALE",
+            "GAPS",
+            "CI_FAILURE",
+            "INCOMPLETE",
+            "DISABLED",
+            "POLICY_UNKNOWN",
+            "POLICY_MISMATCH",
+        ],
+        ...,
+    ]
     last_report: Receipt | None = None
     last_runtime: Receipt | None = None
     last_ci: Receipt | None = None

@@ -8,7 +8,7 @@ import typer
 from agentsec.contracts.loader import load_artifact
 from agentsec.control_plane.errors import TeamError
 from agentsec.control_plane.models import Binding, TeamConfig
-from agentsec.control_plane.service import TeamService
+from agentsec.control_plane.service import TeamService, identifier
 from agentsec.control_plane.store import Store
 
 app = typer.Typer(no_args_is_help=True)
@@ -28,9 +28,17 @@ def init(db: Path, config: Path, owner: Path, org: str) -> None:
         from agentsec.control_plane.auth import TeamVerifier
 
         TeamVerifier(settings)
+        identifier(org)
+        if binding.kind != "HUMAN" or binding.issuer not in {
+            issuer.issuer for issuer in settings.issuers
+        }:
+            raise TeamError("INVALID_INPUT")
         store = Store(db, initialize=True)
-        store.provision(binding)
-        TeamService(store, settings).bootstrap(org, binding)
+        try:
+            TeamService(store, settings).bootstrap(org, binding)
+        except Exception:
+            store.discard_new_database(db)
+            raise
         store.close()
         typer.echo("INITIALIZED team-v1")
     except Exception as exc:

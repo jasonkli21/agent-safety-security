@@ -149,6 +149,19 @@
       "title": "Period Start",
       "type": "string"
     },
+    "policy_revision": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Policy Revision"
+    },
     "regression": {
       "default": "UNKNOWN",
       "enum": [

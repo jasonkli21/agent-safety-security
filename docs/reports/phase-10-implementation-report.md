@@ -217,3 +217,84 @@ never causes runtime fallback or authority changes.
 
 Ready for independent review of this bounded reference slice. Phase 7–10 independent acceptance
 and production readiness remain open. No deploy, push or PR was performed.
+
+## 8. Independent review corrections (F10-01–04)
+
+Starting correction baseline: `539feafb1e8db1808110e7fe4834e53ff795d37c` (the reviewed Phase 10
+implementation). The first independent review identified four P2 findings. All four are corrected
+in the current worktree; this is evidence for a fresh review, not an acceptance decision. Phases
+7–9 remain open. The unrelated pre-existing untracked `PHASE-0-SOL-MEDIUM-PROMPT.md` was preserved
+and is excluded from the commit.
+
+### F10-01 — bootstrap issuer validation and atomic initialization
+
+`team init` now validates the TeamConfig and pinned keys, org ID, HUMAN owner kind and exact
+configured owner issuer before opening a database. The first binding, organization, OWNER
+membership and audit entry are inserted in one transaction. A failed bootstrap closes and removes
+only the exclusive new database and its WAL/SHM sidecars; a pre-existing path is never replaced.
+The offline retry story is to correct the protected inputs and rerun `init`. There is no signup or
+remote provisioning. Tests cover an unconfigured issuer, invalid org, injected bootstrap failure,
+existing DB preservation, successful signed synthetic owner access, and direct transaction
+rollback behavior. The team command reports stable error codes without source data.
+
+### F10-02 — advisory posture evidence
+
+`Metadata.policy_revision` is an optional opaque revision label. It carries no body or digest and
+remains a reporter claim. `AgentPosture` now has separate `policy_alignment` (`UNKNOWN`,
+`REPORTED_MATCH`, `MISMATCH`) and `effect_evidence` (`NONE`, `REPORTED_UNVERIFIED`) dimensions.
+Missing expected policy or reporter correlation, a missing/non-published expected revision,
+expected-plan mismatch, superseded expected policy and reporter mismatch prevent green
+classification. Dispatched work with
+no reported effect verification is a gap; positive effect counts remain unverified. Read-only
+zero-dispatch reports may meet the advisory classifier when the other evidence aligns, while
+effect evidence stays `NONE`. CI replay must report `PASS`; UNKNOWN/BLOCKED remains a gap and FAIL
+is a failure. The guide and demo state that `HEALTHY_REPORTED` is an advisory interpretation of
+self-reported fields, never runtime attestation. Model-derived team schemas were regenerated.
+Tests include a healthy read-only report with aligned policy, no-policy/unknown-replay and
+dispatched-without-effect gaps, and an incomplete first-party projection that cannot appear green.
+
+### F10-03 — private SQLite admission
+
+Before reopening, POSIX storage admission checks the DB and any existing WAL/SHM sidecars with
+`lstat` semantics: regular non-symlink file, current effective UID owner and no group/world mode
+bits. The opened database inode is compared with the checked path. Unsafe restored storage fails
+closed with `STORE_UNAVAILABLE`; the service does not chmod user files. New initialization remains
+exclusive and creates mode 0600. Tests cover 0600 acceptance, 0644/0660 rejection, a symlink, an
+unsafe WAL sidecar, and restart of a private DB. POSIX is the supported existing-DB admission
+boundary; Windows ACL checks are not implemented and existing DB reopen fails closed there.
+Operators should repair a stopped copy and protect parent directories/backups. Path checks do not
+defend against a privileged host administrator or a malicious concurrent directory writer.
+
+### F10-04 — staged assessment and short CAS commit
+
+Revision creation and submit/approve/publish now take an authorized snapshot, perform bounded
+assessment outside the global `BEGIN IMMEDIATE` transaction, then reauthorize and verify the
+actor, immutable source/assessment, workflow version and publication generation before writing.
+Transition retries still recheck the exact retry identity/content. Concurrent same-content draft
+creation remains idempotent. A stale snapshot conflicts; assessment output is never accepted from
+a client or treated as an authorization source. Existing sibling-publish CAS/rollback behavior
+remains covered; new controlled tests show an unrelated beta posture read completes while alpha
+assessment is paused and a reviewer revoked during staged assessment cannot approve.
+No sustained malicious-policy throughput benchmark was run; the change removes assessment time
+from shared write-lock occupancy but does not claim distributed or HA storage.
+
+### Correction verification
+
+Environment: Python 3.12.13, Pydantic 2.14.1, PyJWT 2.15.1, cryptography 50.0.2, Starlette 1.8.0,
+Uvicorn 0.54.0, pytest 9.1.1, Ruff 0.17.1 and mypy 2.4.0.
+
+| Exact command | Result |
+| --- | --- |
+| `.venv/bin/python -m pytest -q tests/integration/test_team_control_plane.py tests/unit/test_control_plane_projection.py -p no:cacheprovider` | PASS — 103 tests |
+| `.venv/bin/ruff check .` | PASS |
+| `.venv/bin/ruff format --check .` | PASS — 216 files |
+| `.venv/bin/mypy src` | PASS — 131 source files |
+| `.venv/bin/agentsec schema export --out schemas/generated` | PASS — generated from models |
+| `.venv/bin/agentsec schema export --out /tmp/agentsec_phase10_fixed_schemas && diff -ru --exclude=.gitkeep schemas/generated /tmp/agentsec_phase10_fixed_schemas` | PASS — no schema drift |
+| `.venv/bin/agentsec examples validate` | PASS — 3 contracts, 3 scenarios |
+| `.venv/bin/python examples/team/demo.py` | PASS — two-tenant review, unverified posture, outage and offline Phase 9 demo |
+| `git diff --check` | PASS |
+| `.venv/bin/python -m pytest -q -p no:cacheprovider` | **974 passed, 11 errors** — all 11 occur during setup of legacy `tests/unit/test_adapters_isolation.py` loopback HTTP/TLS fixtures; sandbox returns `PermissionError: Operation not permitted` on localhost socket bind. No Phase 10 test fails. This sandbox result differs from the independent handoff's full-suite failures and its five-failure parent comparison; no new parent comparison was run in this environment. The full suite is not green. |
+
+No external identity provider, production tenant, public listener, real policy, runtime authority,
+or live model/tool service was used. No independent acceptance gate is closed by this report.

@@ -33,9 +33,12 @@ responsible for external subject uniqueness across identity providers.
 | VIEWER | yes | no | no | no | no |
 | REPORTER | own status | no | no | no | own report only |
 
-Offline `team init` explicitly creates an empty DB, org, identity binding and owner. Provisioning
-additional identity bindings is offline operator work; owners manage only already provisioned
-identities through the API. There is no public signup. Records and IDs cannot be recycled.
+Offline `team init` validates the org, HUMAN owner and exact pinned issuer before creating storage.
+The owner binding, org, membership and bootstrap audit are one transaction. If bootstrap fails,
+the CLI closes and removes only the database and SQLite sidecars it created; an existing path is
+never replaced. Retry with corrected inputs by rerunning `init`. Provisioning additional identity
+bindings is offline operator work; owners manage only already provisioned identities through the
+API. There is no public signup. Records and IDs cannot be recycled.
 
 ## Publication
 
@@ -53,9 +56,10 @@ separate fielded review acknowledgements. These are governance decisions, not ru
 
 `DRAFT -> IN_REVIEW -> APPROVED -> PUBLISHED -> SUPERSEDED` is the normal path. A reviewer may
 reject IN_REVIEW to WITHDRAWN; an owner may withdraw DRAFT/IN_REVIEW/APPROVED/PUBLISHED. Rework always
-creates a new immutable draft. Every mutation binds expected version. Review binds revision source,
-assessment, author and base publication generation; publish recomputes assessment and checks the
-same current base under BEGIN IMMEDIATE. Supersession and publication are one transaction. Stale
+creates a new immutable draft. Every mutation binds expected version. Bounded parsing, compilation,
+conformance, coverage and diff run outside the process-wide SQLite write lock. A short transaction
+reauthorizes the actor and rechecks exact source, assessment, workflow version and publication
+generation before the CAS write. Supersession and publication are one transaction. Stale
 votes and sibling publish races conflict. Identical transition retries with the same actor/action/
 expected version return the same result; changed retry contents conflict. No remote activation or
 pin command exists. Fetch verification checks all three identities and never touches local config.
@@ -86,6 +90,12 @@ No policy content or validation input is reflected in errors. No request/access/
 SQLite user_version=1, foreign keys, explicit initialization, WAL, bounded busy timeout, single
 connection transaction lock. Tenant-qualified primary/foreign keys and scoped store methods;
 immutable revision source/assessment columns protected by SQL triggers. Mutable workflow uses CAS.
+On reopen, the database and existing WAL/SHM files must be regular, non-symlink files owned by the
+current uid with no group/world permission bits before SQLite opens them. Unsafe restored paths fail
+with `STORE_UNAVAILABLE`; move or repair a copy while stopped, then retry. The check is supported
+on POSIX only; Windows ACL validation is not implemented, so reopening an existing DB there fails
+closed. Newly initialized files are created private. Protect parent directories and backups too;
+a privileged host administrator remains outside this boundary.
 Durable governance audit stores only opaque actor/target/action/version/time, never JWT/source or
 raw event content. Metadata receipts are separate and expire under explicit scoped purge; compact
 idempotency tombstones survive purge so expired run IDs cannot replay/double count. Audit retention
@@ -95,15 +105,24 @@ then start only after version/integrity validation. Unknown migrations are refus
 upgrade or destructive recovery. Host admins can inspect/modify all tenants.
 
 Reports are a new fixed allowlist: opaque UUID run ID; enrolled agent/environment/repository;
-source RUNTIME/CI; bounded UTC period; fixed lifecycle counters; completeness, coverage, CI,
-regression, replay (including BLOCKED) and runtime-mode enums. No free text, URLs, claims, labels, event IDs, hashes of private
-resources, arguments, prompts, results, principal names/emails or raw SecurityEvent uploads.
+optional opaque policy revision label; source RUNTIME/CI; bounded UTC period; fixed lifecycle
+counters; completeness, coverage, CI, regression, replay (including BLOCKED) and runtime-mode
+enums. No free text, URLs, arbitrary claims or labels, event IDs, hashes of private resources,
+arguments, prompts, results, principal names/emails or raw SecurityEvent uploads.
 Only protected inventory labels are echoed. Local projector deliberately counts selected typed
 fields, never dumps an event/result. A compromised reporter can encode data in numeric/UUID
 channels; allowlisting is minimization, not content detection or a covert-channel proof.
-All reports are REPORTED_UNVERIFIED. Incomplete, UNKNOWN, DRAFT, SHADOW, DISABLED and absent verified
-effect remain distinct. No heartbeat attests loaded code, enforcement, model safety or graph
-membership. Advisory alerts derive from no/stale reports and gaps/failures; there is no score,
+All reports are REPORTED_UNVERIFIED. `policy_alignment` is `UNKNOWN` without both an operator
+expected published revision and a matching reporter-declared revision; an absent, mismatched,
+superseded or withdrawn expected revision is a visible gap/mismatch. This opaque label is a claim,
+not proof of loaded bytes or runtime activation. `effect_evidence` is `NONE` when no positive
+effect count is reported and `REPORTED_UNVERIFIED` when one is; dispatched work with no reported
+verified effect is a gap. A read-only run can still be `HEALTHY_REPORTED` if the other reported
+dimensions align, while its effect evidence remains `NONE`. CI replay must be `PASS`; `UNKNOWN` or
+`BLOCKED` remains a gap. `HEALTHY_REPORTED` means only that these self-reported, unverified fields
+met the advisory classifier. A valid reporter can fabricate enums and counters. No heartbeat
+attests loaded code, enforcement, model safety or graph membership. Advisory alerts derive from
+no/stale reports and gaps/failures; there is no score,
 pager delivery, guaranteed kill switch or claim of independently verified fleet protection.
 
 API body cap 128 KiB, 10-second body timeout, 1,000 records per collection/org and bounded reports,

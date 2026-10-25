@@ -9,15 +9,21 @@ python examples/team/demo.py
 
 This uses an in-process HTTP client, temporary SQLite database and publicly known synthetic
 Ed25519 test issuer. **Never trust this issuer/key for real users.** It deliberately demonstrates
-UNKNOWN posture and DRAFT regression coverage. The existing three-agent example runs after the
-team store is closed. No listener, production token, external network, real IdP or cloud is used.
+UNKNOWN posture, unverified policy alignment and DRAFT regression coverage. A reported revision
+label is only a claim; first-party runtime projections remain incomplete and cannot create a green
+posture by themselves. The existing three-agent example runs after the team store is closed. No
+listener, production token, external network, real IdP or cloud is used.
 Default CI runs the same fixture without credentials; sending results to an actual service must
 be a separately configured opt-in reporter job. There is no default outbound reporting.
 
 For operator-managed loopback service use `agentsec team init DB CONFIG OWNER ORG`, then
 `agentsec team provision DB BINDING` for each externally issued subject. JSON files conform to
 the generated team-config and team-binding schemas. Config contains only public Ed25519 keys;
-use a private protected file path for real config and database. An OWNER membership can then
+use a private protected file path for real config and database. Init checks that the owner is a
+HUMAN bound to a configured issuer before creating storage and removes only its own new database
+if bootstrap fails. Reopening a restored DB checks POSIX ownership and private modes on the DB and
+existing WAL/SHM files; repair a copy while stopped. Existing database reopen is unsupported on
+Windows because ACL checks are not implemented. An OWNER membership can then
 provision roles/enrollment through authenticated API calls. Tokens are issued by your external
 IdP with exact pinned `iss`, single-string `aud`, mapped `sub`, `nbf`, `exp`, `alg=EdDSA` and pinned
 `kid`. Provision one binding per real human. JWT roles and org claims have no authority.

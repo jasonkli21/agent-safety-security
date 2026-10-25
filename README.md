@@ -2,7 +2,7 @@
 
 A local-first security lifecycle for tool-using AI agents: define explicit authority, test it adversarially, enforce it at runtime, and turn observed failures into regressions.
 
-> **Current status:** Phase 10 adds an optional local team reference service: pinned-key SSO JWT verification, organization RBAC, immutable policy review/publication, inventory and minimized metadata/posture. See the [team guide](docs/managed-control-plane.md), [demo](examples/team/README.md) and [report](docs/reports/phase-10-implementation-report.md). Local enforcement remains autonomous. Independent Phase 7–10 acceptance remains unconfirmed.
+> **Current status:** Phase 10 adds an optional local team reference service: pinned-key SSO JWT verification, organization RBAC, immutable policy review/publication, inventory and minimized metadata/posture. The four findings from its first independent review have fixes; fresh independent Phase 10 review is pending. See the [team guide](docs/managed-control-plane.md), [demo](examples/team/README.md) and [report](docs/reports/phase-10-implementation-report.md). Local enforcement remains autonomous. Independent Phase 7–9 acceptance remains unconfirmed.
 
 ## Product thesis
 

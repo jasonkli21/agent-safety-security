@@ -1,7 +1,7 @@
 # Agent Safety & Security — Phase 10 Detailed Implementation Plan
 
 **Phase:** 10 — Managed Team Control Plane (bounded reference implementation)
-**Status:** Bounded reference implementation complete; independent review pending (see `docs/reports/phase-10-implementation-report.md`)
+**Status:** Bounded reference implementation and F10-01–04 corrections complete; fresh independent review pending (see `docs/reports/phase-10-implementation-report.md`)
 **Repository:** https://github.com/jasonkli21/agent-safety-security
 **Planning baseline:** `main` at `6dfa0d56057c3bcf85bb9fc070ea1e43491899ef` (Phase 9 review fixes, 2026-10-25 UTC)
 **Roadmap authority:** `docs/prd.md` `16 (Phase 10), ``12, 17–19, 23, 25–26
@@ -11,6 +11,12 @@
 > This plan authorizes no deployment, credentials, production tenant onboarding, GitHub write, or independent acceptance. At the planning baseline, Phase 9 is implemented and review fixes are present but **fresh independent Phase 9 acceptance remains unconfirmed**. Phase 7–8 independent acceptance also remains unconfirmed. Treat these as inherited release gates, not as reasons to silently discard the requested Phase 10 plan.
 
 ## 1. Outcome and calibrated phase boundary
+
+The independent review found four gaps in the original acceptance contract: bootstrap issuer
+binding and failure cleanup; policy-alignment/effect/replay posture evidence; private-path checks
+for restored SQLite storage; and expensive assessment work under the shared write lock. This
+correction pass makes those acceptance conditions explicit without backdating the plan or changing
+the PRD. See the Phase 10 implementation report for implementation and verification.
 
 Deliver an **optional, locally runnable/self-hostable control-plane reference service** that demonstrates the central Phase 10 value: a team can review immutable security contract revisions, explicitly publish a reviewed version, enroll agents into an inventory, ingest carefully minimized run/CI metadata, and inspect organization-scoped posture without moving the enforcement boundary out of the customer runtime.
 

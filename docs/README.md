@@ -35,5 +35,6 @@ slice. Independent Phase 7–8 acceptance remains open; fresh Phase 9 review is 
 - [Implementation and verification report](reports/phase-10-implementation-report.md)
 - [Two-tenant demo and API/CLI contract](../examples/team/README.md)
 
-The optional loopback-only service supplies governance and minimized, unverified posture.
-Local Phase 0–9 enforcement remains offline-capable; independent acceptance gates remain open.
+The optional loopback-only service supplies governance and minimized, unverified posture. The
+first independent review's four findings have fixes; fresh Phase 10 review is pending. Local
+Phase 0–9 enforcement remains offline-capable; independent acceptance gates remain open.
