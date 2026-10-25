@@ -12,6 +12,20 @@ from agentsec.compiler.diff import SemanticDiff
 from agentsec.compiler.models import CompiledSecurityPlan
 from agentsec.compiler.reporting import ConformanceReport, CoverageReport
 from agentsec.contracts.models import AgentSecurityContract
+from agentsec.control_plane.models import (
+    Agent,
+    Binding,
+    Member,
+    Metadata,
+    Page,
+    Posture,
+    Receipt,
+    Reporter,
+    Revision,
+    RevisionInput,
+    TeamConfig,
+    Transition,
+)
 from agentsec.domain.approvals import ApprovalDecision, ApprovalRequest, NormalizedAction
 from agentsec.domain.authority import AuthorityContext, VerifiedCredential
 from agentsec.domain.events import SecurityEvent
@@ -51,6 +65,18 @@ from agentsec.supply_chain.models import (
 )
 
 SCHEMA_MODELS: dict[str, type[BaseModel]] = {
+    "team-config": TeamConfig,
+    "team-binding": Binding,
+    "team-member": Member,
+    "team-agent": Agent,
+    "team-reporter": Reporter,
+    "team-revision-input": RevisionInput,
+    "team-transition": Transition,
+    "team-revision": Revision,
+    "team-metadata": Metadata,
+    "team-receipt": Receipt,
+    "team-posture": Posture,
+    "team-page": Page,
     "graph-regression-case": GraphRegressionCase,
     "graph-regression-result": GraphRegressionResult,
     "agent-graph": GraphSnapshot,

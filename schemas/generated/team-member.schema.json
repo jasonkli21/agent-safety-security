@@ -1,0 +1,50 @@
+{
+  "$defs": {
+    "Role": {
+      "enum": [
+        "OWNER",
+        "EDITOR",
+        "REVIEWER",
+        "VIEWER"
+      ],
+      "title": "Role",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "enabled": {
+      "default": true,
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "expected_version": {
+      "default": 0,
+      "maximum": 1000000,
+      "minimum": 0,
+      "title": "Expected Version",
+      "type": "integer"
+    },
+    "identity_id": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Identity Id",
+      "type": "string"
+    },
+    "role": {
+      "$ref": "#/$defs/Role"
+    },
+    "schema_version": {
+      "const": "team-v1",
+      "default": "team-v1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "identity_id",
+    "role"
+  ],
+  "title": "Member",
+  "type": "object"
+}

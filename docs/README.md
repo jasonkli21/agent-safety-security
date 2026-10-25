@@ -26,3 +26,14 @@ Phase 9 local multi-agent security: [guide](multi-agent-security.md),
 [review-fixes report](reports/phase-9-review-fixes-report.md).
 Run `.venv/bin/python examples/multi_agent/local_session.py` for the credential-free three-agent
 slice. Independent Phase 7–8 acceptance remains open; fresh Phase 9 review is pending.
+
+
+## Phase 10 team reference slice
+
+- [Managed control-plane boundaries and design](managed-control-plane.md)
+- [Phase 10 plan](plans/phase-10-implementation-plan.md)
+- [Implementation and verification report](reports/phase-10-implementation-report.md)
+- [Two-tenant demo and API/CLI contract](../examples/team/README.md)
+
+The optional loopback-only service supplies governance and minimized, unverified posture.
+Local Phase 0–9 enforcement remains offline-capable; independent acceptance gates remain open.

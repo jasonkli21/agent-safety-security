@@ -1,0 +1,51 @@
+{
+  "$defs": {
+    "IdentityKind": {
+      "enum": [
+        "HUMAN",
+        "SERVICE",
+        "REPORTER"
+      ],
+      "title": "IdentityKind",
+      "type": "string"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "identity_id": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Identity Id",
+      "type": "string"
+    },
+    "issuer": {
+      "maxLength": 256,
+      "minLength": 1,
+      "title": "Issuer",
+      "type": "string"
+    },
+    "kind": {
+      "$ref": "#/$defs/IdentityKind"
+    },
+    "schema_version": {
+      "const": "team-v1",
+      "default": "team-v1",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "subject": {
+      "maxLength": 128,
+      "minLength": 1,
+      "title": "Subject",
+      "type": "string"
+    }
+  },
+  "required": [
+    "identity_id",
+    "issuer",
+    "subject",
+    "kind"
+  ],
+  "title": "Binding",
+  "type": "object"
+}

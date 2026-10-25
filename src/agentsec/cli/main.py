@@ -11,6 +11,7 @@ from agentsec.cli.evaluation import app as eval_app
 from agentsec.cli.graph import app as graph_app
 from agentsec.cli.protect import app as protect_app
 from agentsec.cli.replay import incident_app, regression_app, replay_app
+from agentsec.cli.team import app as team_app
 from agentsec.cli.trust import app as trust_app
 from agentsec.contracts.canonical import document_hash, effective_policy_hash
 from agentsec.contracts.errors import ArtifactValidationError
@@ -24,6 +25,7 @@ contract_app = typer.Typer(no_args_is_help=True)
 scenario_app = typer.Typer(no_args_is_help=True)
 schema_app = typer.Typer(no_args_is_help=True)
 examples_app = typer.Typer(no_args_is_help=True)
+app.add_typer(team_app, name="team")
 app.add_typer(graph_app, name="graph")
 app.add_typer(trust_app, name="trust")
 app.add_typer(replay_app, name="replay")

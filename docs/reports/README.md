@@ -25,3 +25,5 @@ changes, verification, deviations, remaining limitations, and next-phase readine
 - [Phase 8 independent review fixes](phase-8-review-fixes-report.md)
 - [Phase 9 local multi-agent implementation](phase-9-implementation-report.md)
 - [Phase 9 independent review corrections](phase-9-review-fixes-report.md)
+
+- [Phase 10 implementation report](phase-10-implementation-report.md) — optional team reference slice; independent review pending.

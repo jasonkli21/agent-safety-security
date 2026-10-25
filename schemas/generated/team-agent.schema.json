@@ -1,0 +1,78 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "agent_id": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Agent Id",
+      "type": "string"
+    },
+    "enabled": {
+      "default": true,
+      "title": "Enabled",
+      "type": "boolean"
+    },
+    "environment": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Environment",
+      "type": "string"
+    },
+    "expected_plan": {
+      "anyOf": [
+        {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Expected Plan"
+    },
+    "expected_version": {
+      "default": 0,
+      "maximum": 1000000,
+      "minimum": 0,
+      "title": "Expected Version",
+      "type": "integer"
+    },
+    "owner_id": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Owner Id",
+      "type": "string"
+    },
+    "policy_revision": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Policy Revision"
+    },
+    "repository": {
+      "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+      "title": "Repository",
+      "type": "string"
+    },
+    "schema_version": {
+      "const": "team-v1",
+      "default": "team-v1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "agent_id",
+    "environment",
+    "repository",
+    "owner_id"
+  ],
+  "title": "Agent",
+  "type": "object"
+}

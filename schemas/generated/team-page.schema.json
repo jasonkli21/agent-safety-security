@@ -1,0 +1,1285 @@
+{
+  "$defs": {
+    "Agent": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "environment": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Environment",
+          "type": "string"
+        },
+        "expected_plan": {
+          "anyOf": [
+            {
+              "pattern": "^sha256:[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Expected Plan"
+        },
+        "expected_version": {
+          "default": 0,
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Expected Version",
+          "type": "integer"
+        },
+        "owner_id": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Owner Id",
+          "type": "string"
+        },
+        "policy_revision": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Policy Revision"
+        },
+        "repository": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Repository",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "team-v1",
+          "default": "team-v1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "agent_id",
+        "environment",
+        "repository",
+        "owner_id"
+      ],
+      "title": "Agent",
+      "type": "object"
+    },
+    "Assessment": {
+      "additionalProperties": false,
+      "properties": {
+        "change_kinds": {
+          "items": {
+            "maxLength": 64,
+            "type": "string"
+          },
+          "maxItems": 64,
+          "title": "Change Kinds",
+          "type": "array"
+        },
+        "compiled_plan_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Compiled Plan Digest",
+          "type": "string"
+        },
+        "compiler_version": {
+          "const": "phase6-v1",
+          "default": "phase6-v1",
+          "title": "Compiler Version",
+          "type": "string"
+        },
+        "conformance": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "UNKNOWN"
+          ],
+          "title": "Conformance",
+          "type": "string"
+        },
+        "conformance_report": {
+          "$ref": "#/$defs/ConformanceReport"
+        },
+        "coverage_report": {
+          "$ref": "#/$defs/CoverageReport"
+        },
+        "diff_status": {
+          "enum": [
+            "INITIAL",
+            "COMPARED",
+            "UNKNOWN"
+          ],
+          "title": "Diff Status",
+          "type": "string"
+        },
+        "document_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Document Hash",
+          "type": "string"
+        },
+        "effective_policy_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Effective Policy Hash",
+          "type": "string"
+        },
+        "expansions": {
+          "title": "Expansions",
+          "type": "boolean"
+        },
+        "gaps": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Gaps",
+          "type": "integer"
+        },
+        "initial": {
+          "title": "Initial",
+          "type": "boolean"
+        },
+        "schema_version": {
+          "const": "team-v1",
+          "default": "team-v1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "semantic_diff": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SemanticDiff"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "unsupported": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Unsupported",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "conformance_report",
+        "coverage_report",
+        "document_hash",
+        "effective_policy_hash",
+        "compiled_plan_digest",
+        "initial",
+        "expansions",
+        "gaps",
+        "unsupported",
+        "conformance",
+        "diff_status",
+        "change_kinds"
+      ],
+      "title": "Assessment",
+      "type": "object"
+    },
+    "AtomCoverage": {
+      "additionalProperties": false,
+      "properties": {
+        "adapter_boundary": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Adapter Boundary"
+        },
+        "adapter_required": {
+          "default": false,
+          "title": "Adapter Required",
+          "type": "boolean"
+        },
+        "adapter_status": {
+          "enum": [
+            "NOT_REQUIRED",
+            "UNPROVEN",
+            "COVERED",
+            "UNCOVERED"
+          ],
+          "title": "Adapter Status",
+          "type": "string"
+        },
+        "atom_id": {
+          "title": "Atom Id",
+          "type": "string"
+        },
+        "compiled": {
+          "title": "Compiled",
+          "type": "boolean"
+        },
+        "eval_case_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Eval Case Ids",
+          "type": "array"
+        },
+        "eval_status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "ERROR",
+            "NOT_RUN"
+          ],
+          "title": "Eval Status",
+          "type": "string"
+        },
+        "intent_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Intent Digest",
+          "type": "string"
+        },
+        "probe_ids": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Probe Ids",
+          "type": "array"
+        },
+        "probe_status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "ERROR",
+            "NOT_RUN"
+          ],
+          "title": "Probe Status",
+          "type": "string"
+        },
+        "provenance_input_required": {
+          "default": false,
+          "title": "Provenance Input Required",
+          "type": "boolean"
+        },
+        "runtime_supported": {
+          "title": "Runtime Supported",
+          "type": "boolean"
+        },
+        "sink_classification_required": {
+          "default": false,
+          "title": "Sink Classification Required",
+          "type": "boolean"
+        },
+        "sink_classification_status": {
+          "default": "NOT_REQUIRED",
+          "enum": [
+            "NOT_REQUIRED",
+            "UNPROVEN",
+            "COVERED",
+            "UNCOVERED"
+          ],
+          "title": "Sink Classification Status",
+          "type": "string"
+        },
+        "sink_runtime_status": {
+          "default": "NOT_REQUIRED",
+          "enum": [
+            "NOT_REQUIRED",
+            "UNPROVEN",
+            "REACHABLE",
+            "UNREACHABLE"
+          ],
+          "title": "Sink Runtime Status",
+          "type": "string"
+        },
+        "source_classification_required": {
+          "default": false,
+          "title": "Source Classification Required",
+          "type": "boolean"
+        },
+        "source_classification_status": {
+          "default": "NOT_REQUIRED",
+          "enum": [
+            "NOT_REQUIRED",
+            "UNPROVEN",
+            "COVERED",
+            "UNCOVERED"
+          ],
+          "title": "Source Classification Status",
+          "type": "string"
+        },
+        "source_ref": {
+          "title": "Source Ref",
+          "type": "string"
+        },
+        "source_runtime_status": {
+          "default": "NOT_REQUIRED",
+          "enum": [
+            "NOT_REQUIRED",
+            "UNPROVEN",
+            "REACHABLE",
+            "UNREACHABLE"
+          ],
+          "title": "Source Runtime Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "atom_id",
+        "source_ref",
+        "compiled",
+        "runtime_supported",
+        "intent_digest",
+        "adapter_status",
+        "probe_ids",
+        "eval_case_ids",
+        "probe_status",
+        "eval_status"
+      ],
+      "title": "AtomCoverage",
+      "type": "object"
+    },
+    "ConformanceReport": {
+      "additionalProperties": false,
+      "properties": {
+        "effective_policy_hash": {
+          "title": "Effective Policy Hash",
+          "type": "string"
+        },
+        "eval_cases": {
+          "default": [],
+          "items": {
+            "$ref": "#/$defs/ProbeResult"
+          },
+          "title": "Eval Cases",
+          "type": "array"
+        },
+        "label": {
+          "const": "contract conformance",
+          "default": "contract conformance",
+          "title": "Label",
+          "type": "string"
+        },
+        "plan_identity": {
+          "$ref": "#/$defs/PlanIdentity"
+        },
+        "probes": {
+          "items": {
+            "$ref": "#/$defs/ProbeResult"
+          },
+          "title": "Probes",
+          "type": "array"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "effective_policy_hash",
+        "plan_identity",
+        "probes"
+      ],
+      "title": "ConformanceReport",
+      "type": "object"
+    },
+    "Counters": {
+      "additionalProperties": false,
+      "properties": {
+        "approval_decided": {
+          "default": 0,
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Approval Decided",
+          "type": "integer"
+        },
+        "approval_requested": {
+          "default": 0,
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Approval Requested",
+          "type": "integer"
+        },
+        "denied": {
+          "default": 0,
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Denied",
+          "type": "integer"
+        },
+        "dispatched": {
+          "default": 0,
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Dispatched",
+          "type": "integer"
+        },
+        "effect_verified": {
+          "default": 0,
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Effect Verified",
+          "type": "integer"
+        },
+        "errors": {
+          "default": 0,
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Errors",
+          "type": "integer"
+        },
+        "requested": {
+          "default": 0,
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Requested",
+          "type": "integer"
+        },
+        "returned": {
+          "default": 0,
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Returned",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "team-v1",
+          "default": "team-v1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "title": "Counters",
+      "type": "object"
+    },
+    "CoverageReport": {
+      "additionalProperties": false,
+      "properties": {
+        "atoms": {
+          "items": {
+            "$ref": "#/$defs/AtomCoverage"
+          },
+          "title": "Atoms",
+          "type": "array"
+        },
+        "effective_policy_hash": {
+          "title": "Effective Policy Hash",
+          "type": "string"
+        },
+        "plan_identity": {
+          "$ref": "#/$defs/PlanIdentity"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "effective_policy_hash",
+        "plan_identity",
+        "atoms"
+      ],
+      "title": "CoverageReport",
+      "type": "object"
+    },
+    "Member": {
+      "additionalProperties": false,
+      "properties": {
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "expected_version": {
+          "default": 0,
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Expected Version",
+          "type": "integer"
+        },
+        "identity_id": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Identity Id",
+          "type": "string"
+        },
+        "role": {
+          "$ref": "#/$defs/Role"
+        },
+        "schema_version": {
+          "const": "team-v1",
+          "default": "team-v1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "identity_id",
+        "role"
+      ],
+      "title": "Member",
+      "type": "object"
+    },
+    "Metadata": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "ci": {
+          "default": "UNKNOWN",
+          "enum": [
+            "UNKNOWN",
+            "PASS",
+            "FAIL",
+            "ERROR",
+            "INCONCLUSIVE"
+          ],
+          "title": "Ci",
+          "type": "string"
+        },
+        "completeness": {
+          "default": "INCOMPLETE",
+          "enum": [
+            "INCOMPLETE",
+            "REPORTED_COMPLETE"
+          ],
+          "title": "Completeness",
+          "type": "string"
+        },
+        "counters": {
+          "$ref": "#/$defs/Counters",
+          "default": {
+            "approval_decided": 0,
+            "approval_requested": 0,
+            "denied": 0,
+            "dispatched": 0,
+            "effect_verified": 0,
+            "errors": 0,
+            "requested": 0,
+            "returned": 0,
+            "schema_version": "team-v1"
+          }
+        },
+        "coverage": {
+          "default": "UNKNOWN",
+          "enum": [
+            "UNKNOWN",
+            "GAPS",
+            "SYNTHETIC_PASS"
+          ],
+          "title": "Coverage",
+          "type": "string"
+        },
+        "environment": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Environment",
+          "type": "string"
+        },
+        "mode": {
+          "default": "UNKNOWN",
+          "enum": [
+            "UNKNOWN",
+            "ENFORCE",
+            "SHADOW",
+            "DISABLED"
+          ],
+          "title": "Mode",
+          "type": "string"
+        },
+        "period_end": {
+          "format": "date-time",
+          "title": "Period End",
+          "type": "string"
+        },
+        "period_start": {
+          "format": "date-time",
+          "title": "Period Start",
+          "type": "string"
+        },
+        "regression": {
+          "default": "UNKNOWN",
+          "enum": [
+            "UNKNOWN",
+            "PASS",
+            "FAIL",
+            "ERROR",
+            "DRAFT"
+          ],
+          "title": "Regression",
+          "type": "string"
+        },
+        "replay": {
+          "default": "UNKNOWN",
+          "enum": [
+            "UNKNOWN",
+            "PASS",
+            "FAIL",
+            "BLOCKED"
+          ],
+          "title": "Replay",
+          "type": "string"
+        },
+        "repository": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Repository",
+          "type": "string"
+        },
+        "run_id": {
+          "format": "uuid",
+          "title": "Run Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "team-v1",
+          "default": "team-v1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "RUNTIME",
+            "CI"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "run_id",
+        "agent_id",
+        "environment",
+        "repository",
+        "source",
+        "period_start",
+        "period_end"
+      ],
+      "title": "Metadata",
+      "type": "object"
+    },
+    "PlanIdentity": {
+      "additionalProperties": false,
+      "properties": {
+        "compiled_plan_digest": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Compiled Plan Digest",
+          "type": "string"
+        },
+        "compiler_version": {
+          "title": "Compiler Version",
+          "type": "string"
+        },
+        "contract_id": {
+          "maxLength": 128,
+          "minLength": 1,
+          "pattern": "^[a-zA-Z0-9][a-zA-Z0-9_.:/-]*$",
+          "title": "Contract Id",
+          "type": "string"
+        },
+        "effective_policy_hash": {
+          "pattern": "^sha256:[0-9a-f]{64}$",
+          "title": "Effective Policy Hash",
+          "type": "string"
+        }
+      },
+      "required": [
+        "contract_id",
+        "compiler_version",
+        "effective_policy_hash",
+        "compiled_plan_digest"
+      ],
+      "title": "PlanIdentity",
+      "type": "object"
+    },
+    "PolicyOutcome": {
+      "enum": [
+        "ALLOW",
+        "DENY",
+        "REQUIRE_APPROVAL",
+        "ERROR"
+      ],
+      "title": "PolicyOutcome",
+      "type": "string"
+    },
+    "ProbeResult": {
+      "additionalProperties": false,
+      "properties": {
+        "actual": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "expected": {
+          "$ref": "#/$defs/PolicyOutcome"
+        },
+        "not_derivable_reason": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Not Derivable Reason"
+        },
+        "obligation_kind": {
+          "default": "tool_policy",
+          "title": "Obligation Kind",
+          "type": "string"
+        },
+        "probe_id": {
+          "title": "Probe Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "status": {
+          "enum": [
+            "PASS",
+            "FAIL",
+            "ERROR",
+            "NOT_RUN"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "probe_id",
+        "status",
+        "expected"
+      ],
+      "title": "ProbeResult",
+      "type": "object"
+    },
+    "ReasonCode": {
+      "enum": [
+        "AUTHORITY_REQUIRED",
+        "IDENTITY_MISMATCH",
+        "DELEGATION_REQUIRED",
+        "INVALID_DELEGATION",
+        "AUTHORITY_EXPIRED",
+        "OUTSIDE_AUTHORITY_SCOPE",
+        "EXPLICIT_ALLOW",
+        "EXPLICIT_DENY",
+        "DEFAULT_DENY",
+        "APPROVAL_REQUIRED",
+        "UNKNOWN_CAPABILITY",
+        "OUTSIDE_TASK_SCOPE",
+        "BUDGET_EXCEEDED",
+        "DATA_FLOW_DENIED",
+        "DATA_FLOW_CONTEXT_MISSING",
+        "INVALID_REQUEST",
+        "POLICY_ENGINE_ERROR"
+      ],
+      "title": "ReasonCode",
+      "type": "string"
+    },
+    "Receipt": {
+      "additionalProperties": false,
+      "properties": {
+        "assurance": {
+          "const": "REPORTED_UNVERIFIED",
+          "default": "REPORTED_UNVERIFIED",
+          "title": "Assurance",
+          "type": "string"
+        },
+        "receipt_id": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Receipt Id",
+          "type": "string"
+        },
+        "received_at": {
+          "format": "date-time",
+          "title": "Received At",
+          "type": "string"
+        },
+        "report": {
+          "$ref": "#/$defs/Metadata"
+        },
+        "schema_version": {
+          "const": "team-v1",
+          "default": "team-v1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "receipt_id",
+        "received_at",
+        "report"
+      ],
+      "title": "Receipt",
+      "type": "object"
+    },
+    "Reporter": {
+      "additionalProperties": false,
+      "properties": {
+        "agent_id": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Agent Id",
+          "type": "string"
+        },
+        "enabled": {
+          "default": true,
+          "title": "Enabled",
+          "type": "boolean"
+        },
+        "expected_version": {
+          "default": 0,
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Expected Version",
+          "type": "integer"
+        },
+        "identity_id": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Identity Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "team-v1",
+          "default": "team-v1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source": {
+          "enum": [
+            "RUNTIME",
+            "CI"
+          ],
+          "title": "Source",
+          "type": "string"
+        }
+      },
+      "required": [
+        "identity_id",
+        "agent_id",
+        "source"
+      ],
+      "title": "Reporter",
+      "type": "object"
+    },
+    "Revision": {
+      "additionalProperties": false,
+      "properties": {
+        "assessment": {
+          "$ref": "#/$defs/Assessment"
+        },
+        "author": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Author",
+          "type": "string"
+        },
+        "base_generation": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Base Generation",
+          "type": "integer"
+        },
+        "policy_key": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Policy Key",
+          "type": "string"
+        },
+        "review": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/Transition"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "reviewer": {
+          "anyOf": [
+            {
+              "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Reviewer"
+        },
+        "revision_id": {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "title": "Revision Id",
+          "type": "string"
+        },
+        "schema_version": {
+          "const": "team-v1",
+          "default": "team-v1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "state": {
+          "enum": [
+            "DRAFT",
+            "IN_REVIEW",
+            "APPROVED",
+            "PUBLISHED",
+            "SUPERSEDED",
+            "WITHDRAWN"
+          ],
+          "title": "State",
+          "type": "string"
+        },
+        "version": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Version",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "revision_id",
+        "policy_key",
+        "author",
+        "base_generation",
+        "state",
+        "version",
+        "assessment"
+      ],
+      "title": "Revision",
+      "type": "object"
+    },
+    "Role": {
+      "enum": [
+        "OWNER",
+        "EDITOR",
+        "REVIEWER",
+        "VIEWER"
+      ],
+      "title": "Role",
+      "type": "string"
+    },
+    "SemanticChange": {
+      "additionalProperties": false,
+      "properties": {
+        "capability": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Capability"
+        },
+        "kind": {
+          "title": "Kind",
+          "type": "string"
+        },
+        "new_matched_rule_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "New Matched Rule Ids"
+        },
+        "new_outcome": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "new_reason_codes": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ReasonCode"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "New Reason Codes"
+        },
+        "old_matched_rule_ids": {
+          "anyOf": [
+            {
+              "items": {
+                "type": "string"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Old Matched Rule Ids"
+        },
+        "old_outcome": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/PolicyOutcome"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "old_reason_codes": {
+          "anyOf": [
+            {
+              "items": {
+                "$ref": "#/$defs/ReasonCode"
+              },
+              "type": "array",
+              "uniqueItems": true
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Old Reason Codes"
+        },
+        "representative_digest": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Representative Digest"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        },
+        "source_ref": {
+          "title": "Source Ref",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "kind",
+        "source_ref"
+      ],
+      "title": "SemanticChange",
+      "type": "object"
+    },
+    "SemanticDiff": {
+      "additionalProperties": false,
+      "properties": {
+        "changes": {
+          "items": {
+            "$ref": "#/$defs/SemanticChange"
+          },
+          "title": "Changes",
+          "type": "array"
+        },
+        "comparison": {
+          "default": "finite exact-match policy partition; unsupported intent is not compared",
+          "title": "Comparison",
+          "type": "string"
+        },
+        "new_effective_policy_hash": {
+          "title": "New Effective Policy Hash",
+          "type": "string"
+        },
+        "old_effective_policy_hash": {
+          "title": "Old Effective Policy Hash",
+          "type": "string"
+        },
+        "representatives": {
+          "title": "Representatives",
+          "type": "integer"
+        },
+        "schema_version": {
+          "const": "0.1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "schema_version",
+        "old_effective_policy_hash",
+        "new_effective_policy_hash",
+        "representatives",
+        "changes"
+      ],
+      "title": "SemanticDiff",
+      "type": "object"
+    },
+    "Transition": {
+      "additionalProperties": false,
+      "properties": {
+        "acknowledge_expansion": {
+          "default": false,
+          "title": "Acknowledge Expansion",
+          "type": "boolean"
+        },
+        "acknowledge_gaps": {
+          "default": false,
+          "title": "Acknowledge Gaps",
+          "type": "boolean"
+        },
+        "acknowledge_initial": {
+          "default": false,
+          "title": "Acknowledge Initial",
+          "type": "boolean"
+        },
+        "action": {
+          "enum": [
+            "submit",
+            "approve",
+            "reject",
+            "publish",
+            "withdraw"
+          ],
+          "title": "Action",
+          "type": "string"
+        },
+        "expected_version": {
+          "maximum": 1000000,
+          "minimum": 0,
+          "title": "Expected Version",
+          "type": "integer"
+        },
+        "review_reason": {
+          "anyOf": [
+            {
+              "enum": [
+                "INITIAL_POLICY",
+                "RESTRICTIVE_CHANGE",
+                "REVIEWED_CHANGE"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Review Reason"
+        },
+        "schema_version": {
+          "const": "team-v1",
+          "default": "team-v1",
+          "title": "Schema Version",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "expected_version"
+      ],
+      "title": "Transition",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "items": {
+      "items": {
+        "anyOf": [
+          {
+            "$ref": "#/$defs/Member"
+          },
+          {
+            "$ref": "#/$defs/Agent"
+          },
+          {
+            "$ref": "#/$defs/Reporter"
+          },
+          {
+            "$ref": "#/$defs/Revision"
+          },
+          {
+            "$ref": "#/$defs/Receipt"
+          }
+        ]
+      },
+      "title": "Items",
+      "type": "array"
+    },
+    "limit": {
+      "maximum": 100,
+      "minimum": 1,
+      "title": "Limit",
+      "type": "integer"
+    },
+    "offset": {
+      "maximum": 1000000,
+      "minimum": 0,
+      "title": "Offset",
+      "type": "integer"
+    },
+    "schema_version": {
+      "const": "team-v1",
+      "default": "team-v1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "items",
+    "offset",
+    "limit"
+  ],
+  "title": "Page",
+  "type": "object"
+}

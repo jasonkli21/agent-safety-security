@@ -27,7 +27,10 @@ If they appear to conflict, do not silently pick whichever is convenient. Prefer
 
 ## 3. Current phase boundary
 
-**Phase 9 local multi-agent security is implemented; review corrections are awaiting fresh independent review.**
+**Phase 10 optional managed team reference slice is implemented and awaiting independent review.**
+See `docs/managed-control-plane.md`, the Phase 10 plan and implementation report. It is a
+loopback-only single-instance governance/metadata service, never runtime authority. Phase 9
+review corrections still await fresh independent review; Phase 7–9 acceptance is unconfirmed.
 The review-fix baseline is `6c1a185`; its parent, `1619ac4`, contains the Phase 8 corrections.
 Independent Phase 7–8 acceptance remains unconfirmed; review fixes do not constitute release
 acceptance. Scope, limitations and corrected findings are in `docs/multi-agent-security.md`, the
@@ -53,7 +56,7 @@ identity. Explicit source labels/static sink categories are trusted configuratio
 can relabel context. Generated conformance proves synthetic policy/evidence behavior, not model
 robustness, semantic content detection or complete model-internal taint. Unsupported graph combinations remain explicit. Replay is offline security-semantic substitution, never live tool or model execution. Source
 evidence and replay identities stay separate; material redaction is a blocker. Promotion requires
-explicit safe assertions and never edits security contracts. Do not add hosted services, UI,
+explicit safe assertions and never edits security contracts. Beyond the explicit optional Phase 10 reference slice, do not add hosted services, UI,
 full OAuth/OIDC lifecycle services, Cedar/OPA, general policy languages, automatic declassification or new sandbox infrastructure. Phase 7 composes with Docker/gVisor;
 RuntimeGateway remains the common security boundary and configured isolation never falls back to host.
 

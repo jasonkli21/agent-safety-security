@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "acknowledge_expansion": {
+      "default": false,
+      "title": "Acknowledge Expansion",
+      "type": "boolean"
+    },
+    "acknowledge_gaps": {
+      "default": false,
+      "title": "Acknowledge Gaps",
+      "type": "boolean"
+    },
+    "acknowledge_initial": {
+      "default": false,
+      "title": "Acknowledge Initial",
+      "type": "boolean"
+    },
+    "action": {
+      "enum": [
+        "submit",
+        "approve",
+        "reject",
+        "publish",
+        "withdraw"
+      ],
+      "title": "Action",
+      "type": "string"
+    },
+    "expected_version": {
+      "maximum": 1000000,
+      "minimum": 0,
+      "title": "Expected Version",
+      "type": "integer"
+    },
+    "review_reason": {
+      "anyOf": [
+        {
+          "enum": [
+            "INITIAL_POLICY",
+            "RESTRICTIVE_CHANGE",
+            "REVIEWED_CHANGE"
+          ],
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Review Reason"
+    },
+    "schema_version": {
+      "const": "team-v1",
+      "default": "team-v1",
+      "title": "Schema Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "action",
+    "expected_version"
+  ],
+  "title": "Transition",
+  "type": "object"
+}

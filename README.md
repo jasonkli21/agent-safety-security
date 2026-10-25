@@ -2,7 +2,7 @@
 
 A local-first security lifecycle for tool-using AI agents: define explicit authority, test it adversarially, enforce it at runtime, and turn observed failures into regressions.
 
-> **Current status:** Phase 9 local multi-agent graphs, transitive authority, recursive budgets and protected message provenance are implemented. The initial independent review corrections are complete and await fresh review. See the [multi-agent guide](docs/multi-agent-security.md), [implementation report](docs/reports/phase-9-implementation-report.md) and [review-fixes report](docs/reports/phase-9-review-fixes-report.md). Independent Phase 7–8 acceptance remains unconfirmed.
+> **Current status:** Phase 10 adds an optional local team reference service: pinned-key SSO JWT verification, organization RBAC, immutable policy review/publication, inventory and minimized metadata/posture. See the [team guide](docs/managed-control-plane.md), [demo](examples/team/README.md) and [report](docs/reports/phase-10-implementation-report.md). Local enforcement remains autonomous. Independent Phase 7–10 acceptance remains unconfirmed.
 
 ## Product thesis
 
@@ -196,3 +196,16 @@ Phase 9 local multi-agent security: [guide](docs/multi-agent-security.md),
 [implementation report](docs/reports/phase-9-implementation-report.md).
 Run `.venv/bin/python examples/multi_agent/local_session.py` for the credential-free three-agent
 slice. Independent Phase 7–8 acceptance remains open; fresh Phase 9 review is pending.
+
+
+## Optional team governance
+
+```bash
+python -m pip install -e '.[dev,control-plane]'
+python examples/team/demo.py
+```
+
+The two-tenant fixture requires no external credentials or services. The optional loopback API
+and CLI expose governance and advisory fleet posture; reporting is explicitly opt-in and always
+`REPORTED_UNVERIFIED`. Publication and inventory never grant local runtime authority or activate
+policy. See [setup, roles, endpoints and limitations](examples/team/README.md).

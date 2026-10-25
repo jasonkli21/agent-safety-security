@@ -1901,3 +1901,18 @@ keeps graph cases DRAFT; it does not export protected graph authority automatica
 the only supported graph mode; unimplemented mode semantics fail setup. Phase 7 isolation and
 Phase 8 trust remain restrictive and unchanged. New peer/plan enrollment, remote A2A, hosted
 services and model/cost quotas are unsupported. See [multi-agent security](multi-agent-security.md).
+
+
+## Phase 10 decision: optional team governance is outside runtime authority
+
+`control_plane` owns a separate team-v1 identity, RBAC, revision and minimized-report namespace.
+Only explicit operator bootstrap/configuration pins external Ed25519 issuer keys and provisions
+subjects. Team principals never become Phase 6 credentials, delegation grants, trust pins or
+Phase 9 session participants. SQLite governance transactions and HTTP ingress are isolated from
+core domain/runtime code. Publication is immutable configuration history with independent review
+and compare-and-set; it never changes a running gateway or graph. Existing startup compilation,
+approvals, restrictive trust and graph ownership remain authoritative with zero team availability.
+Central metadata is a new allowlist projection, never a full SecurityEvent upload, and remains
+REPORTED_UNVERIFIED. See [managed control-plane design](managed-control-plane.md) for finite role,
+state, API, storage, outage and minimization contracts. This loopback single-instance reference
+adds no hosted SaaS, public proxy/TLS deployment or independent Phase 7–10 acceptance.

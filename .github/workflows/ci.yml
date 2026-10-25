@@ -13,12 +13,13 @@ jobs:
         with:
           python-version: "3.12"
       - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e ".[dev,mcp,identity,langchain]"
+      - run: python -m pip install -e ".[dev,mcp,identity,langchain,control-plane]"
       - run: ruff check .
       - run: ruff format --check .
       - run: mypy src
       - run: agentsec examples validate
       - run: agentsec eval examples
       - run: agentsec regression run --root examples/regressions
+      - run: python examples/team/demo.py
       - run: pytest
       - run: python -m build
