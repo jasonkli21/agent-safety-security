@@ -38,6 +38,19 @@
       "default": null,
       "title": "Resolution"
     },
+    "risk_id": {
+      "anyOf": [
+        {
+          "pattern": "^[a-z][a-z0-9_-]{0,47}$",
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Risk Id"
+    },
     "schema_version": {
       "const": "enterprise-v1",
       "default": "enterprise-v1",

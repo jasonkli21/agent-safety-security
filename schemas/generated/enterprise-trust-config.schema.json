@@ -3,6 +3,19 @@
     "Pin": {
       "additionalProperties": false,
       "properties": {
+        "archive_until": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Archive Until"
+        },
         "enabled": {
           "default": true,
           "title": "Enabled",
@@ -51,6 +64,19 @@
           ],
           "title": "Purpose",
           "type": "string"
+        },
+        "revoked_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Revoked At"
         },
         "schema_version": {
           "const": "enterprise-v1",

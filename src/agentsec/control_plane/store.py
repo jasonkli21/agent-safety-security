@@ -22,6 +22,7 @@ Kind = Literal[
     "retry",
     "tombstone",
     "case",
+    "case_history",
     "risk",
     "enterprise_retry",
     "federation",
@@ -45,6 +46,7 @@ CREATE TABLE audit (
  action TEXT NOT NULL, target TEXT NOT NULL, version INTEGER NOT NULL, at TEXT NOT NULL);
 PRAGMA user_version=1;
 """
+MAX_AUDIT_ROWS = 10_000
 
 
 class ScopedStore:
@@ -119,6 +121,14 @@ class ScopedStore:
         return str(row[0]), str(row[1])
 
     def audit(self, actor: str, action: str, target: str, version: int, at: str) -> None:
+        # The reference has no schema migration for a tenant-local sequence index.
+        # Bound all audit scans globally; once full, fail closed instead of allowing
+        # unbounded exporter work under the single-instance writer lock.
+        full = self.connection.execute(
+            "SELECT 1 FROM audit ORDER BY seq LIMIT 1 OFFSET ?", (MAX_AUDIT_ROWS,)
+        ).fetchone()
+        if full is not None:
+            raise TeamError("AUDIT_CAPACITY")
         self.connection.execute(
             "INSERT INTO audit(org,actor,action,target,version,at) VALUES (?,?,?,?,?,?)",
             (self.org, actor, action, target, version, at),

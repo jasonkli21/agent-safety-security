@@ -20,8 +20,17 @@ from the payload. Prefix bytes are `agentsec:enterprise-v1:federation\n` and
 `agentsec:enterprise-v1:export\n` (a literal LF). Algorithm, purpose and key ID are signed.
 A pin independently binds purpose/key/origin/target/source-policy/local-policy and validity.
 Pins are protected offline files; no HTTP trust provisioning or embedded-key trust exists.
-Private keys are private regular POSIX files used only by offline CLI. Rotate by replacing pins;
-replay high water is scoped by origin/policy, independent of key. Revocation removes/disables pin.
+Private keys are private regular POSIX files used only by offline CLI. Federation admission uses
+only a currently enabled, in-window pin. Export verification also has an explicit archival mode:
+the protected pin must carry `archive_until`, the manifest issue time must be within the pin's
+original validity, and `revoked_at` (if set) must follow issue time. The verifier's current time
+must not exceed `archive_until`; callers cannot supply a historical `--at` value. Routine expiry
+can preserve verification, while key compromise requires an operator-recorded effective revocation
+time. Keep retired public pins and revocation metadata in protected backup. Archival mode applies
+only to SIEM exports and never federation imports. The signed issue time is signer-asserted; without
+an independent timestamp authority, archival verification establishes signature integrity and
+consistency with operator pin history, not when the signature was actually created. CLI output
+labels this as `ISSUE_TIME_ASSERTED`.
 A signer authenticates bytes, never running code, host identity or truthful reporter claims.
 
 Source export is deliberate and separate from telemetry: explicit origin/target/signer selection.
@@ -55,7 +64,15 @@ with explicit DB/config/token/org. Signing and verification commands do not cont
 Cases: OPEN → TRIAGED → MITIGATING → RESOLVED → CLOSED; OWNER reopen to OPEN from terminal
 states; REVIEWER/OWNER dismiss nonterminal cases with a resolution code. HIGH/CRITICAL closure
 requires a HUMAN distinct from creator and resolver. An enabled HUMAN assignee is required.
-Transitions are CAS with actor/request-bound exact retry and transactional audit.
+Transitions are CAS with actor/request-bound exact retry and transactional audit. Every new case
+transition also appends a metadata-only history entry with exact versions, actor, UTC time, states,
+finite resolution and optional accepted-risk ID. `GET .../cases/{id}/history` is member-readable;
+SERVICE/VIEWER visibility matches individual case reads. History writes, case state, retry receipt
+and audit commit together. Existing cases have no fabricated history: `complete_from_version`
+marks the version before the first recorded post-upgrade transition. History uses the existing
+1,000-record per-kind bound. `ACCEPTED_RISK` requires an explicit risk ID that is approved, active,
+scoped to this case and its exact current version. Pending, expired, revoked, stale, unrelated or
+missing risk cannot resolve a case as accepted.
 Risk targets are exact case/revision versions. REQUESTED → APPROVED/REJECTED; APPROVED → REVOKED.
 Approval requires distinct HUMAN OWNER, current target/requester and future expiry ≤30 days from
 request. At exact expiry disposition is EXPIRED; changed target or revoked requester/approver is
@@ -63,14 +80,23 @@ STALE. Renewal creates a new ID. Risk is annotation only and cannot change CI/po
 
 Simulation snapshots candidate/publication/inventory, assesses once outside the write lock,
 then reauthorizes and checks exact snapshot. COMPARED requires protected expected plan and current
-published revision alignment. Missing/stale/unsupported baseline is UNKNOWN/UNCLASSIFIED; disabled
+published revision alignment, plus exact candidate agent ID, environment and principal/owner
+binding to that enrolled agent. Any candidate binding mismatch is UNKNOWN with
+`CANDIDATE_BINDING_MISMATCH`; missing/stale/unsupported baseline is UNKNOWN/UNCLASSIFIED; disabled
 agents are INELIGIBLE. No claim about loaded bytes, model behavior, tools, graphs or future effects.
 Finite change categories/conformance/coverage are advisory; policy source never enters telemetry.
 
 ## Storage, export and recovery
 
 Existing user_version=1 generic tenant-qualified records are sufficient; no DDL change or migration
-is introduced. New kinds are additive; no automatic upgrade or live migration occurs. Existing
+is introduced. New kinds are additive; no automatic upgrade or live migration occurs. To keep
+single-instance audit scans bounded without changing schema, the reference has a hard cap of
+10,000 total audit rows across all tenants. At capacity, audited mutations fail closed with
+`AUDIT_CAPACITY`; export refuses an already-over-cap legacy database before counting or paging.
+This deliberate global ceiling creates cross-tenant availability coupling and requires a separately
+reviewed schema/migration design before larger deployments. Export pages remain at most 1,000 rows,
+and cursor offsets above 10,000 fail. No large-fleet throughput or production latency is claimed.
+Existing
 private DB/WAL/SHM admission and immutable source triggers remain. Unknown versions fail closed.
 Offline backup uses SQLite backup plus integrity check, exclusive private output and cleanup on
 failure. Restore only to private regular owner files while service is stopped; preserve protected
@@ -84,8 +110,11 @@ A repeat at the same unchanged snapshot yields identical bytes. Consumers dedupe
 (org, sequence, audit identity); mutable observation fields may change on a later snapshot.
 No arbitrary SQL/filter cursor. Short consistent snapshot; JSON/sign/write occurs outside lock.
 A separate manifest signs exact bytes/count/range/org/digest/format. Export uses private temporary
-file, fsync and exclusive atomic link (no overwrite); failures remove temp files. JSONL and manifest
-are separate artifacts: interruption between files leaves JSONL unsigned; accept only verified pairs.
+file, fsync and exclusive atomic link (no overwrite). A directory-fsync failure after publication
+attempts to remove only the destination inode linked by that invocation and fsyncs cleanup; if
+ownership cannot be established or cleanup fails, the CLI reports `PUBLICATION_UNCERTAIN`. JSONL
+and manifest are separate artifacts. If manifest publication fails, JSONL may remain as an unsigned
+orphan; quarantine it and retry with new names. Accept only verified pairs.
 Signed origin remains separate from REPORTED_UNVERIFIED report assurance. No live SIEM transmission.
 Mapping: sequence→event.sequence, at→@timestamp, kind→event.category, action→event.action,
 actor→user.id, target→event.id, assurance→agentsec.assurance. Never promote reporter assurance.

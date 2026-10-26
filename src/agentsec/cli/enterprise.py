@@ -185,14 +185,20 @@ def export_siem(
 
 
 @app.command("verify-export")
-def verify_export_command(data: Path, manifest: Path, trust: Path) -> None:
+def verify_export_command(data: Path, manifest: Path, trust: Path, archival: bool = False) -> None:
     """Verify exact bytes with independent local pin; does not attest reporter truth."""
     try:
         signed = validate_data(
             SignedExport, parse_document(private_bytes(manifest).decode(), format="json")
         )
-        verify_export(private_bytes(data), signed, trust_file(trust), datetime.now(UTC))
-        typer.echo("VERIFIED_EXPORT_ORIGIN; REPORTER_ASSURANCE_UNCHANGED")
+        verify_export(
+            private_bytes(data), signed, trust_file(trust), datetime.now(UTC), archival=archival
+        )
+        typer.echo(
+            "ARCHIVAL_SIGNATURE_VALID; ISSUE_TIME_ASSERTED; REPORTER_ASSURANCE_UNCHANGED"
+            if archival
+            else "VERIFIED_EXPORT_ORIGIN; REPORTER_ASSURANCE_UNCHANGED"
+        )
     except Exception as exc:
         fail(exc)
 

@@ -93,7 +93,19 @@ def create_app(service: TeamService) -> Starlette:
                     "revisions": "revision",
                     "reports": "receipt",
                 }
-                if len(parts) == 3 and parts[0] == "enterprise" and parts[1] in {"cases", "risks"}:
+                if (
+                    len(parts) == 4
+                    and parts[:2] == ["enterprise", "cases"]
+                    and parts[3] == "history"
+                ):
+                    if request.query_params:
+                        raise TeamError("INVALID_INPUT")
+                    result = await run_in_threadpool(
+                        enterprise.case_history, identity, org, parts[2]
+                    )
+                elif (
+                    len(parts) == 3 and parts[0] == "enterprise" and parts[1] in {"cases", "risks"}
+                ):
                     if request.query_params:
                         raise TeamError("INVALID_INPUT")
                     operation = enterprise.case if parts[1] == "cases" else enterprise.risk

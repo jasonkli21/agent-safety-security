@@ -30,3 +30,5 @@ changes, verification, deviations, remaining limitations, and next-phase readine
 
 - [Phase 11 implementation report](phase-11-implementation-report.md) — bounded enterprise reference;
   independent review pending; inherited Phase 7–10 gates remain open.
+- [Phase 11 independent review fixes](phase-11-independent-review-fixes-report.md) — F11-01–06
+  corrections and fresh independent re-review gate.

@@ -7,13 +7,15 @@ from datetime import datetime, timedelta
 from agentsec.control_plane.auth import VerifiedIdentity
 from agentsec.control_plane.errors import TeamError
 from agentsec.control_plane.models import Agent, Binding, Member, Receipt, Revision
-from agentsec.control_plane.policies import assess, verify_fetch
+from agentsec.control_plane.policies import assess, parse_source, verify_fetch
 from agentsec.control_plane.service import Permission, TeamService, checked_model, required
-from agentsec.control_plane.store import Kind, ScopedStore
+from agentsec.control_plane.store import MAX_AUDIT_ROWS, Kind, ScopedStore
 from agentsec.domain.serialization import content_digest
 from agentsec.enterprise.federation import verify_bundle
 from agentsec.enterprise.models import (
     AgentComparison,
+    CaseHistory,
+    CaseHistoryEntry,
     CaseInput,
     CaseTransition,
     ExportCursor,
@@ -158,6 +160,23 @@ class EnterpriseService:
         with self.authorized(identity, org, "read") as (scope, _):
             return IncidentCase.model_validate_json(required(scope, "case", key)[1])
 
+    def case_history(self, identity: VerifiedIdentity, org: str, key: str) -> CaseHistory:
+        with self.authorized(identity, org, "read") as (scope, _):
+            required(scope, "case", key)
+            rows = scope.all_rows("case_history")
+            entries = tuple(
+                sorted(
+                    (
+                        CaseHistoryEntry.model_validate_json(body)
+                        for item, _, body in rows
+                        if item.rsplit("-", 1)[0] == key and item.rsplit("-", 1)[1].isdigit()
+                    ),
+                    key=lambda entry: entry.version,
+                )
+            )
+            complete_from = entries[0].version - 1 if entries else 1
+            return CaseHistory(case_id=key, entries=entries, complete_from_version=complete_from)
+
     def transition_case(
         self, identity: VerifiedIdentity, org: str, key: str, value: CaseTransition
     ) -> IncidentCase:
@@ -189,6 +208,17 @@ class EnterpriseService:
             }
             if version != value.expected_version or case.state not in allowed[value.action]:
                 raise TeamError("CONFLICT")
+            if value.resolution == "ACCEPTED_RISK":
+                assert value.risk_id is not None
+                risk = RiskAcceptance.model_validate_json(required(scope, "risk", value.risk_id)[1])
+                if (
+                    risk.target_kind != "case"
+                    or risk.target_id != key
+                    or risk.target_version != version
+                    or risk.state != "APPROVED"
+                    or self.risk_view(scope, risk).disposition != "ACTIVE"
+                ):
+                    raise TeamError("CONFLICT")
             if case.severity in {"HIGH", "CRITICAL"} and value.action in {"close", "dismiss"}:
                 if actor.identity_id in {case.creator, case.resolver}:
                     raise TeamError("DENIED")
@@ -218,6 +248,18 @@ class EnterpriseService:
                 ).model_dump_json()
             )
             scope.put("case", key, result.model_dump_json(), version)
+            history = CaseHistoryEntry(
+                case_id=key,
+                version=result.version,
+                actor=actor.identity_id,
+                action=value.action,
+                from_state=case.state,
+                to_state=result.state,
+                resolution=value.resolution,
+                risk_id=value.risk_id,
+                at=result.updated_at,
+            )
+            scope.put("case_history", f"{key}-{result.version:06d}", history.model_dump_json())
             self.save_retry(scope, retry_key, actor, value, result)
             self.team.audit(scope, actor, "case-" + value.action, key, result.version)
             return result
@@ -385,6 +427,7 @@ class EnterpriseService:
         revision, source, previous, inventory, _ = snapshot
         assessment = assess(source, previous)
         baseline_assessment = assess(previous, None) if previous else None
+        candidate_contract = parse_source(source)
         comparable = (
             previous is not None
             and not assessment.unsupported
@@ -407,18 +450,25 @@ class EnterpriseService:
                     and agent.policy_revision == publication.revision_id
                     and agent.expected_plan == baseline_assessment.compiled_plan_digest
                 )
+                applicable = bool(
+                    candidate_contract.agent.agent_id == agent.agent_id
+                    and candidate_contract.agent.environment == agent.environment
+                    and candidate_contract.identity.principal.principal_id == agent.owner_id
+                )
                 rows.append(
                     AgentComparison(
                         agent_id=key,
                         status="INELIGIBLE"
                         if not agent.enabled
                         else "COMPARED"
-                        if comparable and aligned
+                        if comparable and aligned and applicable
                         else "UNKNOWN",
                         reason="DISABLED"
                         if not agent.enabled
                         else "BASELINE_UNKNOWN"
                         if not comparable
+                        else "CANDIDATE_BINDING_MISMATCH"
+                        if not applicable
                         else "FINITE_EXPECTED_PLAN"
                         if aligned
                         else "PLAN_MISMATCH",
@@ -470,9 +520,15 @@ class EnterpriseService:
 
     def export_page(self, identity: VerifiedIdentity, org: str, cursor: ExportCursor) -> ExportPage:
         cursor = checked_model(ExportCursor, cursor)
+        if cursor.after > MAX_AUDIT_ROWS:
+            raise TeamError("CONFLICT")
         with self.authorized(identity, org, "manage") as (scope, _):
             if cursor.org != org:
                 raise TeamError("DENIED")
+            if scope.connection.execute(
+                "SELECT 1 FROM audit ORDER BY seq LIMIT 1 OFFSET ?", (MAX_AUDIT_ROWS,)
+            ).fetchone():
+                raise TeamError("AUDIT_CAPACITY")
             audit_version = scope.connection.execute(
                 "SELECT max(seq) FROM audit WHERE org=?", (org,)
             ).fetchone()[0]

@@ -31,8 +31,15 @@ There is no automatic outbound telemetry or dependency on enterprise availabilit
 Signing keys belong to an **offline account/location outside the server directory**. Use separate
 keys/pins per purpose in production. Independently deliver the public federation/export pins;
 never copy an included sender key into trust without verifying its owner and exact scope. Trust
-files must be private regular files. Remove/revoke a pin to disable it; key rotation preserves the
-peer/policy replay high water. Do not delete federation records to make an old sequence work.
+files must be private regular files. Removing/disabling a pin blocks current federation admission.
+For routine export-key rotation, retain the old export pin with its original `not_before` and
+`expires_at`, set an operator-approved `archive_until`, and leave `revoked_at` empty. For a known
+compromise, record the independently established effective `revoked_at`; archival verification
+rejects signatures at or after that time. Back up this protected trust history with the signed
+artifacts. `verify-export --archival` uses the current clock, cannot be backdated by a caller, and
+does not relax federation import trust. It checks signature consistency against asserted issue
+time and protected pin history; no trusted timestamp proves when a signature was made. Key rotation preserves peer/policy replay high water. Do
+not delete federation records to make an old sequence work.
 
 Offline CLI examples (replace each uppercase argument explicitly):
 
@@ -88,3 +95,15 @@ an incident revoke affected membership/pin, stop the reference if storage/key in
 preserve a private backup and escalate to the operator with synthetic reproduction steps. Do not
 attach tokens, private keys, policy source, tool arguments or raw events to support records. This
 is a measurement/support template, not an SLA, staffed service or compliance certification.
+
+If writing a single file fails after its hard-link publication, the writer removes only the
+destination inode it created and syncs the directory. `PUBLICATION_UNCERTAIN` means ownership or
+cleanup could not be confirmed: inspect the named output in the private directory before retrying.
+If JSONL succeeds and manifest publication fails, the JSONL may remain; it is unsigned, must be
+quarantined, and the retry must use new output names. Never treat a CLI error as proof that no file
+was published.
+
+The v1 store has a hard ceiling of **10,000 audit rows total across all tenants**. At capacity,
+audited mutations fail with `AUDIT_CAPACITY`; this bounds export scans but couples tenant
+availability. Before larger deployments, use a separately reviewed schema migration and indexed
+tenant-local sequence design. No throughput target is claimed.

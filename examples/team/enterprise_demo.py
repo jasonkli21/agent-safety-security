@@ -40,7 +40,7 @@ def main() -> None:
         def actor(name: str):
             return TeamVerifier(CONFIG).verify(token(name), NOW)
 
-        source = Path("examples/mcp/contract.yaml").read_text()
+        source = Path("examples/mcp/contract.yaml").read_text().replace("local-user", "other")
         key = Ed25519PrivateKey.from_private_bytes(bytes(reversed(range(32))))
         private = root / "synthetic-offline-key.pem"
         private.write_bytes(
@@ -157,15 +157,16 @@ def main() -> None:
         except TeamError as exc:
             assert exc.code == "SIGNATURE_INVALID"
         for name, revision_id, plan in (
-            ("aligned", "baseline", baseline.assessment.compiled_plan_digest),
+            ("demo-agent", "baseline", baseline.assessment.compiled_plan_digest),
             ("unknown", None, None),
         ):
+            applicable = name == "demo-agent"
             team.agent(
                 actor("other"),
                 "beta",
                 Agent(
                     agent_id=name,
-                    environment="test",
+                    environment="local" if applicable else "test",
                     repository="repo",
                     owner_id="other",
                     policy_revision=revision_id,
@@ -176,7 +177,7 @@ def main() -> None:
             actor("beta-editor"),
             "beta",
             SimulationInput(
-                candidate="candidate", expected_generation=1, agents=("aligned", "unknown")
+                candidate="candidate", expected_generation=1, agents=("demo-agent", "unknown")
             ),
         )
         assert result.category == "RESTRICTIVE"
@@ -190,7 +191,7 @@ def main() -> None:
                 category="POLICY",
                 severity="HIGH",
                 assignee="beta-editor",
-                agent_id="aligned",
+                agent_id="demo-agent",
             ),
         )
         service.transition_case(

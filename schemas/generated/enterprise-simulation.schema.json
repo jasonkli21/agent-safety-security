@@ -13,7 +13,8 @@
             "FINITE_EXPECTED_PLAN",
             "BASELINE_UNKNOWN",
             "PLAN_MISMATCH",
-            "DISABLED"
+            "DISABLED",
+            "CANDIDATE_BINDING_MISMATCH"
           ],
           "title": "Reason",
           "type": "string"

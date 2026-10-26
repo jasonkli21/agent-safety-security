@@ -24,7 +24,7 @@ from agentsec.control_plane.auth import TeamVerifier
 from agentsec.control_plane.errors import TeamError
 from agentsec.control_plane.models import Agent, Member, RevisionInput, Role, Transition
 from agentsec.control_plane.policies import assess
-from agentsec.control_plane.store import Store
+from agentsec.control_plane.store import MAX_AUDIT_ROWS, Store
 from agentsec.enterprise.exports import jsonl_bytes, sign_export, verify_export, write_export
 from agentsec.enterprise.files import atomic_private_write, backup_database
 from agentsec.enterprise.models import (
@@ -50,7 +50,12 @@ fixture = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = fixture
 spec.loader.exec_module(fixture)
 NOW = fixture.NOW
-SOURCE = Path("examples/mcp/contract.yaml").read_text()
+SOURCE = (
+    Path("examples/mcp/contract.yaml")
+    .read_text()
+    .replace("demo-agent", "agent")
+    .replace("local-user", "owner")
+)
 KEY = Ed25519PrivateKey.from_private_bytes(bytes(reversed(range(32))))
 PUBLIC = (
     KEY.public_key()
@@ -164,7 +169,7 @@ def open_case(service, who="editor", severity="HIGH", key="case"):
     )
 
 
-def request_risk(service, who="editor", key="risk"):
+def request_risk(service, who="editor", key="risk", target_version=1):
     return service.request_risk(
         identity(who),
         "alpha",
@@ -172,7 +177,7 @@ def request_risk(service, who="editor", key="risk"):
             risk_id=key,
             target_kind="case",
             target_id="case",
-            target_version=1,
+            target_version=target_version,
             reason="TIME_BOUND_REMEDIATION",
             expires_at=NOW + timedelta(hours=1),
         ),
@@ -300,6 +305,13 @@ def test_duplicate_json_and_duplicate_pins(env):
 def test_case_lifecycle_cas_retry_independent_severe_closure(env):
     service, _ = env
     open_case(service, "owner")
+    open_case(service, severity="LOW", key="case-child")
+    service.transition_case(
+        identity("editor"),
+        "alpha",
+        "case-child",
+        CaseTransition(action="triage", expected_version=1),
+    )
     for action, who, version in [
         ("triage", "editor", 1),
         ("mitigate", "editor", 2),
@@ -337,6 +349,15 @@ def test_case_lifecycle_cas_retry_independent_severe_closure(env):
         ).state
         == "OPEN"
     )
+    history = service.case_history(identity("viewer"), "alpha", "case")
+    assert [(entry.from_state, entry.to_state) for entry in history.entries] == [
+        ("OPEN", "TRIAGED"),
+        ("TRIAGED", "MITIGATING"),
+        ("MITIGATING", "RESOLVED"),
+        ("RESOLVED", "CLOSED"),
+        ("CLOSED", "OPEN"),
+    ]
+    assert history.entries[2].resolution == "MITIGATED"
 
 
 def test_case_audit_failure_rolls_back(env, monkeypatch):
@@ -353,6 +374,42 @@ def test_case_audit_failure_rolls_back(env, monkeypatch):
         )
     assert service.case(identity("viewer"), "alpha", "case").version == 1
     assert service.team.store.scoped("alpha").all_rows("enterprise_retry") == []
+    assert service.case_history(identity("viewer"), "alpha", "case").entries == ()
+
+
+def test_accepted_risk_requires_exact_active_approved_link(env):
+    service, _ = env
+    open_case(service, severity="LOW")
+    with pytest.raises(ValueError, match="RISK_REQUIRED"):
+        CaseTransition(action="resolve", expected_version=1, resolution="ACCEPTED_RISK")
+    service.transition_case(
+        identity("editor"), "alpha", "case", CaseTransition(action="triage", expected_version=1)
+    )
+    service.transition_case(
+        identity("editor"), "alpha", "case", CaseTransition(action="mitigate", expected_version=2)
+    )
+    request_risk(service, target_version=3)
+    with pytest.raises(TeamError, match="CONFLICT"):
+        service.transition_case(
+            identity("reviewer"),
+            "alpha",
+            "case",
+            CaseTransition(
+                action="resolve", expected_version=3, resolution="ACCEPTED_RISK", risk_id="risk"
+            ),
+        )
+    service.transition_risk(
+        identity("owner"), "alpha", "risk", RiskTransition(action="approve", expected_version=1)
+    )
+    resolved = service.transition_case(
+        identity("reviewer"),
+        "alpha",
+        "case",
+        CaseTransition(
+            action="resolve", expected_version=3, resolution="ACCEPTED_RISK", risk_id="risk"
+        ),
+    )
+    assert resolved.resolution == "ACCEPTED_RISK"
 
 
 def test_risk_independence_exact_expiry_stale_and_revocation(env):
@@ -439,18 +496,19 @@ def test_revoked_role_on_exact_retry_and_assignee(env):
         )
 
 
-def enroll(service, key="agent", revision=None, plan=None, enabled=True):
+def enroll(service, key="agent", revision=None, plan=None, enabled=True, expected_version=0):
     return service.team.agent(
         identity("owner"),
         "alpha",
         Agent(
             agent_id=key,
-            environment="test",
+            environment="local",
             repository="repo",
             owner_id="owner",
             policy_revision=revision,
             expected_plan=plan,
             enabled=enabled,
+            expected_version=expected_version,
         ),
     )
 
@@ -464,18 +522,35 @@ def test_simulation_missing_baseline_then_finite_and_unknown(env):
     assert result.category == "UNCLASSIFIED" and result.agents[0].status == "UNKNOWN"
     published = publish(service)
     draft(service, "next", base=1)
-    enroll(service, "aligned", "candidate", published.assessment.compiled_plan_digest)
+    enroll(
+        service, "agent", "candidate", published.assessment.compiled_plan_digest, expected_version=1
+    )
     enroll(service, "disabled", enabled=False)
     result = service.simulate(
         identity("editor"),
         "alpha",
-        SimulationInput(
-            candidate="next", expected_generation=1, agents=("aligned", "agent", "disabled")
-        ),
+        SimulationInput(candidate="next", expected_generation=1, agents=("agent", "disabled")),
     )
-    assert [r.status for r in result.agents] == ["COMPARED", "UNKNOWN", "INELIGIBLE"]
+    assert [r.status for r in result.agents] == ["COMPARED", "INELIGIBLE"]
     assert result.category == "UNCHANGED"
     assert result.assessment.compiled_plan_digest == revision.assessment.compiled_plan_digest
+
+
+def test_simulation_candidate_identity_binding_is_unknown(env):
+    service, _ = env
+    draft(service)
+    baseline = publish(service)
+    enroll(service, revision="candidate", plan=baseline.assessment.compiled_plan_digest)
+    changed = SOURCE.replace("agent_id: agent", "agent_id: other-agent")
+    draft(service, "next", base=1, source=changed)
+    result = service.simulate(
+        identity("editor"),
+        "alpha",
+        SimulationInput(candidate="next", expected_generation=1, agents=("agent",)),
+    )
+    assert result.category == "UNCLASSIFIED"
+    assert result.agents[0].status == "UNKNOWN"
+    assert result.agents[0].reason == "CANDIDATE_BINDING_MISMATCH"
 
 
 @pytest.mark.parametrize("mutation", ["role", "inventory", "publication"])
@@ -499,7 +574,7 @@ def test_simulation_snapshot_race_and_outside_lock(env, monkeypatch, mutation):
                 "alpha",
                 Agent(
                     agent_id="agent",
-                    environment="test",
+                    environment="local",
                     repository="repo",
                     owner_id="owner",
                     enabled=False,
@@ -630,14 +705,41 @@ def test_protected_key_and_interrupted_export(env, tmp_path, monkeypatch):
     assert not output.exists() and not list(tmp_path.glob(".agentsec-*"))
 
 
+def test_post_publication_fsync_failure_cleans_only_our_inode(env, tmp_path, monkeypatch):
+    output = tmp_path / "published"
+    original = os.fsync
+    calls = 0
+
+    def fail_directory(fd):
+        nonlocal calls
+        calls += 1
+        if calls == 2:
+            raise OSError("injected directory durability failure")
+        return original(fd)
+
+    monkeypatch.setattr(os, "fsync", fail_directory)
+    with pytest.raises(TeamError, match="STORE_UNAVAILABLE"):
+        atomic_private_write(output, b"sample")
+    assert not output.exists()
+    assert not list(tmp_path.glob(".agentsec-*"))
+
+
 def test_backup_restore_retains_enterprise_and_unsafe_wal(env, tmp_path):
     service, _ = env
     open_case(service)
+    service.transition_case(
+        identity("editor"), "alpha", "case", CaseTransition(action="triage", expected_version=1)
+    )
     destination = tmp_path / "backup.db"
     backup_database(tmp_path / "team.db", destination)
     restored = Store(destination)
     assert restored.connection.execute("PRAGMA user_version").fetchone()[0] == 1
     assert restored.scoped("alpha").get("case", "case")
+    restored_service = EnterpriseService(fixture.TeamService(restored, fixture.CONFIG, lambda: NOW))
+    assert (
+        restored_service.case_history(identity("viewer"), "alpha", "case").entries[0].to_state
+        == "TRIAGED"
+    )
     restored.close()
     with pytest.raises(TeamError):
         backup_database(tmp_path / "team.db", destination)
@@ -662,6 +764,14 @@ def test_enterprise_api_strict_input_and_roles(env):
         )
 
     assert post("editor", data).status_code == 200
+    service.transition_case(
+        identity("editor"), "alpha", "case", CaseTransition(action="triage", expected_version=1)
+    )
+    history = client.get(
+        "/v1/orgs/alpha/enterprise/cases/case/history",
+        headers={"Authorization": "Bearer " + fixture.token("viewer")},
+    )
+    assert history.status_code == 200 and history.json()["entries"][0]["to_state"] == "TRIAGED"
     assert post("viewer", data).status_code == 403
     assert post("beta-editor", data).status_code == 403
     assert post("editor", {**data, "notes": "secret-canary"}).status_code == 422
@@ -701,6 +811,20 @@ def test_fixed_canonical_export_vector(env):
     KEY.public_key().verify(bytes.fromhex(vector["signature"]), vector["bytes"].encode())
 
 
+def test_audit_export_has_finite_global_scan_ceiling(env):
+    service, _ = env
+    with service.team.store.transaction():
+        service.team.store.connection.executemany(
+            "INSERT INTO audit(org,actor,action,target,version,at) VALUES (?,?,?,?,?,?)",
+            (
+                ("alpha", "owner", "report", f"r{i}", 1, NOW.isoformat())
+                for i in range(MAX_AUDIT_ROWS + 1)
+            ),
+        )
+    with pytest.raises(TeamError, match="AUDIT_CAPACITY"):
+        service.export_page(identity("owner"), "alpha", ExportCursor(org="alpha"))
+
+
 def test_risk_does_not_suppress_runtime_deny_or_ci_failure(env):
     from uuid import UUID
 
@@ -723,7 +847,7 @@ def test_risk_does_not_suppress_runtime_deny_or_ci_failure(env):
         Metadata(
             run_id=UUID(int=1),
             agent_id="agent",
-            environment="test",
+            environment="local",
             repository="repo",
             source="CI",
             period_start=NOW,
@@ -776,7 +900,7 @@ def test_risk_does_not_suppress_runtime_deny_or_ci_failure(env):
         (lambda s: s.replace("decision: ALLOW", "decision: DENY"), "RESTRICTIVE"),
         (lambda s: s.replace("decision: REQUIRE_APPROVAL", "decision: ALLOW"), "EXPANSIVE"),
         (
-            lambda s: s.replace("principal_id: local-user", "principal_id: different-user"),
+            lambda s: s.replace("principal_id: owner", "principal_id: different-user"),
             "UNCLASSIFIED",
         ),
         (
@@ -798,7 +922,9 @@ def test_simulation_finite_categories(env, change, category):
         SimulationInput(candidate="next", expected_generation=1, agents=("agent",)),
     )
     assert result.category == category
-    assert result.agents[0].status == "COMPARED"
+    assert result.agents[0].status == (
+        "UNKNOWN" if "identity_environment_change" in result.assessment.change_kinds else "COMPARED"
+    )
     if category == "UNCHANGED":
         assert result.assessment.document_hash != baseline.assessment.document_hash
         assert result.assessment.effective_policy_hash == baseline.assessment.effective_policy_hash
@@ -968,6 +1094,30 @@ def test_signed_export_wrong_manifest_and_embedded_key(env):
     raw["public_key_pem"] = PUBLIC
     with pytest.raises(ArtifactValidationError):
         validate_data(SignedExport, raw)
+
+
+def test_archival_export_verification_survives_benign_pin_expiry(env):
+    service, key = env
+    page = service.export_page(identity("owner"), "alpha", ExportCursor(org="alpha"))
+    data, manifest = sign_export(page, "exporter", key, NOW)
+    archival_pin = pin(
+        "export",
+        target="alpha",
+        policy_key="siem",
+        local_policy_key="siem",
+        key_id="exporter",
+        expires_at=NOW + timedelta(hours=1),
+        archive_until=NOW + timedelta(days=10),
+    )
+    trust = TrustConfig(pins=(archival_pin,))
+    with pytest.raises(TeamError, match="TRUST_UNAVAILABLE"):
+        verify_export(data, manifest, trust, NOW + timedelta(hours=2))
+    verify_export(data, manifest, trust, NOW + timedelta(hours=2), archival=True)
+    revoked = TrustConfig(
+        pins=(archival_pin.model_copy(update={"revoked_at": NOW - timedelta(minutes=1)}),)
+    )
+    with pytest.raises(TeamError, match="TRUST_UNAVAILABLE"):
+        verify_export(data, manifest, revoked, NOW + timedelta(hours=2), archival=True)
 
 
 def test_two_connections_workflow_cas(env, tmp_path):

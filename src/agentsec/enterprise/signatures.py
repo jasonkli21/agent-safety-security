@@ -83,3 +83,39 @@ def verify(payload: Payload, signature: str, trust: TrustConfig, now: datetime) 
     if isinstance(payload, FederationPayload) and now >= payload.expires_at:
         raise TeamError("SIGNATURE_INVALID")
     return pin
+
+
+def verify_archival_export(
+    payload: ExportManifest, signature: str, trust: TrustConfig, now: datetime
+) -> Pin:
+    """Verify historical export trust using operator-retained, time-bounded pin metadata."""
+    from cryptography.exceptions import InvalidSignature
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+    from cryptography.hazmat.primitives.serialization import load_pem_public_key
+
+    matches = [
+        p
+        for p in trust.pins
+        if p.enabled
+        and p.purpose == "export"
+        and p.origin == payload.origin
+        and p.target == payload.target
+        and p.policy_key == payload.policy_key
+        and p.local_policy_key == payload.local_policy_key
+        and p.key_id == payload.key_id
+        and p.archive_until is not None
+        and now <= p.archive_until
+        and p.not_before <= payload.issued_at < p.expires_at
+        and (p.revoked_at is None or payload.issued_at < p.revoked_at)
+    ]
+    if len(matches) != 1 or payload.issued_at > now:
+        raise TeamError("TRUST_UNAVAILABLE")
+    pin = matches[0]
+    try:
+        key = load_pem_public_key(pin.public_key_pem.encode())
+        if not isinstance(key, Ed25519PublicKey):
+            raise ValueError
+        key.verify(bytes.fromhex(signature), signing_bytes(payload))
+    except (ValueError, TypeError, InvalidSignature):
+        raise TeamError("SIGNATURE_INVALID") from None
+    return pin

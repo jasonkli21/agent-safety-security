@@ -37,6 +37,8 @@ class Pin(EnterpriseModel):
     not_before: Timestamp
     expires_at: Timestamp
     enabled: bool = True
+    archive_until: Timestamp | None = None
+    revoked_at: Timestamp | None = None
 
     @model_validator(mode="after")
     def ordered(self) -> Self:
@@ -136,12 +138,35 @@ class CaseTransition(EnterpriseModel):
     action: Literal["triage", "mitigate", "resolve", "close", "reopen", "dismiss"]
     expected_version: Version
     resolution: Resolution | None = None
+    risk_id: TeamId | None = None
 
     @model_validator(mode="after")
     def resolution_required(self) -> Self:
         if (self.action in {"resolve", "dismiss"}) != (self.resolution is not None):
             raise ValueError("RESOLUTION_INVALID")
+        if (self.resolution == "ACCEPTED_RISK") != (self.risk_id is not None):
+            raise ValueError("RISK_REQUIRED")
+        if self.action != "resolve" and self.risk_id is not None:
+            raise ValueError("RISK_INVALID")
         return self
+
+
+class CaseHistoryEntry(EnterpriseModel):
+    case_id: TeamId
+    version: Version
+    actor: TeamId
+    action: Literal["triage", "mitigate", "resolve", "close", "reopen", "dismiss"]
+    from_state: CaseState
+    to_state: CaseState
+    resolution: Resolution | None = None
+    risk_id: TeamId | None = None
+    at: Timestamp
+
+
+class CaseHistory(EnterpriseModel):
+    case_id: TeamId
+    entries: Annotated[tuple[CaseHistoryEntry, ...], Field(max_length=1000)]
+    complete_from_version: Version
 
 
 class RiskInput(EnterpriseModel):
@@ -210,7 +235,13 @@ class SimulationInput(EnterpriseModel):
 class AgentComparison(EnterpriseModel):
     agent_id: TeamId
     status: Literal["COMPARED", "UNKNOWN", "INELIGIBLE"]
-    reason: Literal["FINITE_EXPECTED_PLAN", "BASELINE_UNKNOWN", "PLAN_MISMATCH", "DISABLED"]
+    reason: Literal[
+        "FINITE_EXPECTED_PLAN",
+        "BASELINE_UNKNOWN",
+        "PLAN_MISMATCH",
+        "DISABLED",
+        "CANDIDATE_BINDING_MISMATCH",
+    ]
 
 
 class FleetSimulation(EnterpriseModel):

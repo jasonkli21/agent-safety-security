@@ -22,6 +22,8 @@ def atomic_private_write(path: Path, data: bytes) -> None:
     if len(data) > 1_048_576:
         raise TeamError("TOO_LARGE")
     temporary: str | None = None
+    published = False
+    uncertain = False
     try:
         # Reject unsafe parent, existing file and symlink (including dangling).
         check_private_parent(path)
@@ -31,13 +33,31 @@ def atomic_private_write(path: Path, data: bytes) -> None:
             stream.flush()
             os.fsync(stream.fileno())
         os.link(temporary, path)  # atomic exclusive publication, never replace
+        published = True
         directory = os.open(path.parent, os.O_RDONLY)
         try:
             os.fsync(directory)
         finally:
             os.close(directory)
     except (OSError, ValueError):
-        raise TeamError("STORE_UNAVAILABLE") from None
+        if published and temporary is not None:
+            try:
+                source = os.stat(temporary, follow_symlinks=False)
+                destination = os.stat(path, follow_symlinks=False)
+                if (source.st_dev, source.st_ino) == (destination.st_dev, destination.st_ino):
+                    os.unlink(path)
+                    directory = os.open(path.parent, os.O_RDONLY)
+                    try:
+                        os.fsync(directory)
+                    finally:
+                        os.close(directory)
+                else:
+                    uncertain = True
+            except FileNotFoundError:
+                pass
+            except OSError:
+                uncertain = True
+        raise TeamError("PUBLICATION_UNCERTAIN" if uncertain else "STORE_UNAVAILABLE") from None
     finally:
         if temporary is not None:
             Path(temporary).unlink(missing_ok=True)

@@ -15,7 +15,7 @@ from agentsec.enterprise.models import (
     SignedExport,
     TrustConfig,
 )
-from agentsec.enterprise.signatures import sign, verify
+from agentsec.enterprise.signatures import sign, verify, verify_archival_export
 
 
 def file_digest(data: bytes) -> str:
@@ -54,11 +54,21 @@ def write_export(path: Path, manifest_path: Path, data: bytes, manifest: SignedE
     atomic_private_write(manifest_path, (canonical_json(manifest) + "\n").encode())
 
 
-def verify_export(data: bytes, manifest: SignedExport, trust: TrustConfig, now: datetime) -> None:
+def verify_export(
+    data: bytes,
+    manifest: SignedExport,
+    trust: TrustConfig,
+    now: datetime,
+    *,
+    archival: bool = False,
+) -> None:
     manifest = validate_data(
         SignedExport, parse_document(manifest.model_dump_json(), format="json")
     )
-    verify(manifest.payload, manifest.signature, trust, now)
+    if archival:
+        verify_archival_export(manifest.payload, manifest.signature, trust, now)
+    else:
+        verify(manifest.payload, manifest.signature, trust, now)
     payload = manifest.payload
     if (
         len(data) != payload.byte_length
