@@ -181,6 +181,8 @@ class RuntimeGateway:
         self.budgets = budgets or BudgetLedger(Budgets(**self._plan.budgets.model_dump()))
         self.approvals = ApprovalLedger(events.clock)
         self._closed = False
+        self._active_calls = 0
+        self._finished = False
         self.provenance = ProvenanceEngine(events.clock)
         if mode == EnforcementMode.ENFORCE and coverage_gaps(self._plan):
             raise RuntimeFailure("UNSUPPORTED_POLICY_SEMANTICS")
@@ -259,10 +261,18 @@ class RuntimeGateway:
         return snapshot, assessment
 
     def finish(self) -> None:
+        """Fence admission immediately; terminal evidence waits for admitted calls to settle."""
+        if self._closed:
+            return
         self._closed = True
         if self.__graph_guard is not None:
             self.__graph_guard.close()
-        self.events.emit(RunFinishedPayload(kind=EventType.RUN_FINISHED))
+        self._finish_if_idle()
+
+    def _finish_if_idle(self) -> None:
+        if self._closed and not self._active_calls and not self._finished:
+            self._finished = True
+            self.events.emit(RunFinishedPayload(kind=EventType.RUN_FINISHED))
 
     async def call(
         self,
@@ -282,6 +292,42 @@ class RuntimeGateway:
     ) -> ToolResponse:
         if self._closed:
             raise RuntimeFailure("SESSION_CLOSED")
+        self._active_calls += 1
+        try:
+            return await self._call(
+                tool,
+                arguments,
+                resource,
+                dispatch,
+                bound=bound,
+                execution_binding=execution_binding,
+                approval_display_paths=approval_display_paths,
+                approval_display_resource=approval_display_resource,
+                resource_coverage_gap=resource_coverage_gap,
+                data_coverage_gap=data_coverage_gap,
+                data_destination=data_destination,
+                output_data_labels=output_data_labels,
+            )
+        finally:
+            self._active_calls -= 1
+            self._finish_if_idle()
+
+    async def _call(
+        self,
+        tool: ToolDescriptor,
+        arguments: dict[str, JsonValue],
+        resource: str | None,
+        dispatch: Callable[[dict[str, JsonValue]], Awaitable[ToolResponse]],
+        *,
+        bound: bool,
+        execution_binding: ExecutionBinding | None = None,
+        approval_display_paths: tuple[tuple[str, ...], ...] = (),
+        approval_display_resource: bool = False,
+        resource_coverage_gap: bool = False,
+        data_coverage_gap: bool = False,
+        data_destination: str | None = None,
+        output_data_labels: frozenset[DataLabel] | None = None,
+    ) -> ToolResponse:
         graph_binding = (
             self.__graph_guard.snapshot(self.events.clock()) if self.__graph_guard else None
         )
@@ -432,6 +478,20 @@ class RuntimeGateway:
                     or decision.effective_policy_hash != self._plan.effective_policy_hash
                 ):
                     raise RuntimeFailure("INVALID_POLICY_DECISION")
+                # Alternate backends may restrict, never widen the compiled native ceiling.
+                ceiling = (
+                    self.__graph_guard.decide(request, self.events.clock())
+                    if self.__graph_guard
+                    else NativePolicyEngine(self.events.clock).decide(request, self._plan)
+                )
+                rank = {
+                    PolicyOutcome.ALLOW: 0,
+                    PolicyOutcome.REQUIRE_APPROVAL: 1,
+                    PolicyOutcome.DENY: 2,
+                    PolicyOutcome.ERROR: 3,
+                }
+                if rank[ceiling.outcome] > rank[decision.outcome]:
+                    decision = ceiling
                 if not bound:
                     decision = decision.model_copy(
                         update={
@@ -521,6 +581,8 @@ class RuntimeGateway:
                         ),
                         timeout=approval_timeout,
                     )
+                    if self._closed:
+                        raise RuntimeFailure("SESSION_CLOSED")
                     self.approvals.record(result)
                 except RuntimeFailure:
                     raise
@@ -560,6 +622,8 @@ class RuntimeGateway:
                     self.signal(SecurityCategory.SUPPLY_CHAIN_CHANGE, exc.code)
                     if enforce:
                         raise
+            if self._closed:
+                raise RuntimeFailure("SESSION_CLOSED")
             dispatch_id = str(uuid4())
             # No await between final expiry/budget checks, evidence and dispatcher entry.
             self.budgets.commit(token, enforce=enforce)
@@ -589,6 +653,24 @@ class RuntimeGateway:
                     final = self.__trust_guard.final(candidate, trust_snapshot, self.events.clock())
                     if enforce and not final.admitted:
                         raise RuntimeFailure("TRUST_ADMISSION_REJECTED")
+                if self._closed:
+                    raise RuntimeFailure("SESSION_CLOSED")
+                if enforce and self.__graph_guard is None:
+                    failure = authority_failure(
+                        self._authority,
+                        plan.principal,
+                        plan.acts_on_behalf_of,
+                        plan.task_scope,
+                        self.events.clock(),
+                        capability=capability,
+                        resource=resource,
+                    )
+                    if failure:
+                        raise RuntimeFailure(failure.value)
+                if approval is not None and (
+                    approval.expires_at is None or self.events.clock() >= approval.expires_at
+                ):
+                    raise RuntimeFailure("APPROVAL_EXPIRED")
                 self.budgets.validate_commit(token, enforce=enforce)
                 if self.__graph_guard is not None and graph_binding is not None:
                     self.__graph_guard.final(
@@ -596,6 +678,17 @@ class RuntimeGateway:
                     )
             except BaseException:
                 self.budgets.refund(token)
+                # Existing TOOL_DISPATCHED is a durable admission intent. Explicitly
+                # compensate it when a reentrant/slow evidence sink prevents entry.
+                self.events.emit(
+                    SecuritySignalPayload(
+                        kind=EventType.SECURITY_SIGNAL,
+                        category=SecurityCategory.TRACE_INTEGRITY_FAILURE,
+                        severity=Severity.HIGH,
+                        artifact_refs=frozenset({dispatch_id}),
+                        redacted_summary="DISPATCH_ABORTED_BEFORE_ENTRY",
+                    )
+                )
                 raise
             self.budgets.forget(token)
             token = None

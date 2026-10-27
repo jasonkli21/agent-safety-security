@@ -32,3 +32,7 @@ changes, verification, deviations, remaining limitations, and next-phase readine
   independent review pending; inherited Phase 7–10 gates remain open.
 - [Phase 11 independent review fixes](phase-11-independent-review-fixes-report.md) — F11-01–06
   corrections and fresh independent re-review gate.
+
+- [v0.1 foundation-readiness stabilization](v0.1-foundation-readiness-report.md) — runtime ceiling,
+  closure, dispatch compensation, audit capacity and bounded MCP identity fixes; Linux TLS and
+  independent acceptance remain explicit release gates.

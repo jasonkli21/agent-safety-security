@@ -9,6 +9,7 @@ from agentsec.domain.events import (
     GraphEventPayload,
     PolicyEvaluatedPayload,
     RunStartedPayload,
+    SecuritySignalPayload,
     ToolDispatchedPayload,
     ToolRequestedPayload,
     ToolReturnedPayload,
@@ -51,6 +52,8 @@ def validate_evaluation_trajectory(observation: EvaluationObservation) -> None:
     redeemed: set[str] = set()
     start: RunStartedPayload | None = None
     terminal = False
+    aborted: set[str] = set()
+    effects: set[str] = set()
     provenance_complete = observation.coverage.event_stream_complete
     for index, event in enumerate(events):
         require(event.run_id == observation.run_id and event.trace_id == observation.trace_id)
@@ -130,9 +133,25 @@ def validate_evaluation_trajectory(observation: EvaluationObservation) -> None:
                 require(a.expires_at is None or event.occurred_at < a.expires_at)
                 redeemed.add(p.approval_id)
             dispatches[p.dispatch_id] = p
+        elif (
+            isinstance(p, SecuritySignalPayload)
+            and p.redacted_summary == "DISPATCH_ABORTED_BEFORE_ENTRY"
+        ):
+            require(len(p.artifact_refs) == 1)
+            dispatch_id = next(iter(p.artifact_refs))
+            require(
+                dispatch_id in dispatches
+                and dispatch_id not in returns
+                and dispatch_id not in aborted
+                and dispatch_id not in effects
+            )
+            aborted.add(dispatch_id)
         elif isinstance(p, (ToolReturnedPayload, EffectVerifiedPayload)):
+            require(p.dispatch_id not in aborted)
             require(p.dispatch_id in dispatches)
             dispatch = dispatches[p.dispatch_id]
+            if isinstance(p, EffectVerifiedPayload):
+                effects.add(p.dispatch_id)
             require(p.request_id == dispatch.request_id)
             if isinstance(p, ToolReturnedPayload):
                 require(p.tool_id == dispatch.tool_id and p.dispatch_id not in returns)

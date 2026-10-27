@@ -125,7 +125,7 @@ class ScopedStore:
         # Bound all audit scans globally; once full, fail closed instead of allowing
         # unbounded exporter work under the single-instance writer lock.
         full = self.connection.execute(
-            "SELECT 1 FROM audit ORDER BY seq LIMIT 1 OFFSET ?", (MAX_AUDIT_ROWS,)
+            "SELECT 1 FROM audit ORDER BY seq LIMIT 1 OFFSET ?", (MAX_AUDIT_ROWS - 1,)
         ).fetchone()
         if full is not None:
             raise TeamError("AUDIT_CAPACITY")

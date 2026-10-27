@@ -1296,6 +1296,26 @@ def test_strict_mcp_approval_generation_race_has_no_upstream_effect():
 def test_strict_trust_cli_stdio_static_reviewed_example(tmp_path):
     async def scenario():
         evidence = tmp_path / "trust-evidence.jsonl"
+        config = load_artifact(ROOT / "examples/mcp/gateway.yaml", McpGatewayConfig)
+        config = config.model_dump(mode="json")
+        config["upstream"]["command"] = sys.executable
+        config_path = tmp_path / "gateway.yaml"
+        import yaml
+
+        config_path.write_text(yaml.safe_dump(config))
+        from agentsec.supply_chain.registration import inspect_mcp
+
+        # Review the committed expected tool listing against this interpreter route;
+        # never pin the live upstream's unreviewed discovery automatically.
+        listing = types.ListToolsResult.model_validate_json(
+            (ROOT / "examples/trust/mcp-tools.json").read_text()
+        )
+        lock_path = tmp_path / "reviewed-lock.json"
+        lock_path.write_text(
+            trust_lock(
+                inspect_mcp(validate_data(McpGatewayConfig, config), listing)
+            ).model_dump_json()
+        )
         params = StdioServerParameters(
             command=sys.executable,
             args=[
@@ -1306,9 +1326,9 @@ def test_strict_trust_cli_stdio_static_reviewed_example(tmp_path):
                 "--contract",
                 str(ROOT / "examples/mcp/contract.yaml"),
                 "--config",
-                str(ROOT / "examples/mcp/gateway.yaml"),
+                str(config_path),
                 "--trust-lock",
-                str(ROOT / "examples/trust/mcp-lock.json"),
+                str(lock_path),
                 "--evidence-out",
                 str(evidence),
             ],
@@ -1421,3 +1441,28 @@ def test_trust_discovery_bounds_cumulative_tool_count():
         assert oversized.calls == 2
 
     asyncio.run(operation())
+
+
+def test_unknown_tool_flood_exhausts_bounded_identity_session(monkeypatch):
+    from agentsec.adapters.mcp.server import McpRequestIdentityGuard
+
+    monkeypatch.setattr(McpRequestIdentityGuard, "MAX_IDENTITIES", 2)
+
+    async def scenario():
+        attempts = []
+        sink = InMemoryEventSink()
+        runtime = RuntimeGateway(
+            contract(), EnforcementMode.ENFORCE, RuntimeEvents(sink, lambda: NOW), Broker()
+        )
+        async with Client(synthetic(attempts), mode="legacy") as upstream:
+            server, _ = await create_server(upstream, configuration(), runtime)
+            async with Client(server, mode="legacy") as host:
+                for _ in range(2):
+                    result = await host.call_tool("unknown", {})
+                    assert result.is_error and result.content[0].text == "UNKNOWN_TOOL"
+                result = await host.call_tool("search", {"query": "safe"})
+                assert result.is_error and result.content[0].text == "REQUEST_ID_CAPACITY"
+                assert not attempts
+        runtime.finish()
+
+    asyncio.run(scenario())

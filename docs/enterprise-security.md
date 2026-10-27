@@ -143,3 +143,9 @@ Unsupported: remote federation/autosync, activation, hosted SaaS, public ingress
 analytics, runtime/TPM attestation, source secret scanning, semantic forecasts, distributed quotas,
 automated remediation and Phase 12 recommendations. Privileged host/operator and compromised keys
 remain trusted risks. Independent review is required before any release acceptance.
+
+
+Foundation-readiness correction: the audit append guard checks the existing 10,000th row before
+appending, allowing exactly 10,000 total rows. A further append raises AUDIT_CAPACITY inside the
+governance transaction, rolling back its mutation. The ceiling remains global across tenants;
+one tenant can exhaust shared availability. No SQLite schema/cursor change or automatic purge.

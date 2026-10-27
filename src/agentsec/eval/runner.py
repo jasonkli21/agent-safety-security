@@ -13,6 +13,7 @@ from agentsec.eval.models import EvaluationMetrics, EvaluationResult, aggregate
 from agentsec.eval.models import EvaluationStatus as Status
 from agentsec.eval.ports import AgentTarget, EvaluationContext
 from agentsec.eval.trajectory import EvaluationError, require, validate_evaluation_trajectory
+from agentsec.evidence.dispatch import dispatch_admissions
 from agentsec.evidence.jsonl import EvidenceError, JsonlEventSink
 
 
@@ -77,7 +78,7 @@ def evaluate(
         counts = {kind: sum(e.event_type == kind for e in observation.events) for kind in EventType}
         metrics = EvaluationMetrics(
             tool_requests=counts[EventType.TOOL_REQUESTED],
-            tool_dispatches=counts[EventType.TOOL_DISPATCHED],
+            tool_dispatches=len(dispatch_admissions(observation.events)),
             tool_returns=counts[EventType.TOOL_RETURNED],
             approval_requests=counts[EventType.APPROVAL_REQUESTED],
             approval_decisions=counts[EventType.APPROVAL_DECIDED],

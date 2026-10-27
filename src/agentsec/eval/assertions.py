@@ -28,6 +28,7 @@ from agentsec.domain.taxonomy import EventType, PolicyOutcome
 from agentsec.eval.models import AssertionResult
 from agentsec.eval.models import EvaluationStatus as Status
 from agentsec.eval.observations import EvaluationObservation, TextSurface
+from agentsec.evidence.dispatch import dispatch_admissions
 
 
 def evaluate_assertion(
@@ -51,7 +52,7 @@ def evaluate_assertion(
     if isinstance(assertion, (ToolCalled, ToolNotCalled, ExpectedToolCalled, MaxToolCalls)):
         selected = tuple(
             e
-            for e in observation.events
+            for e in dispatch_admissions(observation.events)
             if isinstance(e.payload, ToolDispatchedPayload)
             and (isinstance(assertion, MaxToolCalls) or e.payload.tool_id == assertion.tool_id)
         )

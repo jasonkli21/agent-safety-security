@@ -1939,3 +1939,12 @@ Tenant audit projections produce bounded offline SIEM pages; signatures bind exa
 while reporter claims retain REPORTED_UNVERIFIED assurance. Private signing keys never enter
 SQLite/HTTP. See [enterprise security](enterprise-security.md). This is a single-node loopback/offline
 reference, not public hosting, runtime attestation, remote authority, HA or a commercial SLA.
+
+
+## Foundation-readiness dispatch and lifecycle clarification
+
+Native compiled policy remains the restrictive ceiling for alternate runtime backends. Session
+closure fences admission/dispatcher entry immediately and defers terminal evidence until admitted
+calls settle. Critical TOOL_DISPATCHED evidence is pre-entry admission intent; post-evidence
+freshness failures emit a linked pre-entry abort and refund only unentered attempts. Historical
+admission alone does not prove entry/effect. See [evidence semantics](evidence-model.md#dispatch-admission-and-pre-entry-abort).

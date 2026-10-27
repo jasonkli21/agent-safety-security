@@ -35,11 +35,14 @@ from agentsec.domain.taxonomy import EnforcementMode, EventType
 from agentsec.domain.tools import ToolDescriptor
 from agentsec.eval.observations import EvaluationObservation, ObservationCoverage
 from agentsec.eval.trajectory import EvaluationError, validate_evaluation_trajectory
+from agentsec.evidence.dispatch import aborted_dispatch_ids
 from agentsec.evidence.jsonl import read_jsonl
 
 
 def validate_program(program: ReplayProgram) -> bool:
     events = program.events
+    if aborted_dispatch_ids(events):
+        raise ReplayError("PREENTRY_ABORT_REPLAY_UNSUPPORTED")
     if not events or not isinstance(events[0].payload, RunStartedPayload):
         raise ReplayError("MISSING_RUN_START")
     if len({(e.run_id, e.trace_id) for e in events}) != 1:

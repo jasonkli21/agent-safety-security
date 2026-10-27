@@ -236,3 +236,26 @@ they do not authenticate peers or approve delegation. See [local multi-agent sec
 for ownership, evidence-before-import, finality, source replay blockers, DRAFT graph promotion,
 unsupported modes and exact limitations. Earlier one-hop/future-graph statements describe their
 original phase boundary. Independent Phase 7–8 acceptance remains unconfirmed.
+
+## Foundation-readiness corrections
+
+Runtime alternate policy backends are restrictive advisers: the native compiled decision is
+always the authority ceiling, including DENY/ERROR, data rules and required approval. Operator
+Python wiring (mode, collaborators and filesystem policy) remains trusted; this is not an
+in-process sandbox against code able to replace gateway objects.
+
+`finish()` immediately fences new calls and later dispatcher entry, including calls awaiting
+approval. It is idempotent. RUN_FINISHED is deferred until all admitted calls settle (approval
+waits retain their configured timeout); already entered dispatches drain and may have effects.
+Cancellation belongs to the caller and cannot undo an external effect. A failed required sink
+poisons the recorder; it cannot promise durable terminal evidence. Use one event-loop owner.
+
+MCP tools/call identities are retained without eviction for the session: at most 10,000 unique
+IDs, strings of at most 256 UTF-8 bytes, and integers of at most 256 bits. Integer/string IDs
+remain distinct. Concurrent and sequential reuse is rejected intentionally, a stricter local
+contract than generic JSON-RPC correlation. Oversized/invalid IDs fail before retention; once a
+new identity exceeds capacity, all subsequent calls fail REQUEST_ID_CAPACITY and require a new
+operator-created session. Unknown tools consume identity slots. This bounds identity bookkeeping,
+not transport decoding, evidence storage or end-to-end effect idempotency. No automatic retry.
+
+See [dispatch admission and abort semantics](evidence-model.md#dispatch-admission-and-pre-entry-abort).

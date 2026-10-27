@@ -15,6 +15,7 @@ from agentsec.domain.events import (
 from agentsec.domain.replay import ReplayResult
 from agentsec.domain.taxonomy import EventType, PolicyOutcome
 from agentsec.eval.models import EvaluationResult, EvaluationStatus, aggregate
+from agentsec.evidence.dispatch import dispatch_admissions
 
 
 def project_events(
@@ -58,7 +59,7 @@ def project_events(
             ),
             approval_requested=counts[EventType.APPROVAL_REQUESTED],
             approval_decided=counts[EventType.APPROVAL_DECIDED],
-            dispatched=counts[EventType.TOOL_DISPATCHED],
+            dispatched=len(dispatch_admissions(events)),
             returned=counts[EventType.TOOL_RETURNED],
             effect_verified=sum(
                 isinstance(e.payload, EffectVerifiedPayload) and e.payload.verified for e in events

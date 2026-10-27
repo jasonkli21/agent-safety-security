@@ -205,3 +205,11 @@ they do not authenticate peers or approve delegation. See [local multi-agent sec
 for ownership, evidence-before-import, finality, source replay blockers, DRAFT graph promotion,
 unsupported modes and exact limitations. Earlier one-hop/future-graph statements describe their
 original phase boundary. Independent Phase 7–8 acceptance remains unconfirmed.
+
+
+Platform validation gate: protected-only HTTPS tests pass on macOS/Python 3.12/OpenSSL 3.5 in the
+foundation-readiness correction session. The earlier Linux audit reported ambient CA preloading
+in both context constructors. No weaker ambient-store fallback is authorized; such a platform
+continues to fail HTTP_TLS_AMBIENT_CA_STORE. Ubuntu and macOS CI now run the same unsuppressed
+TLS tests and log Python/OpenSSL versions. A fresh Linux result is required before release; a
+macOS pass alone does not close that gate.

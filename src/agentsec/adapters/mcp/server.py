@@ -27,17 +27,34 @@ def safe_error(code: str) -> types.CallToolResult:
 class McpRequestIdentityGuard:
     """Reject a second tools/call using the same JSON-RPC identity in one session."""
 
+    MAX_IDENTITIES = 10_000
+    MAX_ID_BYTES = 256
+
     def __init__(self) -> None:
+        self._exhausted = False
         self._seen: set[tuple[str, str]] = set()
         self._lock = asyncio.Lock()
 
     async def claim(self, request_id: str | int | None) -> bool:
-        if request_id is None:
-            return False
+        if type(request_id) not in {str, int}:
+            raise RuntimeFailure("INVALID_REQUEST_ID")
+        # Bound integer conversion and UTF-8 allocation before retaining any identity.
+        if isinstance(request_id, int) and request_id.bit_length() > 256:
+            raise RuntimeFailure("REQUEST_ID_SIZE_LIMIT")
+        if isinstance(request_id, str) and (
+            len(request_id) > self.MAX_ID_BYTES
+            or len(request_id.encode("utf-8", errors="surrogatepass")) > self.MAX_ID_BYTES
+        ):
+            raise RuntimeFailure("REQUEST_ID_SIZE_LIMIT")
         identity = (type(request_id).__name__, str(request_id))
         async with self._lock:
+            if self._exhausted:
+                raise RuntimeFailure("REQUEST_ID_CAPACITY")
             if identity in self._seen:
                 return False
+            if len(self._seen) >= self.MAX_IDENTITIES:
+                self._exhausted = True
+                raise RuntimeFailure("REQUEST_ID_CAPACITY")
             self._seen.add(identity)
             return True
 
@@ -112,9 +129,12 @@ async def create_server(
     async def call_tool(
         context: ServerRequestContext[None], params: types.CallToolRequestParams
     ) -> types.CallToolResult:
-        if context.request_id is not None and not await request_ids.claim(context.request_id):
-            runtime.signal(SecurityCategory.TRACE_INTEGRITY_FAILURE, "DUPLICATE_REQUEST_ID")
-            return safe_error("DUPLICATE_REQUEST_ID")
+        try:
+            if not await request_ids.claim(context.request_id):
+                raise RuntimeFailure("DUPLICATE_REQUEST_ID")
+        except RuntimeFailure as exc:
+            runtime.signal(SecurityCategory.TRACE_INTEGRITY_FAILURE, exc.code)
+            return safe_error(exc.code)
         entry = registry.get(params.name)
         if entry is None:
             runtime.signal(SecurityCategory.UNAUTHORIZED_TOOL_USE, "UNKNOWN_TOOL")

@@ -14,7 +14,7 @@ envelope type. Both Python validation and exported JSON Schema reject mismatches
 | POLICY_EVALUATED | PolicyDecision including outcome, reason codes and policy identity; not dispatch. |
 | APPROVAL_REQUESTED | ApprovalRequest with request ID, action digest and expiry; no approval granted. |
 | APPROVAL_DECIDED | ApprovalDecision with approver, outcome and one-shot scope; does not prove authentication or execution. |
-| TOOL_DISPATCHED | Unique dispatch attempt ID, request/tool/action digest, decision ID and optional approval ID; records dispatch, not successful return. |
+| TOOL_DISPATCHED | Unique dispatch attempt ID, request/tool/action digest, decision ID and optional approval ID; records durable pre-entry admission, not dispatcher entry or successful return. |
 | TOOL_RETURNED | Dispatch attempt ID, request/tool IDs, success boolean, optional response hash and artifact references; a success response alone does not prove an external effect. |
 | DATA_EXPOSED | Dispatch/request/tool IDs plus a content-free artifact committed to guarded context release; distinct from returned data and not proof of model ingestion or transport delivery. |
 | EFFECT_VERIFIED | Dispatch attempt ID, request, verifier principal, verified boolean and nonempty observation artifact IDs; records a verifier's claim, not independent proof of its honesty. |
@@ -22,8 +22,8 @@ envelope type. Both Python validation and exported JSON Schema reject mismatches
 | RUN_TERMINATED | Stable reason code; termination can be abnormal or budget-related. |
 | RUN_FINISHED | Output artifact IDs; completion alone says nothing about security or utility. |
 
-Each dispatch, return, and verified effect carries a `dispatch_id` that identifies one concrete
-execution attempt. Retries may share a `request_id` while using distinct dispatch IDs. These events
+Each dispatch, return, and verified effect carries a `dispatch_id` that identifies one admitted
+execution attempt whose entry may remain unknown. Retries may share a `request_id` while using distinct dispatch IDs. These events
 support `requested → denied` and `requested → approval → dispatched → returned` without confusing
 the stages. See the tested [approval run](../tests/fixtures/events/approval-run.json)
 and [denied run](../tests/fixtures/events/denied-run.json). An effect observation can follow a
@@ -157,3 +157,29 @@ separate wrappers may share a sink. Graph replay checks lifecycle transitions, m
 liveness and temporal causality before describing source semantics. Earlier one-hop/future-graph
 statements describe their original phase boundary. Independent Phase 7–8 acceptance remains
 unconfirmed.
+
+## Dispatch admission and pre-entry abort
+
+Runtime TOOL_DISPATCHED has always been written **before** final callback-sensitive checks and
+underlying dispatcher entry. Interpret it conservatively as a durable dispatch admission/intent,
+not proof that the underlying tool executed. This clarification applies to historical 0.1 data;
+there is no new event schema or silent claim that older events prove entry. A return confirms a
+response; EFFECT_VERIFIED remains a separate verifier claim. Crash, cancellation or evidence
+failure can leave an intent without any later fact; entry/effect is then unknown.
+
+When final checks fail after admission evidence, the gateway refunds the exact pre-entry budget
+receipt and emits SECURITY_SIGNAL with TRACE_INTEGRITY_FAILURE, redacted_summary
+`DISPATCH_ABORTED_BEFORE_ENTRY`, and exactly one artifact_refs entry containing the dispatch ID
+(a content-free causal reference). There is no return/exposure/effect for that ID. Trajectory
+validation rejects orphan/duplicate aborts and any return/effect after an abort. Evidence failure
+can prevent the abort from persisting; an isolated admission must remain uncertain.
+
+Evaluation call assertions, max-call findings/counters, route comparison and team metadata exclude
+known aborted admissions. Remaining counts mean admissions with no recorded abort, never verified
+effects. Positive synthetic ToolCalled assertions retain their historical admission interpretation;
+they do not certify real execution. Offline bundle validation/promotion rejects compensated traces
+with `PREENTRY_ABORT_REPLAY_UNSUPPORTED`; graph replay reports the same blocker. Modeling historical
+budget compensation is deferred instead of silently simulating an aborted dispatch. Original events
+remain retained for incident investigation and trace diff. Older consumers lacking this interpretation
+must not evaluate compensated traces as execution proof. Uncompensated historical bundles remain
+compatible; generated schemas are unchanged.

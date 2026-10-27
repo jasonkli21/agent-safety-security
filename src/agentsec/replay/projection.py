@@ -21,6 +21,7 @@ from agentsec.domain.replay import (
 )
 from agentsec.domain.serialization import canonical_json, content_digest, normalize
 from agentsec.eval.models import AssertionResult
+from agentsec.evidence.dispatch import dispatch_admissions
 
 # IDs are normalized by namespace, preserving cross-event links and sequence ordering.
 ID_FIELDS = {
@@ -106,7 +107,9 @@ def compare_execution_routes(
 ) -> RouteComparison:
     """Compare recorded route identities to protected candidate metadata, without execution."""
     dispatches = [
-        event.payload for event in events if isinstance(event.payload, ToolDispatchedPayload)
+        event.payload
+        for event in dispatch_admissions(events)
+        if isinstance(event.payload, ToolDispatchedPayload)
     ]
     if candidate is None or not dispatches:
         return RouteComparison(status="UNKNOWN")

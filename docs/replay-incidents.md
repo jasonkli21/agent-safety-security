@@ -27,6 +27,12 @@ agentsec regression validate --root examples/regressions
 agentsec regression run --root examples/regressions
 ```
 
+The historical source replay above exits 0. Comparing this legacy fixture to the current Phase 6
+contract exits **3 / MISSING_AUTHORITY_CONTEXT**; the promotion command writes a **DRAFT** case.
+This walkthrough does not establish an ACTIVE candidate regression without recorded protected
+authority. Current runtime records with complete authority and reviewed safe assertions support
+the full ACTIVE lifecycle; do not fabricate authority to repair a historical fixture.
+
 Every Phase 5 command emits deterministic JSON. Output files must not exist; parent directories
 must exist. This protects inputs and prior outputs, including symlink/hardlink collisions.
 Use a new output name for repeated commands. Successful replay exits 0 even for semantic drift;
@@ -223,3 +229,9 @@ cross-run message times are consistency checks on one local session clock, not a
 cross-host ordering. Contradictions make source replay INCOMPLETE and cannot produce an ACTIVE
 graph regression. Earlier one-hop/future-graph statements describe their original phase boundary.
 Independent Phase 7–8 acceptance remains unconfirmed.
+
+
+Compensated pre-entry dispatch admissions are deliberately rejected with
+`PREENTRY_ABORT_REPLAY_UNSUPPORTED` by bundle validation and promotion. Graph replay reports that
+blocker. This preserves historical 0.1 decoding while avoiding false simulated calls or budget
+charges. See [dispatch evidence](evidence-model.md#dispatch-admission-and-pre-entry-abort).
